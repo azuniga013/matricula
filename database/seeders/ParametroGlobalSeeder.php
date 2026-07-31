@@ -1,0 +1,43 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\ParametroGlobal;
+use Illuminate\Database\Seeder;
+
+class ParametroGlobalSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $parametros = [
+            // Datos de la empresa
+            ['grupo' => '01', 'codigo' => 'EMPRESA_NOMBRE', 'nombre' => 'Nombre de la institución', 'valor' => 'Cursos San Vicente de Paúl', 'tipo' => 'texto', 'descripcion' => 'Nombre oficial que aparece en encabezados de PDF y Excel'],
+            ['grupo' => '01', 'codigo' => 'EMPRESA_DIRECCION', 'nombre' => 'Dirección', 'valor' => 'Col. Las Acacias, San Pedro Sula, Honduras', 'tipo' => 'texto', 'descripcion' => 'Dirección física de la institución'],
+            ['grupo' => '01', 'codigo' => 'EMPRESA_TELEFONO', 'nombre' => 'Teléfono', 'valor' => '+504 2550-1234', 'tipo' => 'texto', 'descripcion' => 'Teléfono de contacto'],
+            ['grupo' => '01', 'codigo' => 'EMPRESA_CORREO', 'nombre' => 'Correo electrónico', 'valor' => 'info@cursossanvicente.edu', 'tipo' => 'texto', 'descripcion' => 'Correo de contacto institucional'],
+
+            // Formatos
+            ['grupo' => '01', 'codigo' => 'FORMATO_FECHA', 'nombre' => 'Formato de fecha', 'valor' => 'd/m/Y', 'tipo' => 'seleccion', 'opciones' => ['d/m/Y', 'Y-m-d', 'm/d/Y', 'd-m-Y'], 'descripcion' => 'Formato de fecha para reportes y pantallas'],
+            ['grupo' => '01', 'codigo' => 'FORMATO_FECHA_HORA', 'nombre' => 'Formato fecha y hora', 'valor' => 'd/m/Y H:i', 'tipo' => 'seleccion', 'opciones' => ['d/m/Y H:i', 'Y-m-d H:i', 'd-m-Y H:i:s'], 'descripcion' => 'Formato de fecha y hora'],
+
+            // Moneda
+            ['grupo' => '01', 'codigo' => 'MONEDA_SIMBOLO', 'nombre' => 'Símbolo de moneda', 'valor' => 'L', 'tipo' => 'texto', 'descripcion' => 'Símbolo que precede a los montos'],
+            ['grupo' => '01', 'codigo' => 'MONEDA_CODIGO', 'nombre' => 'Código de moneda', 'valor' => 'HNL', 'tipo' => 'texto', 'descripcion' => 'Código ISO de la moneda'],
+            ['grupo' => '01', 'codigo' => 'MONEDA_DECIMALES', 'nombre' => 'Decimales de moneda', 'valor' => '2', 'tipo' => 'numero', 'descripcion' => 'Cantidad de decimales en montos'],
+
+            // CSV
+            ['grupo' => '01', 'codigo' => 'CSV_SEPARADOR', 'nombre' => 'Separador CSV', 'valor' => ',', 'tipo' => 'seleccion', 'opciones' => [',', ';', '\t', '|'], 'descripcion' => 'Separador de campos para exportación CSV'],
+            ['grupo' => '01', 'codigo' => 'CSV_DELIMITADOR', 'nombre' => 'Delimitador de texto CSV', 'valor' => '"', 'tipo' => 'texto', 'descripcion' => 'Carácter que delimita texto en CSV'],
+
+            // Reportes
+            ['grupo' => '01', 'codigo' => 'REPORTE_PIE_PAGINA', 'nombre' => 'Pie de página de reportes', 'valor' => 'Documento generado por el sistema de Cursos San Vicente de Paúl', 'tipo' => 'texto', 'descripcion' => 'Texto que aparece al pie de los reportes PDF'],
+        ];
+
+        foreach ($parametros as $p) {
+            ParametroGlobal::firstOrCreate(
+                ['grupo' => $p['grupo'], 'codigo' => $p['codigo']],
+                $p
+            );
+        }
+    }
+}
