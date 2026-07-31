@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Database\Schema\Grammars\PostgresSinTransaccionesGrammar;
 use App\Services\Pagos\FabricaProcesadorPago;
 use App\Services\Pagos\PayPalProcesador;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,5 +25,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         FabricaProcesadorPago::registrar('PAYPAL', PayPalProcesador::class);
+
+        if ($this->app->runningInConsole() && config('database.default') === 'pgsql') {
+            $conexion = DB::connection();
+            $conexion->setSchemaGrammar(new PostgresSinTransaccionesGrammar($conexion));
+        }
     }
 }
