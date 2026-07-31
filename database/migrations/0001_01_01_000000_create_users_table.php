@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // El proveedor PostgreSQL de produccion aborta la transaccion DDL al crear el indice unico.
+    public bool $withinTransaction = false;
+
     /**
      * Run the migrations.
      */
