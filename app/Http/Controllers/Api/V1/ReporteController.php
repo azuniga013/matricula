@@ -16,9 +16,19 @@ class ReporteController extends Controller
 {
     private function expresionFecha(string $columna): string
     {
-        return DB::connection()->getDriverName() === 'sqlite'
-            ? "date($columna)"
-            : "($columna)::date";
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "date($columna)",
+            'mysql', 'mariadb' => "DATE($columna)",
+            default => "($columna)::date",
+        };
+    }
+
+    private function expresionNombreDocente(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "CONCAT_WS(' ', docentes.nombre, docentes.apellido) as docente_nombre",
+            default => "COALESCE(docentes.nombre, '') || ' ' || COALESCE(docentes.apellido, '') as docente_nombre",
+        };
     }
 
     public function exportar(Request $request): StreamedResponse|\Illuminate\Http\Response|JsonResponse
@@ -528,7 +538,7 @@ class ReporteController extends Controller
                 'horarios.codigo as horario_codigo',
                 'horarios.nombre as horario_nombre',
                 'docentes.codigo as docente_codigo',
-                DB::raw("COALESCE(docentes.nombre, '') || ' ' || COALESCE(docentes.apellido, '') as docente_nombre"),
+                DB::raw($this->expresionNombreDocente()),
                 'estudiantes.codigo as estudiante_codigo',
                 'estudiantes.nombre',
                 'estudiantes.apellido',
@@ -595,7 +605,7 @@ class ReporteController extends Controller
                 'horarios.codigo as horario_codigo',
                 'horarios.nombre as horario_nombre',
                 'docentes.codigo as docente_codigo',
-                DB::raw("COALESCE(docentes.nombre, '') || ' ' || COALESCE(docentes.apellido, '') as docente_nombre"),
+                DB::raw($this->expresionNombreDocente()),
                 'estudiantes.codigo as estudiante_codigo',
                 'estudiantes.nombre',
                 'estudiantes.apellido',
@@ -720,7 +730,7 @@ class ReporteController extends Controller
                 'horarios.codigo as horario_codigo',
                 'horarios.nombre as horario_nombre',
                 'docentes.codigo as docente_codigo',
-                DB::raw("COALESCE(docentes.nombre, '') || ' ' || COALESCE(docentes.apellido, '') as docente_nombre"),
+                DB::raw($this->expresionNombreDocente()),
                 'estudiantes.codigo as estudiante_codigo',
                 'estudiantes.nombre',
                 'estudiantes.apellido',
@@ -958,7 +968,7 @@ class ReporteController extends Controller
                 'horarios.codigo as horario_codigo',
                 'horarios.nombre as horario_nombre',
                 'docentes.codigo as docente_codigo',
-                DB::raw("COALESCE(docentes.nombre, '') || ' ' || COALESCE(docentes.apellido, '') as docente_nombre"),
+                DB::raw($this->expresionNombreDocente()),
                 'estudiantes.codigo as estudiante_codigo',
                 'estudiantes.nombre',
                 'estudiantes.apellido',
