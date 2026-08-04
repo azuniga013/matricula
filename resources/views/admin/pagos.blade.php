@@ -129,7 +129,12 @@
                                     <td><span class="badge badge-info" x-text="p.concepto_pago?.codigo || '-' "></span> <span class="text-gray-500 text-xs" x-text="p.concepto_pago?.nombre || '-'"></span></td>
                                     <td class="font-semibold">L <span x-text="fmtMonto(p.monto)"></span></td>
                                     <td x-text="p.metodo_pago?.codigo ? (p.metodo_pago.codigo + ' · ' + p.metodo_pago.nombre) : (p.metodo_pago?.nombre || '-')"></td>
-                                    <td class="text-xs text-gray-500" x-text="p.referencia_externa || '-'"></td>
+                                    <td class="text-xs text-gray-500">
+                                        <span x-text="p.referencia_externa || '-'"></span>
+                                        <template x-if="p.alerta_duplicado">
+                                            <span class="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-semibold" :title="p.alerta_duplicado_mensaje">⚠ Duplicado</span>
+                                        </template>
+                                    </td>
                                     <td>
                                         <template x-if="p.comprobantes && p.comprobantes.length > 0">
                                             <button @click="verComprobante(p)" class="btn btn-ghost btn-sm text-brand-600">
@@ -667,6 +672,17 @@
                     <div><span class="text-gray-400">Fecha</span><p x-text="fmtFecha(detallePago?.fecha_proceso || detallePago?.fecha_aprobacion || detallePago?.creado_en)"></p></div>
                     <div><span class="text-gray-400">Hora</span><p x-text="fmtHora(detallePago?.fecha_proceso || detallePago?.fecha_aprobacion || detallePago?.creado_en)"></p></div>
                 </div>
+
+                <template x-if="detallePago?.alerta_duplicado">
+                    <div class="border border-red-200 bg-red-50 rounded-xl p-4 space-y-1">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007v.008H12v-.008Zm0-13.5L2.25 19.5h19.5L12 3Z" /></svg>
+                            <h4 class="text-sm font-bold text-red-800">Alerta: Referencia y fecha duplicadas</h4>
+                        </div>
+                        <p class="text-xs text-red-700" x-text="detallePago?.alerta_duplicado_mensaje || 'La referencia y fecha de pago coinciden con otro pago registrado por otro estudiante.'"></p>
+                        <p class="text-[11px] text-red-500">Detectada el <span x-text="fmtFecha(detallePago?.alerta_duplicado_en)"></span> a las <span x-text="fmtHora(detallePago?.alerta_duplicado_en)"></span>. Se notificó a contabilidad. Revise antes de aprobar.</p>
+                    </div>
+                </template>
 
                 <template x-if="detallePago?.estado === 'solicita_link' || detallePago?.link_pago_url || detallePago?.link_pago_estado || detallePago?.confirmado_por_estudiante_en">
                     <div class="border-t border-gray-100 pt-4 space-y-3">

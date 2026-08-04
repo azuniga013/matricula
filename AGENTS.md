@@ -396,8 +396,9 @@ Reglas:
 - Si el estudiante inicia matrícula, se puede reservar cupo temporal.
 - Si el pago se aprueba, el cupo pasa a matriculado.
 - Si el pago se rechaza, cancela o vence, el cupo se libera.
+- Si la Referencia de Pago y fecha  ambas estan  duplicada al registrar el  pago. 
+  Si esta duplicada enviar correo al los destinarios   antalma61@hotmail.com,  kcontreras1995@hotmail.com
 
----
 
 ### 4.9 Horarios
 

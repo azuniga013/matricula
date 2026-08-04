@@ -20,6 +20,7 @@ class Pago extends Model
         'codigo', 'estudiante_id', 'matricula_id', 'concepto_pago_id',
         'metodo_pago_id', 'proveedor_pago_id', 'transaccion_id', 'procesador_respuesta',
         'sucursal_id', 'sesion_caja_id', 'monto', 'fecha_proceso', 'estado', 'referencia_externa',
+        'alerta_duplicado', 'alerta_duplicado_mensaje', 'alerta_duplicado_en',
         'link_pago_url', 'link_pago_estado', 'link_generado_por', 'link_generado_en',
         'confirmado_por_estudiante_id', 'confirmado_por_estudiante_en',
         'observaciones', 'creado_por', 'aprobado_por', 'fecha_aprobacion',
@@ -36,6 +37,8 @@ class Pago extends Model
             'fecha_rechazo' => 'datetime',
             'link_generado_en' => 'datetime',
             'confirmado_por_estudiante_en' => 'datetime',
+            'alerta_duplicado' => 'boolean',
+            'alerta_duplicado_en' => 'datetime',
             'creado_en' => 'datetime',
             'actualizado_en' => 'datetime',
         ];

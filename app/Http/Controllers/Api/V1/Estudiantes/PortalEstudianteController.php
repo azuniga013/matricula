@@ -15,6 +15,7 @@ use App\Models\AplicacionPago;
 use App\Models\ConceptoPago;
 use App\Services\ServicioNomenclatura;
 use App\Services\ResolutorFlujoMatricula;
+use App\Services\DetectorPagoDuplicado;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -302,10 +303,21 @@ class PortalEstudianteController extends Controller
             'matricula_id' => 'required|exists:matriculas,id',
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
             'referencia' => 'nullable|string|max:100',
+            'fecha_pago' => 'nullable|date',
             'solicitar_link' => 'nullable|boolean',
             'obligacion_ids' => 'nullable|array',
             'obligacion_ids.*' => 'integer|exists:obligaciones_pago_estudiante,id',
         ]);
+
+        $validacion = $this->validarReferenciaFechaMetodo($datos, (int) $datos['metodo_pago_id']);
+        if (!$validacion['ok']) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_VALIDACION',
+                'mensaje' => $validacion['error'],
+            ], 422);
+        }
 
         $matricula = Matricula::where('estudiante_id', $estudiante->id)
             ->with('ofertaAcademica.planCobro.detalles.conceptoPago')
@@ -367,7 +379,10 @@ class PortalEstudianteController extends Controller
 
         $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', $primerConcepto->id, $metodo->id);
 
-        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $metodo, $configFlujo) {
+        $referenciaLimpia = $validacion['referencia'];
+        $fechaProcesoCarbon = $validacion['fecha_carbon'];
+
+        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $metodo, $configFlujo, $referenciaLimpia, $fechaProcesoCarbon) {
             $codigoPago = app(ServicioNomenclatura::class)->generarCodigo(
                 entidad: 'pagos_' . date('Y'),
                 formato: 'PAG-{ANIO}-{SECUENCIA:6}',
@@ -384,7 +399,8 @@ class PortalEstudianteController extends Controller
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $montoTotal,
                 'estado' => (!empty($datos['solicitar_link']) || $metodo->permite_link_pago || $metodo->codigo === 'LNK') ? 'solicita_link' : 'pendiente',
-                'referencia_externa' => $datos['referencia'] ?? null,
+                'referencia_externa' => $referenciaLimpia ?? ($datos['referencia'] ?? null),
+                'fecha_proceso' => $fechaProcesoCarbon,
                 'creado_en' => now(),
             ]);
 
@@ -404,6 +420,12 @@ class PortalEstudianteController extends Controller
             return $pago;
         });
 
+        $duplicado = app(DetectorPagoDuplicado::class)->aplicar(
+            $resultado,
+            $resultado->referencia_externa,
+            $resultado->fecha_proceso ? \Illuminate\Support\Carbon::instance($resultado->fecha_proceso) : null
+        );
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
@@ -416,6 +438,7 @@ class PortalEstudianteController extends Controller
                 'estado' => $resultado->estado,
                 'estado_pago' => $resultado->estado,
                 'estado_matricula' => $matricula->estado,
+                'alerta_duplicado' => (bool) $resultado->fresh()->alerta_duplicado,
             ],
         ], 201);
     }
@@ -428,6 +451,7 @@ class PortalEstudianteController extends Controller
             'pago_id' => 'required|exists:pagos,id',
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
             'referencia' => 'nullable|string|max:100',
+            'fecha_pago' => 'nullable|date',
             'comprobante' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
@@ -446,6 +470,17 @@ class PortalEstudianteController extends Controller
                 'resultado' => 'R',
                 'codigo' => 422,
                 'mensaje' => 'Este pago ya fue procesado',
+            ], 422);
+        }
+
+        $metodo = \App\Models\MetodoPago::findOrFail($datos['metodo_pago_id']);
+        $validacion = $this->validarReferenciaFechaMetodo($datos, $metodo->id);
+        if (!$validacion['ok']) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_VALIDACION',
+                'mensaje' => $validacion['error'],
             ], 422);
         }
 
@@ -470,12 +505,27 @@ class PortalEstudianteController extends Controller
             'estado' => 'pendiente',
         ]);
 
-        $pago->update([
+        $actualizar = [
             'estado' => 'en_revision',
             'motivo_rechazo' => null,
             'rechazado_por' => null,
             'fecha_rechazo' => null,
-        ]);
+        ];
+
+        if ($validacion['referencia'] !== null) {
+            $actualizar['referencia_externa'] = $validacion['referencia'];
+        }
+        if ($validacion['fecha_carbon'] !== null) {
+            $actualizar['fecha_proceso'] = $validacion['fecha_carbon'];
+        }
+
+        $pago->update($actualizar);
+
+        app(DetectorPagoDuplicado::class)->aplicar(
+            $pago->fresh(),
+            $pago->fresh()->referencia_externa,
+            $pago->fresh()->fecha_proceso ? \Illuminate\Support\Carbon::instance($pago->fresh()->fecha_proceso) : null
+        );
 
         if ($pago->matricula_id) {
             Matricula::where('id', $pago->matricula_id)
@@ -937,5 +987,45 @@ class PortalEstudianteController extends Controller
             'mensaje' => 'OK',
             'data' => $certificados,
         ]);
+    }
+
+    private function validarReferenciaFechaMetodo(array $datos, int $metodoId): array
+    {
+        $metodo = \App\Models\MetodoPago::find($metodoId);
+        $requerido = $metodo && in_array($metodo->codigo, DetectorPagoDuplicado::METODOS_VALIDABLES, true);
+
+        $referencia = isset($datos['referencia']) ? trim((string) $datos['referencia']) : '';
+        $fechaPago = $datos['fecha_pago'] ?? null;
+        $fechaCarbon = null;
+
+        if ($fechaPago) {
+            try {
+                $fechaCarbon = \Illuminate\Support\Carbon::parse($fechaPago)->startOfDay();
+            } catch (\Throwable $e) {
+                $fechaCarbon = null;
+            }
+        }
+
+        if ($requerido) {
+            if ($referencia === '') {
+                return [
+                    'ok' => false,
+                    'error' => 'El número de referencia es obligatorio para ' . $metodo->nombre . '.',
+                ];
+            }
+            if ($fechaCarbon === null) {
+                return [
+                    'ok' => false,
+                    'error' => 'La fecha de pago es obligatoria para ' . $metodo->nombre . '.',
+                ];
+            }
+        }
+
+        return [
+            'ok' => true,
+            'metodo' => $metodo,
+            'referencia' => $referencia !== '' ? $referencia : null,
+            'fecha_carbon' => $fechaCarbon,
+        ];
     }
 }

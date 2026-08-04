@@ -128,8 +128,19 @@
                         </div>
                         <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id)">
                             <div x-show="flujoPortal?.habilita_carga_comprobante">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Referencia (opcional)</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Referencia
+                                    <span x-show="esMetodoValidable(form.metodo_pago_id)" class="text-red-500">*</span>
+                                    <span x-show="!esMetodoValidable(form.metodo_pago_id)" class="text-gray-400">(opcional)</span>
+                                </label>
                                 <input x-model="form.referencia" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Número de referencia o comprobante">
+                            </div>
+                        </template>
+                        <template x-if="esMetodoValidable(form.metodo_pago_id)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label>
+                                <input x-model="form.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()">
+                                <p class="text-xs text-gray-400 mt-1">Fecha en la que realizó el depósito o transferencia.</p>
                             </div>
                         </template>
                         <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id)">
@@ -238,7 +249,10 @@
                             </template>
                         </select>
                     </div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label><input x-model="formComp.referencia" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Número de referencia (opcional)"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Referencia <span x-show="esMetodoValidable(formComp.metodo_pago_id)" class="text-red-500">*</span></label><input x-model="formComp.referencia" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Número de referencia (opcional)"></div>
+                    <template x-if="esMetodoValidable(formComp.metodo_pago_id)">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label><input x-model="formComp.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()"></div>
+                    </template>
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Comprobante (JPG, PNG, PDF, máx 10MB) *</label><input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="formComp.archivo = $event.target.files[0]" class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"></div>
                 </div>
                 <template x-if="uploadError"><p class="text-sm text-red-600 mt-3" x-text="uploadError"></p></template>
@@ -279,8 +293,8 @@ function pagoEstudiante() {
         matriculaSeleccionada: null,
         matriculaSeleccionadaId: null,
         enviando: false, error: '', exito: '',
-        form: { metodo_pago_id: '', referencia: '', archivo: null },
-        formComp: { metodo_pago_id: '', referencia: '', archivo: null },
+        form: { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null },
+        formComp: { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null },
         uploading: false, uploadError: '',
         selectedObligaciones: {},
 
@@ -298,13 +312,28 @@ function pagoEstudiante() {
             return !!mp?.permite_link_pago;
         },
 
+        esMetodoValidable(id) {
+            if (!id) return false;
+            const mp = this.metodosPago.find(m => m.id == id);
+            return mp?.codigo === 'DEP' || mp?.codigo === 'TRA';
+        },
+
+        hoyStr() {
+            const d = new Date();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + mm + '-' + dd;
+        },
+
         alCambiarMetodo() {
             this.error = '';
             if (this.esMetodoTarjeta(this.form.metodo_pago_id)) {
                 this.form.referencia = '';
+                this.form.fecha_pago = '';
                 this.form.archivo = null;
             } else if (this.esMetodoLink(this.form.metodo_pago_id)) {
                 this.form.referencia = '';
+                this.form.fecha_pago = '';
                 this.form.archivo = null;
             }
         },
@@ -379,7 +408,7 @@ function pagoEstudiante() {
         seleccionarMatricula(m) {
             this.matriculaSeleccionada = m;
             this.matriculaSeleccionadaId = m.id;
-            this.form = { metodo_pago_id: '', referencia: '', archivo: null };
+            this.form = { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null };
             this.error = '';
             this.exito = '';
             this.paso = 'pagar';
@@ -408,11 +437,16 @@ function pagoEstudiante() {
                         this.error = data.mensaje;
                     }
                 } else {
+                    if (this.esMetodoValidable(this.form.metodo_pago_id)) {
+                        if (!this.form.referencia || !this.form.referencia.trim()) { this.error = 'Ingrese el número de referencia'; this.enviando = false; return; }
+                        if (!this.form.fecha_pago) { this.error = 'Ingrese la fecha de pago'; this.enviando = false; return; }
+                    }
                     const payload = {
                         matricula_id: this.matriculaSeleccionada.id,
                         metodo_pago_id: this.form.metodo_pago_id,
                         referencia: this.form.referencia || '',
                     };
+                    if (this.form.fecha_pago) payload.fecha_pago = this.form.fecha_pago;
                     if (this.esMetodoLink(this.form.metodo_pago_id)) {
                         payload.solicitar_link = true;
                     }
@@ -431,13 +465,16 @@ function pagoEstudiante() {
                             fd.append('pago_id', pagoId);
                             fd.append('metodo_pago_id', this.form.metodo_pago_id);
                             fd.append('referencia', this.form.referencia || '');
+                            if (this.form.fecha_pago) fd.append('fecha_pago', this.form.fecha_pago);
                             fd.append('comprobante', this.form.archivo);
                             await window.axios.post('/api/v1/estudiantes/subir-comprobante', fd, {
                                 headers: { Authorization: `Bearer ${token}` }
                             });
                         }
 
-                    this.exito = 'Pago en proceso. Verifique en el historial de pagos su estado final.';
+                    this.exito = data.data?.alerta_duplicado
+                        ? 'Pago registrado. La referencia será verificada por contabilidad.'
+                        : 'Pago en proceso. Verifique en el historial de pagos su estado final.';
                     setTimeout(() => {
                         this.paso = 'seleccionar';
                         this.loadData();
@@ -454,7 +491,7 @@ function pagoEstudiante() {
 
         subirComprobantePago(p) {
             this.selectedPago = p;
-            this.formComp = { metodo_pago_id: p.metodo_pago_id || '', referencia: '', archivo: null };
+            this.formComp = { metodo_pago_id: p.metodo_pago_id || '', referencia: '', fecha_pago: '', archivo: null };
             this.uploadError = '';
         },
 
@@ -465,6 +502,10 @@ function pagoEstudiante() {
 
         async enviarComprobante() {
             if (!this.formComp.archivo || !this.formComp.metodo_pago_id) { this.uploadError = 'Seleccione método de pago y archivo'; return; }
+            if (this.esMetodoValidable(this.formComp.metodo_pago_id)) {
+                if (!this.formComp.referencia || !this.formComp.referencia.trim()) { this.uploadError = 'Ingrese el número de referencia'; return; }
+                if (!this.formComp.fecha_pago) { this.uploadError = 'Ingrese la fecha de pago'; return; }
+            }
             this.uploading = true; this.uploadError = '';
             try {
                 const token = this.token();
@@ -472,13 +513,14 @@ function pagoEstudiante() {
                 fd.append('pago_id', this.selectedPago.id);
                 fd.append('metodo_pago_id', this.formComp.metodo_pago_id);
                 fd.append('referencia', this.formComp.referencia);
+                if (this.formComp.fecha_pago) fd.append('fecha_pago', this.formComp.fecha_pago);
                 fd.append('comprobante', this.formComp.archivo);
                 const { data } = await window.axios.post('/api/v1/estudiantes/subir-comprobante', fd, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (data.resultado === 'A') {
                     this.selectedPago = null;
-                    this.formComp = { metodo_pago_id: '', referencia: '', archivo: null };
+                    this.formComp = { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null };
                     this.loadData();
                 } else {
                     this.uploadError = data.mensaje;
