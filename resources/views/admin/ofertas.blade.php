@@ -367,7 +367,7 @@ function ofertas() {
             if (nuevoEstado === 'cancelado' && !confirm('¿Está seguro de cancelar esta oferta? Se liberarán todos los cupos reservados.')) return;
             try {
                 const token = localStorage.getItem('auth_token');
-                await window.axios.put(`/api/v1/ofertas/academicas/${o.id}`, { estado: nuevoEstado }, { headers: { Authorization: `Bearer ${token}` } });
+                await window.axios.post(`/api/v1/ofertas/academicas/${o.id}`, { estado: nuevoEstado }, { headers: { Authorization: `Bearer ${token}` } });
                 window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Estado actualizado', type: 'success' } }));
                 await this.loadOfertas();
             } catch (e) {

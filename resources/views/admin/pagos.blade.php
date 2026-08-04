@@ -1042,7 +1042,7 @@ function pagos() {
             if (!p) return;
             if (!confirm(`¿Eliminar por completo el pago ${p.codigo}? Esta acción borrará pago, recibo, comprobantes y aplicaciones.`)) return;
             try {
-                const { data } = await window.axios.delete(`/api/v1/pagos/${p.id}/eliminar-total`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const { data } = await window.axios.post(`/api/v1/pagos/${p.id}/eliminar-total`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') {
                     this.showDetalle = false;
                     this.pagoSeleccionado = null;
@@ -1148,7 +1148,7 @@ function pagos() {
             if (!payload.usos_maximos) payload.usos_maximos = null;
             try {
                 const { data } = this.editandoEnlace
-                    ? await window.axios.put(`/api/v1/enlaces-pago/${this.editandoEnlaceId}`, payload, h)
+                    ? await window.axios.post(`/api/v1/enlaces-pago/${this.editandoEnlaceId}`, payload, h)
                     : await window.axios.post('/api/v1/enlaces-pago', payload, h);
                 if (data.resultado === 'A') {
                     this.showModalEnlace = false;
@@ -1164,7 +1164,7 @@ function pagos() {
             if (!confirm('¿Está seguro de eliminar este enlace de pago?')) return;
             const token = localStorage.getItem('auth_token');
             try {
-                const { data } = await window.axios.delete(`/api/v1/enlaces-pago/${e.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/enlaces-pago/${e.id}`, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.toast('Enlace eliminado', 'success');
                     await this.loadEnlaces();

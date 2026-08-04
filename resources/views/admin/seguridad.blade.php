@@ -1037,12 +1037,12 @@ function seguridad() {
             return c ? `${c.codigo} · ${c.nombre}` : `Concepto #${id}`;
         },
 
-        async desactivarFlujo(c) { const token = localStorage.getItem('auth_token'); await window.axios.delete(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
+        async desactivarFlujo(c) { const token = localStorage.getItem('auth_token'); await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
         async eliminarFlujo(c) {
             if (!confirm(`¿Eliminar permanentemente "${c.codigo}"? Esta acción no se puede deshacer.`)) return;
             const token = localStorage.getItem('auth_token');
             try {
-                const { data } = await window.axios.delete(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}/forzar`, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}/forzar`, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado !== 'A') { alert(data.mensaje || 'Error al eliminar'); return; }
                 await this.init();
             } catch(e) { alert(window.extractError(e, 'Error al eliminar la configuración')); }
@@ -1163,15 +1163,15 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingModulo ? `/api/v1/seguridad/modulos/${this.editModuloId}` : '/api/v1/seguridad/modulos';
-                const method = this.editingModulo ? 'put' : 'post';
+                const method = 'post';
                 const { data } = await window.axios[method](url, this.moduloForm, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showModuloModal = false; await this.init(); }
             } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: window.extractError(e, 'Error al guardar módulo'), type: 'error' } })); } finally { this.savingModulo = false; }
         },
-        async deleteModulo(m) { if (!confirm(`¿Dar de baja el módulo ${m.codigo}?`)) return; const token = localStorage.getItem('auth_token'); await window.axios.delete(`/api/v1/seguridad/modulos/${m.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
+        async deleteModulo(m) { if (!confirm(`¿Dar de baja el módulo ${m.codigo}?`)) return; const token = localStorage.getItem('auth_token'); await window.axios.post(`/api/v1/seguridad/modulos/${m.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
         async reactivateModulo(m) {
             const token = localStorage.getItem('auth_token');
-            await window.axios.put(`/api/v1/seguridad/modulos/${m.id}`, { nombre: m.nombre, orden: m.orden, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
+            await window.axios.post(`/api/v1/seguridad/modulos/${m.id}`, { nombre: m.nombre, orden: m.orden, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
             await this.init();
         },
 
@@ -1182,16 +1182,16 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingOpcion ? `/api/v1/seguridad/opciones/${this.editOpcionId}` : '/api/v1/seguridad/opciones';
-                const method = this.editingOpcion ? 'put' : 'post';
+                const method = 'post';
                 const payload = { modulo_id: this.opcionForm.modulo_id, codigo: this.opcionForm.codigo, nombre: this.opcionForm.nombre, ruta: this.opcionForm.ruta, orden: this.opcionForm.orden };
                 const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showOpcionModal = false; await this.init(); }
             } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: window.extractError(e, 'Error al guardar opción'), type: 'error' } })); } finally { this.savingOpcion = false; }
         },
-        async deleteOpcion(o) { if (!confirm(`¿Dar de baja la opción ${o.codigo}?`)) return; const token = localStorage.getItem('auth_token'); await window.axios.delete(`/api/v1/seguridad/opciones/${o.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
+        async deleteOpcion(o) { if (!confirm(`¿Dar de baja la opción ${o.codigo}?`)) return; const token = localStorage.getItem('auth_token'); await window.axios.post(`/api/v1/seguridad/opciones/${o.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
         async reactivateOpcion(o) {
             const token = localStorage.getItem('auth_token');
-            await window.axios.put(`/api/v1/seguridad/opciones/${o.id}`, { nombre: o.nombre, ruta: o.ruta, orden: o.orden, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
+            await window.axios.post(`/api/v1/seguridad/opciones/${o.id}`, { nombre: o.nombre, ruta: o.ruta, orden: o.orden, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
             await this.init();
         },
 
@@ -1243,7 +1243,7 @@ function seguridad() {
             if (!confirm(`¿Dar de baja el permiso ${p.codigo}?`)) return;
             try {
                 const token = localStorage.getItem('auth_token');
-                const { data } = await window.axios.delete(`/api/v1/seguridad/permisos/${p.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/seguridad/permisos/${p.id}`, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Permiso desactivado', type: 'success' } }));
                     await this.init();
@@ -1256,7 +1256,7 @@ function seguridad() {
         },
         async reactivatePermiso(p) {
             const token = localStorage.getItem('auth_token');
-            await window.axios.put(`/api/v1/seguridad/permisos/${p.id}`, { nombre: p.nombre, accion: p.accion, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
+            await window.axios.post(`/api/v1/seguridad/permisos/${p.id}`, { nombre: p.nombre, accion: p.accion, estado: 'activo' }, { headers: { Authorization: `Bearer ${token}` } });
             await this.init();
         },
 
@@ -1422,7 +1422,7 @@ function seguridad() {
             for (const item of items) {
                 const url = tipo === 'modulos' ? `/api/v1/seguridad/modulos/${item.id}` : tipo === 'opciones' ? `/api/v1/seguridad/opciones/${item.id}` : `/api/v1/seguridad/permisos/${item.id}`;
                 const payload = tipo === 'permisos' ? { nombre: item.nombre, accion: item.accion, estado } : tipo === 'modulos' ? { nombre: item.nombre, orden: item.orden, estado } : { nombre: item.nombre, ruta: item.ruta, orden: item.orden, estado };
-                await window.axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
+                await window.axios.post(url, payload, { headers: { Authorization: `Bearer ${token}` } });
             }
             await this.init();
         },

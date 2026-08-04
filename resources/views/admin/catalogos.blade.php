@@ -977,7 +977,7 @@ function catalogos() {
             if (!confirm(msg)) return;
             try {
                 const token = localStorage.getItem('auth_token');
-                const { data } = await window.axios.delete(
+                const { data } = await window.axios.post(
                     `/api/v1/catalogos-academicos/${this.currentTab.endpoint}/${item.id}`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );

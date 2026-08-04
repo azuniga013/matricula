@@ -833,7 +833,7 @@ function pagosView() {
             if (!confirm('¿Desea eliminar este pago? Esta acción no se puede deshacer.')) return;
             const token = this.token();
             try {
-                const { data } = await window.axios.delete(`/api/v1/estudiantes/mis-pagos/${p.id}`, {
+                const { data } = await window.axios.post(`/api/v1/estudiantes/mis-pagos/${p.id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (data.resultado === 'A') {

@@ -36,10 +36,10 @@ class RouteServiceProvider extends ServiceProvider
                     'show' => Route::get("{$nombre}/{{$parametros}}", [$controlador, 'show'])
                         ->name("{$nombre}.show")
                         ->middleware($mws),
-                    'update' => Route::match(['PUT', 'PATCH'], "{$nombre}/{{$parametros}}", [$controlador, 'update'])
+                    'update' => Route::match(['PUT', 'PATCH', 'POST'], "{$nombre}/{{$parametros}}", [$controlador, 'update'])
                         ->name("{$nombre}.update")
                         ->middleware($mws),
-                    'destroy' => Route::delete("{$nombre}/{{$parametros}}", [$controlador, 'destroy'])
+                    'destroy' => Route::match(['DELETE', 'POST'], "{$nombre}/{{$parametros}}", [$controlador, 'destroy'])
                         ->name("{$nombre}.destroy")
                         ->middleware($mws),
                     default => null,

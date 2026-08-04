@@ -909,6 +909,21 @@ Pendiente:
 
 ---
 
+### 4.27 Compatibilidad de verbos HTTP en servidores restrictivos
+
+El entorno de despliegue (SmarterASP / IIS) puede bloquear verbos HTTP distintos de `GET` y `POST`. Para garantizar operationabilidad sin romper la semántica REST, todas las rutas de escritura que originalmente usan `PUT`, `PATCH` o `DELETE` deben registrarse también bajo `POST`, apuntando a los mismos métodos de controlador existentes. No se duplican controladores ni se crean rutas paralelas; se usa `Route::match([...], ...)` para aceptar ambos verbos en la misma ruta.
+
+Reglas obligatorias:
+
+- Para `update` (`PUT`/`PATCH`): usar `Route::match(['PUT', 'PATCH', 'POST'], ...)` o, dentro del macro `apiResourceProtegido`, la rama `update` ya está configurada con esos tres verbos.
+- Para `destroy` (`DELETE`): usar `Route::match(['DELETE', 'POST'], ...)` o la rama `destroy` del macro, igualmente configurada.
+- Las rutas explícitas `Route::put(...)` y `Route::delete(...)` están prohibidas en `routes/api.php` y `routes/web.php`; deben reescribirse con `Route::match([...], ...)`.
+- El frontend puede seguir usando `window.axios.put(...)` y `window.axios.delete(...)`, o cambiar a `window.axios.post(...)` si el servidor exige POST. Ambas formas llegan al mismo controlador.
+- Los tests pueden usar `$this->putJson(...)` / `$this->deleteJson(...)` o `$this->postJson(...)`; ambas rutas existen.
+- Este patrón aplica únicamente a `update` y `destroy`. `store` ya es `POST`, y `index`/`show` son `GET` (no afectados).
+
+---
+
 ## 5. Tablas principales esperadas
 
 No crear nombres alternativos sin autorización.

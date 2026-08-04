@@ -92,7 +92,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::post('/subir-comprobante', [PortalEstudianteController::class, 'subirComprobante']);
     Route::post('/confirmar-link-pago', [PortalEstudianteController::class, 'confirmarLinkPago']);
     Route::post('/reenganchar-flujo-pago', [PortalEstudianteController::class, 'reengancharFlujoPago']);
-    Route::delete('/mis-pagos/{pago}', [PortalEstudianteController::class, 'eliminarPago']);
+    Route::match(['DELETE', 'POST'], '/mis-pagos/{pago}', [PortalEstudianteController::class, 'eliminarPago']);
     Route::get('/mis-pagos', [PortalEstudianteController::class, 'misPagos']);
     Route::get('/mis-recibos', [PortalEstudianteController::class, 'misRecibos']);
     Route::get('/mi-nivel', [PortalEstudianteController::class, 'miNivel']);
@@ -140,10 +140,10 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::match(['PUT', 'PATCH'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
             ->middleware('permission:seguridad.modificar');
 
-        Route::delete('/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'destroy'])
+        Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'destroy'])
             ->middleware('permission:seguridad.eliminar');
 
-        Route::delete('/configuraciones-flujo-matricula/{configuracionFlujoMatricula}/forzar', [ConfiguracionFlujoMatriculaController::class, 'forceDestroy'])
+        Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}/forzar', [ConfiguracionFlujoMatriculaController::class, 'forceDestroy'])
             ->middleware('permission:seguridad.eliminar');
 
         Route::get('/roles/{rol}/permisos', [RolController::class, 'permisos'])
@@ -171,7 +171,7 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/sesiones', [SesionController::class, 'index'])
             ->middleware('permission:seguridad.consultar');
 
-        Route::delete('/sesiones/{sesionId}', [SesionController::class, 'revocar'])
+        Route::match(['DELETE', 'POST'], '/sesiones/{sesionId}', [SesionController::class, 'revocar'])
             ->middleware('permission:seguridad.configurar');
 
         Route::get('/auditoria/peticiones', [AuditoriaController::class, 'peticiones'])
@@ -348,7 +348,7 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::post('/{id}/link-pago', [PagoController::class, 'actualizarLink'])
             ->middleware('permission:pagos.modificar');
 
-        Route::delete('/{id}/eliminar-total', [PagoController::class, 'eliminarTotal'])
+        Route::match(['DELETE', 'POST'], '/{id}/eliminar-total', [PagoController::class, 'eliminarTotal'])
             ->middleware('permission:pagos.eliminar');
 
         Route::get('/{id}', [PagoController::class, 'show'])
@@ -376,10 +376,10 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'show'])
             ->middleware('permission:pagos.consultar');
 
-        Route::put('/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'update'])
+        Route::match(['PUT', 'POST'], '/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'update'])
             ->middleware('permission:pagos.modificar');
 
-        Route::delete('/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'destroy'])
+        Route::match(['DELETE', 'POST'], '/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'destroy'])
             ->middleware('permission:pagos.eliminar');
 
         Route::post('/{enlacePago}/usar', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'usar'])
@@ -412,7 +412,7 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/{id}', [ProveedorPagoController::class, 'show'])
             ->middleware('permission:configuracion.pagos.consultar');
 
-        Route::put('/{id}', [ProveedorPagoController::class, 'update'])
+        Route::match(['PUT', 'POST'], '/{id}', [ProveedorPagoController::class, 'update'])
             ->middleware('permission:configuracion.pagos.modificar');
 
         Route::post('/{id}/configuracion', [ProveedorPagoController::class, 'guardarConfiguracion'])
@@ -454,7 +454,7 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/{id}', [CalificacionController::class, 'show'])
             ->middleware('permission:calificaciones.consultar');
 
-        Route::put('/{id}', [CalificacionController::class, 'actualizar'])
+        Route::match(['PUT', 'POST'], '/{id}', [CalificacionController::class, 'actualizar'])
             ->middleware('permission:calificaciones.modificar');
     });
 
