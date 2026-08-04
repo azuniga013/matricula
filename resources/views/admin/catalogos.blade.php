@@ -308,8 +308,8 @@
                                     <tr>
                                         <td class="font-mono text-xs font-semibold text-brand-600" x-text="item.codigo"></td>
                                         <td class="font-medium" x-text="item.nombre"></td>
-                                        <td x-text="item.fecha_inicio"></td>
-                                        <td x-text="item.fecha_fin"></td>
+                                        <td x-text="formatearFecha(item.fecha_inicio)"></td>
+                                        <td x-text="formatearFecha(item.fecha_fin)"></td>
                                         <td><span :class="item.estado === 'activo' ? 'badge-success' : item.estado === 'cerrado' ? 'badge-neutral' : 'badge-danger'" class="badge" x-text="item.estado"></span></td>
                                         <td class="text-right"><button x-show="canEdit()" @click="editItem(item)" class="btn btn-ghost btn-sm">Editar</button></td>
                                     </tr>
@@ -883,6 +883,13 @@ function catalogos() {
             } finally {
                 this.loading = false;
             }
+        },
+
+        formatearFecha(fecha) {
+            if (!fecha) return '—';
+
+            const [anio, mes, dia] = String(fecha).slice(0, 10).split('-');
+            return anio && mes && dia ? `${dia}/${mes}/${anio}` : '—';
         },
 
         toggleCheckbox(key, value) {
