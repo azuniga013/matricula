@@ -808,7 +808,7 @@ function pagos() {
     return {
         loading: true, showModal: false, saving: false, error: '', tab: 'pendientes',
         pagosPendientes: [], pagosEnRevision: [], pagosAprobados: [], pagosRechazados: [], pagosSolicitaLink: [], recibos: [], conceptos: [], metodos: [], libros: [], metodoPermiteLink: false,
-        flujo: { habilita_aprobacion_pago: true, habilita_solicitud_link: true, habilita_carga_comprobante: true, requiere_comprobante: true, habilita_generacion_recibo: true },
+        flujo: { habilita_aprobacion_pago: true, habilita_solicitud_link: true, habilita_carga_comprobante: true, requiere_comprobante: true, habilita_generacion_recibo: true, habilita_seleccion_obligaciones: true },
         debugPagos: { filtroActivo: 'N/D', ultimoConteo: 'N/D', respuestas: {} },
         form: { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', monto: 0, fecha_proceso: '', referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, solicitar_link: false },
         busquedaEstudiante: '', resultadosEstudiantes: [], obligacionesPendientes: [], obligacionesSeleccionadas: [],
@@ -885,6 +885,7 @@ function pagos() {
             if (!this.form.estudiante_id || !this.esMATCUO) return;
             try {
                 const params = new URLSearchParams({ estudiante_id: this.form.estudiante_id, concepto_pago_id: this.form.concepto_pago_id });
+                if (this.form.metodo_pago_id) params.set('metodo_pago_id', this.form.metodo_pago_id);
                 const { data } = await window.axios.get(`/api/v1/pagos/obligaciones-estudiante?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 this.obligacionesPendientes = data.data?.obligaciones || [];
                 this.obligacionesSeleccionadas = [];
@@ -909,6 +910,7 @@ function pagos() {
         onMetodoChange() {
             const metodo = this.metodos.find(x => x.id == this.form.metodo_pago_id);
             this.metodoPermiteLink = !!metodo?.permite_link_pago;
+            this.cargarObligaciones();
         },
 
         cambiarTab(nuevoTab) {

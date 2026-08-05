@@ -98,10 +98,11 @@ class PagoController extends Controller
         $datos = $request->validate([
             'estudiante_id' => 'required|exists:estudiantes,id',
             'concepto_pago_id' => 'required|exists:conceptos_pago,id',
+            'metodo_pago_id' => 'nullable|exists:metodos_pago,id',
         ]);
 
         $concepto = ConceptoPago::findOrFail($datos['concepto_pago_id']);
-        $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $concepto->id, null);
+        $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $concepto->id, $datos['metodo_pago_id'] ?? null);
 
         if (!in_array($concepto->codigo, ['MAT', 'CUO'], true) || empty($configFlujo['habilita_seleccion_obligaciones'])) {
             return response()->json([

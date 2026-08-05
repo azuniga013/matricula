@@ -35,6 +35,13 @@ class ResolutorFlujoMatricula
 
         $configuracion = $query->orderByDesc('id')->first();
 
+        // Las configuraciones antiguas se registraron como tecnico. Se usan como
+        // respaldo únicamente para el portal administrativo cuando no existe
+        // una configuración explícita para ese origen.
+        if (!$configuracion && $origen === 'portal_administrativo') {
+            return $this->resolver('tecnico', $conceptoPagoId, $metodoPagoId);
+        }
+
         return $configuracion ? $configuracion->toArray() : [
             'habilita_reserva_cupo' => true,
             'habilita_carga_comprobante' => true,
