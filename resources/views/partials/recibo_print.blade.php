@@ -130,15 +130,15 @@
             @if($libro)
                 <div class="detalle-item"><span class="d-label">Libro</span><span class="d-value">{{ $libro->codigo }} · {{ $libro->titulo }}</span></div>
                 <div class="detalle-item"><span class="d-label">Cantidad</span><span class="d-value">{{ $mov->cantidad }}</span></div>
-                <div class="detalle-item"><span class="d-label">Precio unit.</span><span class="d-value">L {{ number_format($libro->precio_venta, 2) }}</span></div>
-                <div class="detalle-item"><span class="d-label">Total</span><span class="d-value">L {{ number_format($libro->precio_venta * $mov->cantidad, 2) }}</span></div>
+                <div class="detalle-item"><span class="d-label">Precio unit.</span><span class="d-value">{{ formatear_moneda($libro->precio_venta) }}</span></div>
+                <div class="detalle-item"><span class="d-label">Total</span><span class="d-value">{{ formatear_moneda($libro->precio_venta * $mov->cantidad) }}</span></div>
             @endif
         @endforeach
     @endif
 
     <div class="linea"></div>
 
-    <div class="monto-final">L {{ number_format($recibo->monto_total, 2) }}</div>
+    <div class="monto-final">{{ formatear_moneda($recibo->monto_total) }}</div>
 
     <div class="linea"></div>
 
