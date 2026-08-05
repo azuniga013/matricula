@@ -159,6 +159,21 @@ class CertificadoElectronicoController extends Controller
                 ->where('nivel_academico_id', $calificacion->ofertaAcademico?->nivel_academico_id)
                 ->where('periodo_academico_id', $calificacion->ofertaAcademico?->periodo_academico_id)
                 ->first();
+            if (!$historial && $calificacion->matricula && $calificacion->ofertaAcademica) {
+                $calificacion->loadMissing(['ofertaAcademica.periodoAcademico', 'ofertaAcademica.modalidad']);
+                $historial = HistorialAcademico::create([
+                    'codigo' => substr('HIS-' . $calificacion->codigo, 0, 50),
+                    'estudiante_id' => $calificacion->estudiante_id,
+                    'matricula_id' => $calificacion->matricula_id,
+                    'oferta_academica_id' => $calificacion->oferta_academica_id,
+                    'nivel_academico_id' => $calificacion->ofertaAcademica->nivel_academico_id,
+                    'periodo_academico_id' => $calificacion->ofertaAcademica->periodo_academico_id,
+                    'estado' => $calificacion->estaAprobada() ? 'aprobado' : 'reprobado',
+                    'nota_final' => $calificacion->nota_final,
+                    'faltas' => $calificacion->faltas ?? 0,
+                    'observaciones' => $calificacion->observaciones,
+                ]);
+            }
             if (!$historial) {
                 return RespuestaError::make('404_HISTORIAL_NO_ENCONTRADO', 404, 'No se encontró historial académico para la calificación seleccionada', 'calificacion_id=' . $datos['calificacion_id'])
                     ->response($request);
