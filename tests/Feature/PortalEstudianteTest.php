@@ -218,6 +218,7 @@ class PortalEstudianteTest extends TestCase
     {
         $response = $this->postJson('/api/v1/estudiantes/reservar-matricula', [
             'oferta_academica_id' => $this->oferta->id,
+            'plan_estudio_id' => $this->oferta->nivelAcademico->versionPlanEstudio->plan_estudio_id,
         ], $this->studentHeaders());
 
         $response->assertCreated()

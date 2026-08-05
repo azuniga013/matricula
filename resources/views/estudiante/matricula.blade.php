@@ -83,13 +83,31 @@
     {{-- Ofertas --}}
     <template x-if="!loading && !resultado">
         <div>
-            <template x-if="ofertas.length === 0">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Plan de estudio</label>
+                        <select x-model="planSeleccionadoId" @change="alCambiarPlan()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <option value="">Seleccionar plan...</option>
+                            <template x-for="plan in planesDisponibles" :key="plan.id"><option :value="plan.id" x-text="plan.codigo + ' · ' + plan.nombre"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nivel académico</label>
+                        <select x-model="nivelSeleccionadoId" @change="selected = null" :disabled="!planSeleccionadoId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100">
+                            <option value="">Todos los niveles</option>
+                            <template x-for="nivel in nivelesDisponibles" :key="nivel.id"><option :value="nivel.id" x-text="nivel.codigo + ' · ' + nivel.nombre"></option></template>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <template x-if="ofertasFiltradas.length === 0">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-                    <p class="text-gray-400">No hay ofertas disponibles en este momento para su sucursal.</p>
+                    <p class="text-gray-400" x-text="planSeleccionadoId ? 'No hay ofertas disponibles para el plan y nivel seleccionados.' : 'Seleccione un plan de estudio para ver sus ofertas.'"></p>
                 </div>
             </template>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <template x-for="o in ofertas" :key="o.id">
+                <template x-for="o in ofertasFiltradas" :key="o.id">
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow" :class="selected?.id === o.id ? 'ring-2 ring-brand-500' : ''">
                         <div class="flex items-start justify-between mb-3">
                             <div>
@@ -149,7 +167,26 @@ function fmtFecha(val) {
 }
 
 function matricula() {
-    return { loading: true, periodoActual: null, ofertas: [], matriculasPendientes: [], selected: null, saving: false, error: '', resultado: null,
+    return { loading: true, periodoActual: null, ofertas: [], matriculasPendientes: [], selected: null, saving: false, error: '', resultado: null, planSeleccionadoId: '', nivelSeleccionadoId: '',
+        get planesDisponibles() {
+            const planes = {};
+            this.ofertas.forEach(oferta => {
+                if (oferta.plan_estudio_id) planes[oferta.plan_estudio_id] = { id: oferta.plan_estudio_id, codigo: oferta.plan_estudio_codigo || '', nombre: oferta.plan_estudio_nombre || '' };
+            });
+            return Object.values(planes).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+        },
+        get nivelesDisponibles() {
+            const niveles = {};
+            this.ofertas.filter(oferta => String(oferta.plan_estudio_id) === String(this.planSeleccionadoId)).forEach(oferta => {
+                niveles[oferta.nivel_codigo] = { id: oferta.nivel_academico_id, codigo: oferta.nivel_codigo, nombre: oferta.nivel };
+            });
+            return Object.values(niveles).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+        },
+        get ofertasFiltradas() {
+            if (!this.planSeleccionadoId) return [];
+            return this.ofertas.filter(oferta => String(oferta.plan_estudio_id) === String(this.planSeleccionadoId) && (!this.nivelSeleccionadoId || String(oferta.nivel_academico_id) === String(this.nivelSeleccionadoId)));
+        },
+        alCambiarPlan() { this.nivelSeleccionadoId = ''; this.selected = null; },
         async loadOfertas() {
             const token = localStorage.getItem('estudiante_token');
             if (!token) { window.location.href = '/estudiante/login'; return; }
@@ -161,6 +198,7 @@ function matricula() {
                 if (ofertasRes.status === 'fulfilled' && ofertasRes.value.data.resultado === 'A') {
                     this.periodoActual = ofertasRes.value.data.data.periodo_actual || null;
                     this.ofertas = ofertasRes.value.data.data.ofertas || [];
+                    if (this.planSeleccionadoId && !this.planesDisponibles.some(plan => String(plan.id) === String(this.planSeleccionadoId))) this.alCambiarPlan();
                 }
                 if (portalRes.status === 'fulfilled' && portalRes.value.data.resultado === 'A') this.matriculasPendientes = portalRes.value.data.data.matriculas_pendientes || [];
             } catch(e) { if (e.response?.status === 401) window.location.href = '/estudiante/login'; }
@@ -172,7 +210,7 @@ function matricula() {
             this.saving = true; this.error = '';
             try {
                 const token = localStorage.getItem('estudiante_token');
-                const { data } = await window.axios.post('/api/v1/estudiantes/reservar-matricula', { oferta_academica_id: this.selected.id }, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post('/api/v1/estudiantes/reservar-matricula', { oferta_academica_id: this.selected.id, plan_estudio_id: this.planSeleccionadoId }, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.resultado = { codigo: data.data.matricula_codigo, estado_matricula: data.data.estado_matricula || data.data.estado, estado_pago: data.data.estado_pago || data.data.estado, obligaciones_total: data.data.obligaciones_total, obligaciones_cantidad: data.data.obligaciones_cantidad }; }
                 else { this.error = data.mensaje; }
             } catch(e) {

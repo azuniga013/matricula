@@ -266,13 +266,22 @@
                 <template x-if="form.estudiante_id">
                     <div class="space-y-4 border-t border-gray-100 pt-4">
                         {{-- Filters row --}}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="label">Período Académico</label>
                                 <select x-model="filtroNuevo.periodo_id" @change="onPeriodoChange()" class="input">
                                     <option value="">Seleccionar período...</option>
                                     <template x-for="p in periodos" :key="p.id">
                                         <option :value="p.id" x-text="p.nombre"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Plan de Estudio</label>
+                                <select x-model="filtroNuevo.plan_id" @change="onPlanChange()" class="input" :disabled="!!planActivoInfo">
+                                    <option value="">Seleccionar plan...</option>
+                                    <template x-for="plan in planesDisponibles" :key="plan.id">
+                                        <option :value="plan.id" x-text="plan.codigo + ' · ' + plan.nombre"></option>
                                     </template>
                                 </select>
                             </div>
@@ -565,7 +574,8 @@ function matriculas() {
         metodosPago: [],
 
         // Nueva matrícula modal
-        filtroNuevo: { periodo_id: '', nivel_id: '' },
+        filtroNuevo: { periodo_id: '', plan_id: '', nivel_id: '' },
+        planesEstudio: [],
         nivelesDisponibles: [],
         ofertasGrid: [],
         loadingOfertas: false,
@@ -581,6 +591,10 @@ function matriculas() {
         gestionSeleccionada: null, motivoRechazo: '',
         busquedaEstudianteCodigo: '', resultadosBusquedaEstudiante: [],
         estudianteGestion: null, matriculasPagadas: [],
+
+        get planesDisponibles() {
+            return this.planesEstudio;
+        },
 
         get requiereOfertaDestino() {
             const tipo = this.tiposGestion.find(t => t.id == this.formGestion.tipo_gestion_matricula_id);
@@ -607,12 +621,13 @@ function matriculas() {
         async init() {
             const token = localStorage.getItem('auth_token');
             const h = { headers: { Authorization: `Bearer ${token}` } };
-            const [f, p, s, t, mp] = await Promise.allSettled([
+            const [f, p, s, t, mp, pe] = await Promise.allSettled([
                 window.axios.get('/api/v1/seguridad/configuraciones-flujo-matricula', h),
                 window.axios.get('/api/v1/catalogos-academicos/periodos-academicos', h),
                 window.axios.get('/api/v1/catalogos-academicos/sucursales', h),
                 window.axios.get('/api/v1/gestiones-matricula/tipos', h),
                 window.axios.get('/api/v1/catalogos-academicos/metodos-pago', h),
+                window.axios.get('/api/v1/catalogos-academicos/planes-estudio', h),
             ]);
             const flujos = f.status === 'fulfilled' ? (f.value.data.data?.data || f.value.data.data || []) : [];
             this.flujo = flujos.find(c => c.origen === 'portal_administrativo' && c.estado === 'activo') || this.flujo;
@@ -620,6 +635,7 @@ function matriculas() {
             this.sucursales = s.status === 'fulfilled' ? (s.value.data.data?.data || s.value.data.data || []) : [];
             this.tiposGestion = t.status === 'fulfilled' ? (t.value.data.data || []) : [];
             this.metodosPago = mp.status === 'fulfilled' ? (mp.value.data.data?.data || mp.value.data.data || []) : [];
+            this.planesEstudio = pe.status === 'fulfilled' ? (pe.value.data.data?.data || pe.value.data.data || []).filter(plan => plan.estado !== 'inactivo') : [];
             const activo = this.periodos.find(per => per.estado === 'activo');
             if (activo) this.filtro.periodo = activo.id;
             await this.load();
@@ -641,7 +657,7 @@ function matriculas() {
         async openModal() {
             this.form = { estudiante_id: '', oferta_academica_id: '' };
             this.busquedaEstudiante = ''; this.estudianteSeleccionado = ''; this.resultadosEstudiantes = []; this.error = '';
-            this.filtroNuevo = { periodo_id: '', nivel_id: '' };
+            this.filtroNuevo = { periodo_id: '', plan_id: '', nivel_id: '' };
             this.nivelesDisponibles = []; this.ofertasGrid = []; this.planActivoInfo = null;
             const activo = this.periodos.find(per => per.estado === 'activo');
             if (activo) this.filtroNuevo.periodo_id = activo.id;
@@ -663,6 +679,7 @@ function matriculas() {
             this.form.oferta_academica_id = ''; this.ofertasGrid = []; this.nivelesDisponibles = [];
             this.planActivoInfo = null;
             await this.cargarPlanActivo();
+            if (this.planActivoInfo?.plan_estudio_id) this.filtroNuevo.plan_id = this.planActivoInfo.plan_estudio_id;
             await this.cargarOfertas();
         },
 
@@ -670,7 +687,7 @@ function matriculas() {
             this.form = { estudiante_id: '', oferta_academica_id: '' };
             this.estudianteSeleccionado = ''; this.resultadosEstudiantes = []; this.busquedaEstudiante = '';
             this.nivelesDisponibles = []; this.ofertasGrid = []; this.planActivoInfo = null;
-            this.filtroNuevo = { periodo_id: '', nivel_id: '' };
+            this.filtroNuevo = { periodo_id: '', plan_id: '', nivel_id: '' };
             const activo = this.periodos.find(per => per.estado === 'activo');
             if (activo) this.filtroNuevo.periodo_id = activo.id;
         },
@@ -686,6 +703,13 @@ function matriculas() {
         },
 
         async onPeriodoChange() {
+            this.filtroNuevo.plan_id = this.planActivoInfo?.plan_estudio_id || '';
+            this.filtroNuevo.nivel_id = '';
+            this.form.oferta_academica_id = '';
+            await this.cargarOfertas();
+        },
+
+        async onPlanChange() {
             this.filtroNuevo.nivel_id = '';
             this.form.oferta_academica_id = '';
             await this.cargarOfertas();
@@ -697,7 +721,7 @@ function matriculas() {
         },
 
         async cargarOfertas() {
-            if (!this.form.estudiante_id || !this.filtroNuevo.periodo_id) {
+            if (!this.form.estudiante_id || !this.filtroNuevo.periodo_id || !this.filtroNuevo.plan_id) {
                 this.ofertasGrid = []; this.nivelesDisponibles = [];
                 return;
             }
@@ -712,11 +736,7 @@ function matriculas() {
                 // Filter: only offers with available spots
                 ofertas = ofertas.filter(o => (o.cupos_disponibles ?? (o.cupo_maximo - (o.cupos_matriculados||0) - (o.cupos_reservados||0))) > 0);
 
-                // Filter by plan if student has active plan
-                if (this.planActivoInfo) {
-                    const planId = this.planActivoInfo.plan_estudio_id;
-                    ofertas = ofertas.filter(o => o.plan_estudio_id === planId);
-                }
+                ofertas = ofertas.filter(o => String(o.plan_estudio_id) === String(this.filtroNuevo.plan_id));
 
                 // Extract unique niveles from filtered offers
                 const nivelMap = {};
@@ -749,7 +769,8 @@ function matriculas() {
             this.saving = true; this.error = '';
             try {
                 if (!this.flujo.habilita_reserva_cupo) throw new Error('La reserva de cupo está deshabilitada');
-                const { data } = await window.axios.post('/api/v1/matriculas/reservar', this.form, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const payload = { ...this.form, plan_estudio_id: this.filtroNuevo.plan_id };
+                const { data } = await window.axios.post('/api/v1/matriculas/reservar', payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') { this.showModal = false; this.toast('Matrícula reservada', 'success'); await this.load(); }
                 else { this.error = data.mensaje || 'Error'; }
             } catch(e) { this.error = window.extractError(e, 'Error'); } finally { this.saving = false; }

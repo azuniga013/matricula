@@ -197,6 +197,9 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
   `matriculado`.
 - No permitir que el estudiante tenga simultáneamente un plan de estudio
   activo distinto, salvo una transición autorizada por el flujo de matrícula.
+- La selección de plan en matrícula filtra niveles y ofertas disponibles; la
+  oferta académica elegida determina y conserva el plan efectivo de la
+  matrícula. No se guarda un plan directo en el estudiante.
 - Antes de reservar o confirmar validar oferta abierta, cupo, prerrequisitos y
   conflictos de horario.
 - La reserva crea las obligaciones de pago a partir del plan de cobro de la

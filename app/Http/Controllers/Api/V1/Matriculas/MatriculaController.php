@@ -73,6 +73,7 @@ class MatriculaController extends Controller
         $request->validate([
             'estudiante_id' => 'required|exists:estudiantes,id',
             'oferta_academica_id' => 'required|exists:ofertas_academicas,id',
+            'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
         ]);
 
         $resultado = DB::transaction(function () use ($request) {
@@ -80,6 +81,10 @@ class MatriculaController extends Controller
             $oferta = OfertaAcademica::with('nivelAcademico.versionPlanEstudio')
                 ->lockForUpdate()
                 ->findOrFail($request->oferta_academica_id);
+            $planOfertaId = $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
+            if ($request->filled('plan_estudio_id') && (int) $request->plan_estudio_id !== (int) $planOfertaId) {
+                return ['ok' => false, 'codigo' => 422, 'mensaje' => 'La oferta seleccionada no pertenece al plan de estudio indicado'];
+            }
             $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $oferta->planCobro?->detalles?->first()?->concepto_pago_id, null);
 
             if (empty($configFlujo['habilita_reserva_cupo'])) {

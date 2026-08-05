@@ -168,6 +168,7 @@ class MatriculaTest extends TestCase
         $response = $this->postJson('/api/v1/matriculas/reservar', [
             'estudiante_id' => $this->estudiante->id,
             'oferta_academica_id' => $this->oferta->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
         ], $this->headers());
 
         $response->assertOk()
@@ -182,6 +183,23 @@ class MatriculaTest extends TestCase
 
         $this->oferta->refresh();
         $this->assertEquals(1, $this->oferta->cupos_reservados);
+    }
+
+    public function test_reservar_rechaza_una_oferta_que_no_pertenece_al_plan_indicado(): void
+    {
+        $planDistinto = PlanEstudio::create([
+            'departamento_academico_id' => $this->nivel->versionPlanEstudio->planEstudio->departamento_academico_id,
+            'codigo' => 'PLAN-DISTINTO',
+            'nombre' => 'Plan distinto',
+        ]);
+
+        $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'plan_estudio_id' => $planDistinto->id,
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('mensaje', 'La oferta seleccionada no pertenece al plan de estudio indicado');
     }
 
     public function test_no_reservar_si_no_hay_cupo(): void

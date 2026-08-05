@@ -29,6 +29,9 @@ class PortalEstudianteController extends Controller
     public function misOfertas(Request $request): JsonResponse
     {
         $estudiante = $request->attributes->get('estudiante');
+        $request->validate([
+            'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
+        ]);
 
         $periodoActivo = \App\Models\PeriodoAcademico::abierto()->orderByDesc('fecha_inicio')->first();
 
@@ -64,6 +67,13 @@ class PortalEstudianteController extends Controller
             ->unique()
             ->values();
 
+        $matriculaPlanActivo = Matricula::with('ofertaAcademica.nivelAcademico.versionPlanEstudio')
+            ->where('estudiante_id', $estudiante->id)
+            ->where('estado', 'matriculado')
+            ->latest('id')
+            ->first();
+        $planActivoId = $matriculaPlanActivo?->ofertaAcademica?->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
+
         $nivelesYaMatriculadosEnPeriodo = Matricula::where('estudiante_id', $estudiante->id)
             ->whereIn('estado', ['reservada', 'en_revision', 'matriculado'])
             ->whereHas('ofertaAcademica', function ($q) use ($periodoActivo) {
@@ -85,7 +95,14 @@ class PortalEstudianteController extends Controller
             ->when($nivelesYaMatriculadosEnPeriodo->isNotEmpty(), function ($q) use ($nivelesYaMatriculadosEnPeriodo) {
                 $q->whereNotIn('ofertas_academicas.id', $nivelesYaMatriculadosEnPeriodo);
             })
+            ->when($request->filled('plan_estudio_id'), function ($q) use ($request) {
+                $q->whereHas('nivelAcademico.versionPlanEstudio', fn ($version) => $version->where('plan_estudio_id', $request->plan_estudio_id));
+            })
+            ->when($planActivoId, function ($q) use ($planActivoId) {
+                $q->whereHas('nivelAcademico.versionPlanEstudio', fn ($version) => $version->where('plan_estudio_id', $planActivoId));
+            })
             ->with([
+                'nivelAcademico.versionPlanEstudio.planEstudio',
                 'nivelAcademico.regimenAcademico',
                 'modalidad',
                 'horario',
@@ -97,8 +114,12 @@ class PortalEstudianteController extends Controller
             ->map(fn ($o) => [
                 'id' => $o->id,
                 'codigo' => $o->codigo,
+                'nivel_academico_id' => $o->nivel_academico_id,
                 'nivel' => $o->nivelAcademico->nombre,
                 'nivel_codigo' => $o->nivelAcademico->codigo,
+                'plan_estudio_id' => $o->nivelAcademico->versionPlanEstudio?->plan_estudio_id,
+                'plan_estudio_codigo' => $o->nivelAcademico->versionPlanEstudio?->planEstudio?->codigo,
+                'plan_estudio_nombre' => $o->nivelAcademico->versionPlanEstudio?->planEstudio?->nombre,
                 'regimen' => $o->nivelAcademico->regimenAcademico->nombre ?? null,
                 'modalidad' => $o->modalidad->nombre,
                 'horario' => $o->horario ? $o->horario->hora_inicio . ' - ' . $o->horario->hora_fin : null,
@@ -135,9 +156,25 @@ class PortalEstudianteController extends Controller
 
         $datos = $request->validate([
             'oferta_academica_id' => 'required|exists:ofertas_academicas,id',
+            'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
         ]);
 
-        $oferta = OfertaAcademica::with('periodoAcademico')->findOrFail($datos['oferta_academica_id']);
+        $oferta = OfertaAcademica::with(['periodoAcademico', 'nivelAcademico.versionPlanEstudio'])->findOrFail($datos['oferta_academica_id']);
+
+        if (!empty($datos['plan_estudio_id']) && (int) $datos['plan_estudio_id'] !== (int) $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id) {
+            return \App\Helpers\RespuestaError::make('422_OFERTA_NO_PERTENECE_PLAN', 422, 'La oferta seleccionada no pertenece al plan de estudio indicado')
+                ->response($request);
+        }
+
+        $planOfertaId = $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
+        $tieneOtroPlanActivo = Matricula::where('estudiante_id', $estudiante->id)
+            ->where('estado', 'matriculado')
+            ->whereHas('ofertaAcademica.nivelAcademico.versionPlanEstudio', fn ($version) => $version->where('plan_estudio_id', '!=', $planOfertaId))
+            ->exists();
+        if ($tieneOtroPlanActivo) {
+            return \App\Helpers\RespuestaError::make('422_PLAN_ACTIVO_DISTINTO', 422, 'Ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.')
+                ->response($request);
+        }
 
         if ($oferta->sucursal_id !== $estudiante->sucursal_id) {
             return \App\Helpers\RespuestaError::make('422_OFERTA_NO_PERTENECE_SUCURSAL', 422, 'La oferta no pertenece a su sucursal')
