@@ -341,6 +341,7 @@
                                  <div>
                                      <label class="block text-sm font-medium text-gray-700 mb-1">Cuenta bancaria donde realizó el pago <span class="text-red-500">*</span></label>
                                      <select x-model="form.cuenta_bancaria_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select>
+                                     <p x-show="cuentasBancarias.length === 0" class="mt-1 text-xs text-amber-700">No hay cuentas bancarias activas configuradas para recibir depósitos o transferencias.</p>
                                  </div>
                              </template>
 
@@ -430,7 +431,7 @@
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label><input x-model="formComp.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()"></div>
                     </template>
                     <template x-if="esMetodoValidable(formComp.metodo_pago_id)">
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Cuenta bancaria donde realizó el pago <span class="text-red-500">*</span></label><select x-model="formComp.cuenta_bancaria_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Cuenta bancaria donde realizó el pago <span class="text-red-500">*</span></label><select x-model="formComp.cuenta_bancaria_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select><p x-show="cuentasBancarias.length === 0" class="mt-1 text-xs text-amber-700">No hay cuentas bancarias activas configuradas para recibir depósitos o transferencias.</p></div>
                     </template>
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Comprobante (JPG, PNG, PDF, máx 5MB) *</label><input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="handleCompFileChange($event)" class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"><p x-show="compFileError" class="text-xs text-red-500 mt-1" x-text="compFileError"></p></div>
                 </div>
@@ -678,6 +679,7 @@ function pagosView() {
                 if (portalRes.data?.resultado === 'A') {
                     this.estudianteActualId = portalRes.data.data?.estudiante?.id || null;
                     this.flujoPagoMatricula = portalRes.data.data?.flujo_pago_matricula || null;
+                    this.cuentasBancarias = portalRes.data.data?.cuentas_bancarias || [];
                     localStorage.setItem('estudiante_data', JSON.stringify(portalRes.data.data?.estudiante || null));
                 }
                 const { data } = await window.axios.get('/api/v1/estudiantes/mis-pagos', { headers: { Authorization: `Bearer ${token}` } });
@@ -717,6 +719,7 @@ function pagosView() {
                     const data = portalRes.value.data.data;
                     this.estudianteActualId = data?.estudiante?.id || this.estudianteActualId;
                     this.flujoPagoMatricula = data?.flujo_pago_matricula || this.flujoPagoMatricula;
+                    this.cuentasBancarias = data?.cuentas_bancarias || this.cuentasBancarias;
                     this.matriculasPendientes = data.matriculas_pendientes || [];
                     if (this.matriculasPendientes.length > 0) {
                         this.tienePendientes = true;
@@ -854,7 +857,16 @@ function pagosView() {
             }
         },
 
-        subirComprobantePago(p) {
+        async subirComprobantePago(p) {
+            if (this.cuentasBancarias.length === 0) {
+                const token = this.token();
+                try {
+                    const { data } = await window.axios.post('/api/v1/estudiantes/portal', {}, { headers: { Authorization: `Bearer ${token}` } });
+                    if (data?.resultado === 'A') this.cuentasBancarias = data.data?.cuentas_bancarias || [];
+                } catch (e) {
+                    if (e.response?.status === 401) window.location.href = '/estudiante/login';
+                }
+            }
             this.selectedPago = p;
             this.formComp = { metodo_pago_id: p.metodo_pago_id || '', cuenta_bancaria_id: p.cuenta_bancaria_id || '', referencia: '', fecha_pago: '', archivo: null };
             this.uploadError = '';
