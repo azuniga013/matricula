@@ -88,6 +88,12 @@
                 <tr><td class="label">Código pago</td><td class="value">{{ $codigoPago ?? '-' }}</td></tr>
                 <tr><td class="label">Concepto origen</td><td class="value">{{ $recibo->conceptoPago?->nombre ?? '-' }}</td></tr>
                 <tr><td class="label">Método de pago</td><td class="value">{{ $recibo->metodoPago?->nombre ?? '-' }}</td></tr>
+                @if($recibo->pago?->referencia_externa)
+                    <tr><td class="label">Referencia</td><td class="value">{{ $recibo->pago->referencia_externa }}</td></tr>
+                @endif
+                @if($recibo->pago?->fecha_deposito)
+                    <tr><td class="label">Fecha depósito</td><td class="value">{{ \Carbon\Carbon::instance($recibo->pago->fecha_deposito)->format('d/m/Y') }}</td></tr>
+                @endif
                 <tr><td class="label">Sucursal</td><td class="value">{{ $recibo->sucursal?->nombre ?? '-' }}</td></tr>
                 <tr><td class="label">Fecha</td><td class="value">{{ $fechaRecibo ? $fechaRecibo->format('d/m/Y H:i') : '-' }}</td></tr>
             </table>

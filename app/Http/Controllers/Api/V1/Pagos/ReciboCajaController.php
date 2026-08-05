@@ -24,7 +24,7 @@ class ReciboCajaController extends Controller
         ]);
 
         $query = ReciboCaja::with([
-            'pago:id,codigo,fecha_proceso,fecha_aprobacion,creado_en',
+            'pago:id,codigo,fecha_proceso,fecha_deposito,fecha_aprobacion,creado_en,referencia_externa',
             'estudiante:id,codigo,nombre,apellido',
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',
@@ -84,7 +84,7 @@ class ReciboCajaController extends Controller
     public function show(int $id): JsonResponse
     {
         $recibo = ReciboCaja::with([
-            'pago:id,codigo,estudiante_id,metodo_pago_id,monto,estado,referencia_externa,fecha_proceso,fecha_aprobacion,creado_en',
+            'pago:id,codigo,estudiante_id,metodo_pago_id,monto,estado,referencia_externa,fecha_proceso,fecha_deposito,fecha_aprobacion,creado_en',
             'estudiante:id,codigo,nombre,apellido,correo,telefono',
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',
