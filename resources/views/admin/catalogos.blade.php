@@ -951,7 +951,7 @@ function catalogos() {
                 const url = this.editing
                     ? `/api/v1/catalogos-academicos/${this.currentTab.endpoint}/${this.editId}`
                     : `/api/v1/catalogos-academicos/${this.currentTab.endpoint}`;
-                const method = this.editing ? 'put' : 'post';
+                const method = 'post';
                 const { data } = await window.axios[method](url, this.formData, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -1066,7 +1066,7 @@ function catalogos() {
                 const url = this.editandoVersion
                     ? `/api/v1/catalogos-academicos/versiones-plan-estudio/${this.editVersionId}`
                     : '/api/v1/catalogos-academicos/versiones-plan-estudio';
-                const method = this.editandoVersion ? 'put' : 'post';
+                const method = 'post';
                 const { data } = await window.axios[method](url, this.versionForm, {
                     headers: { Authorization: `Bearer ${token}` }
                 });

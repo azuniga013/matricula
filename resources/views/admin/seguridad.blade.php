@@ -1222,7 +1222,7 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingPermiso ? `/api/v1/seguridad/permisos/${this.editPermisoId}` : '/api/v1/seguridad/permisos';
-                const method = this.editingPermiso ? 'put' : 'post';
+                const method = 'post';
                 const payload = { ...this.permisoForm };
                 const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {

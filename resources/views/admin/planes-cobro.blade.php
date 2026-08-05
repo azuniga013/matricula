@@ -255,7 +255,7 @@ function planesCobro() {
                 const url = this.editing
                     ? `/api/v1/catalogos-academicos/planes-cobro/${this.editId}`
                     : '/api/v1/catalogos-academicos/planes-cobro';
-                const method = this.editing ? 'put' : 'post';
+                const method = 'post';
 
                 const payload = {
                     codigo: this.form.codigo,
