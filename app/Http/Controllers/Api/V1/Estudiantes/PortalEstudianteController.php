@@ -373,9 +373,26 @@ class PortalEstudianteController extends Controller
             ], 422);
         }
 
+        $obligacionIds = $obligaciones->pluck('id')->toArray();
+
+        $estadosSolicitudActiva = ['solicita_link', 'esperando_respuesta', 'en_revision'];
+        $yaSolicitado = \App\Models\AplicacionPago::whereIn('obligacion_pago_estudiante_id', $obligacionIds)
+            ->whereHas('pago', function ($q) use ($estudiante, $estadosSolicitudActiva) {
+                $q->where('estudiante_id', $estudiante->id)
+                    ->whereIn('estado', $estadosSolicitudActiva);
+            })
+            ->exists();
+
+        if ($yaSolicitado) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'Ya tiene una solicitud de pago en proceso para estas obligaciones. Espere la respuesta de contabilidad antes de solicitar otro link.',
+            ], 422);
+        }
+
         $montoTotal = $obligaciones->sum(fn($o) => $o->saldoPendiente());
         $primerConcepto = $obligaciones->first()->conceptoPago;
-        $obligacionIds = $obligaciones->pluck('id')->toArray();
 
         $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', $primerConcepto->id, $metodo->id);
 
@@ -569,6 +586,7 @@ class PortalEstudianteController extends Controller
                 'matricula_estado' => $p->matricula?->estado,
                 'matricula_nivel' => $p->matricula?->ofertaAcademica?->nivelAcademico?->nombre,
                 'obligaciones_total' => $p->aplicaciones->sum(fn ($a) => $a->monto_aplicado),
+                'obligaciones_seleccionadas' => $p->aplicaciones->pluck('obligacion_pago_estudiante_id')->values()->all(),
                 'fecha' => $p->creado_en?->format('d/m/Y H:i'),
                 'motivo_rechazo' => $p->motivo_rechazo,
                 'link_pago_url' => $p->link_pago_url,

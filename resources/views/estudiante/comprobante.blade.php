@@ -57,7 +57,7 @@
                                     <button @click="seleccionarTodas(m)" class="text-brand-600 font-medium hover:text-brand-700">Seleccionar todo</button>
                                     <button @click="deseleccionarTodas(m)" class="text-gray-500 font-medium hover:text-gray-700">Ninguno</button>
                                     <template x-if="totalSeleccionado(m) > 0">
-                                        <span class="ml-auto font-semibold text-brand-700" x-text="'Subtotal: ' + totalSeleccionado(m).toFixed(2) + ' L.'"></span>
+                                        <span class="ml-auto font-semibold text-brand-700" x-text="'Subtotal: ' + fmtMonto(totalSeleccionado(m)) + ' L.'"></span>
                                     </template>
                                 </div>
 
@@ -72,7 +72,7 @@
                                                 class="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500">
                                             <span class="flex-1 text-sm text-gray-700" x-text="o.nombre_cargo"></span>
                                             <span class="text-sm font-semibold" :class="obligacionEstaSeleccionada(m.id, o.id) ? 'text-brand-700' : 'text-gray-900'"
-                                                x-text="parseFloat(o.saldo).toFixed(2) + ' L.'"></span>
+                                                x-text="fmtMonto(o.saldo) + ' L.'"></span>
                                         </label>
                                     </template>
                                 </div>
@@ -81,7 +81,7 @@
                                 <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
                                     <div>
                                         <span class="text-sm text-gray-500">Total seleccionado: </span>
-                                        <span class="font-bold text-gray-900" x-text="'L. ' + totalSeleccionado(m).toFixed(2)"></span>
+                                        <span class="font-bold text-gray-900" x-text="'L. ' + fmtMonto(totalSeleccionado(m))"></span>
                                     </div>
                                     <button @click="seleccionarMatricula(m)"
                                         :disabled="totalSeleccionado(m) <= 0"
@@ -112,7 +112,7 @@
                             <label class="block text-sm font-medium text-amber-900 mb-2">Seleccione la matrícula a pagar</label>
                             <select x-model="matriculaSeleccionadaId" @change="cambiarMatriculaSeleccionada()" class="w-full border border-amber-300 rounded-lg px-3 py-2 text-sm bg-white">
                                 <template x-for="m in matriculasPendientes" :key="m.id">
-                                    <option :value="m.id" x-text="m.codigo + ' · ' + (m.nivel || 'Matrícula') + ' · L. ' + totalSeleccionado(m).toFixed(2)"></option>
+                                    <option :value="m.id" x-text="m.codigo + ' · ' + (m.nivel || 'Matrícula') + ' · L. ' + fmtMonto(totalSeleccionado(m))"></option>
                                 </template>
                             </select>
                         </div>
@@ -164,7 +164,7 @@
                     <div class="flex gap-3 mt-6">
                         <button @click="paso = 'seleccionar'; error = ''" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">Cancelar</button>
                         <button @click="procesarPago()" :disabled="enviando" class="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
-                            <span x-show="!enviando" x-text="esMetodoTarjeta(form.metodo_pago_id) ? 'Pagar con PayPal' : 'Pagar L. ' + totalSeleccionado(matriculaSeleccionada).toFixed(2)"></span>
+                            <span x-show="!enviando" x-text="esMetodoTarjeta(form.metodo_pago_id) ? 'Pagar con PayPal' : 'Pagar L. ' + fmtMonto(totalSeleccionado(matriculaSeleccionada))"></span>
                             <span x-show="enviando">Procesando...</span>
                         </button>
                     </div>
@@ -195,7 +195,7 @@
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-4 py-3 font-mono text-xs text-gray-600" x-text="p.codigo"></td>
                                             <td class="px-4 py-3 font-medium text-gray-900" x-text="p.concepto || '-'"></td>
-                                            <td class="px-4 py-3 font-semibold text-gray-900" x-text="parseFloat(p.monto).toFixed(2) + ' L.'"></td>
+                                            <td class="px-4 py-3 font-semibold text-gray-900" x-text="fmtMonto(p.monto) + ' L.'"></td>
                                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="{'bg-amber-100 text-amber-700': p.estado === 'pendiente', 'bg-blue-100 text-blue-700': p.estado === 'en_revision', 'bg-green-100 text-green-700': p.estado === 'aprobado', 'bg-red-100 text-red-700': p.estado === 'rechazado'}" x-text="p.estado.replace('_', ' ')"></span></td>
                                             <td class="px-4 py-3 text-gray-500 text-xs" x-text="p.fecha"></td>
                                             <td class="px-4 py-3">
@@ -239,7 +239,7 @@
             <div class="absolute inset-0 bg-black/50" @click="selectedPago = null"></div>
             <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Subir Comprobante</h3>
-                <p class="text-sm text-gray-500 mb-4">Pago: <span class="font-medium" x-text="selectedPago.codigo"></span> - <span class="font-bold" x-text="parseFloat(selectedPago.monto).toFixed(2) + ' L.'"></span></p>
+                <p class="text-sm text-gray-500 mb-4">Pago: <span class="font-medium" x-text="selectedPago.codigo"></span> - <span class="font-bold" x-text="fmtMonto(selectedPago.monto) + ' L.'"></span></p>
                 <div class="space-y-4">
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Método de pago *</label>
                         <select x-model="formComp.metodo_pago_id" :disabled="!!selectedPago?.metodo_pago_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed">
@@ -285,6 +285,14 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function pagoEstudiante() {
     return {
         loading: true, paso: 'seleccionar',

@@ -7,7 +7,7 @@
             <h2 class="text-xl font-bold text-gray-900">Mis Pagos</h2>
             <p class="text-sm text-gray-500">Historial y creación de pagos</p>
         </div>
-        <button @click="abrirNuevoPago()" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors shadow-sm">
+        <button @click="abrirNuevoPago($event)" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors shadow-sm">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Nuevo Pago
         </button>
@@ -81,7 +81,7 @@
                                         <p class="text-[11px] uppercase tracking-wide text-gray-400">Monto</p>
                                         <p class="inline-flex items-baseline gap-1 font-semibold tabular-nums text-gray-900 whitespace-nowrap">
                                             <span class="text-xs font-medium text-gray-500">L.</span>
-                                            <span x-text="parseFloat(p.monto).toFixed(2)"></span>
+                                            <span x-text="fmtMonto(p.monto)"></span>
                                         </p>
                                     </div>
                                     <div>
@@ -142,7 +142,7 @@
                                         <td class="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                                             <span class="inline-flex items-baseline gap-1 tabular-nums">
                                                 <span class="text-xs font-medium text-gray-500">L.</span>
-                                                <span x-text="parseFloat(p.monto).toFixed(2)"></span>
+<span x-text="fmtMonto(p.monto)"></span>
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-gray-500" x-text="p.metodo || '-'"></td>
@@ -175,7 +175,7 @@
                                                     <div class="mb-2 text-[11px] text-gray-500">
                                                         <p class="font-medium text-gray-700" x-text="p.matricula_codigo"></p>
                                                         <p x-text="(p.matricula_nivel || 'Matrícula') + ' · ' + (p.matricula_estado || '-')"></p>
-                                                        <p x-text="'Monto aplicado: ' + parseFloat(p.obligaciones_total || 0).toFixed(2) + ' L.'"></p>
+                                                        <p x-text="'Monto aplicado: ' + fmtMonto(p.obligaciones_total || 0) + ' L.'"></p>
                                                     </div>
                                                 </template>
                                                 <template x-if="p.estado === 'solicita_link'">
@@ -264,7 +264,7 @@
                         <label class="block text-sm font-medium text-amber-900 mb-2">Seleccione la matrícula a pagar</label>
                         <select x-model="matriculaSeleccionadaId" @change="cambiarMatriculaSeleccionada()" class="w-full border border-amber-300 rounded-lg px-3 py-2 text-sm bg-white">
                             <template x-for="m in matriculasPendientes" :key="m.id">
-                                <option :value="m.id" x-text="m.codigo + ' · ' + (m.nivel || 'Matrícula') + ' · L. ' + totalSeleccionado(m).toFixed(2)"></option>
+                                <option :value="m.id" x-text="m.codigo + ' · ' + (m.nivel || 'Matrícula') + ' · L. ' + fmtMonto(totalSeleccionado(m))"></option>
                             </template>
                         </select>
                     </div>
@@ -282,13 +282,13 @@
                                     <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="m.estado === 'solicita_link' ? 'bg-sky-100 text-sky-700' : (m.estado === 'reservada' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700')" x-text="m.estado === 'solicita_link' ? 'solicita link' : m.estado"></span>
                                 </div>
                                 <p class="text-xs text-gray-500 mb-2" x-text="m.horario ? m.horario + ' · ' + m.regimen : m.regimen"></p>
-                                <p class="text-xs text-gray-500 mb-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: L. ' + m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0).toFixed(2)"></p>
+                                <p class="text-xs text-gray-500 mb-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: L. ' + fmtMonto(m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0))"></p>
 
                                 <div class="flex items-center gap-2 mb-2 text-xs">
                                     <button @click="seleccionarTodas(m)" class="text-brand-600 font-medium hover:text-brand-700">Seleccionar todo</button>
                                     <button @click="deseleccionarTodas(m)" class="text-gray-500 font-medium hover:text-gray-700">Ninguno</button>
                                     <template x-if="totalSeleccionado(m) > 0">
-                                        <span class="ml-auto font-semibold text-brand-700" x-text="'Subtotal: ' + totalSeleccionado(m).toFixed(2) + ' L.'"></span>
+                                        <span class="ml-auto font-semibold text-brand-700" x-text="'Subtotal: ' + fmtMonto(totalSeleccionado(m)) + ' L.'"></span>
                                     </template>
                                 </div>
 
@@ -301,7 +301,7 @@
                                                 @change="toggleObligacion(m.id, o.id)"
                                                 class="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500">
                                             <span class="flex-1 text-sm text-gray-700" x-text="o.nombre_cargo"></span>
-                                            <span class="text-sm font-semibold" :class="estaSeleccionada(m.id, o.id) ? 'text-brand-700' : 'text-gray-900'" x-text="parseFloat(o.saldo).toFixed(2) + ' L.'"></span>
+                                            <span class="text-sm font-semibold" :class="estaSeleccionada(m.id, o.id) ? 'text-brand-700' : 'text-gray-900'" x-text="fmtMonto(o.saldo) + ' L.'"></span>
                                         </label>
                                     </template>
                                 </div>
@@ -370,7 +370,7 @@
                                                         <p><span class="font-medium">Banco:</span> <span x-text="enl.cuenta_bancaria?.banco || '-'"></span></p>
                                                         <p><span class="font-medium">Cuenta:</span> <span class="font-mono" x-text="enl.cuenta_bancaria?.numero_cuenta || '-'"></span></p>
                                                         <p><span class="font-medium">Tipo:</span> <span x-text="enl.cuenta_bancaria?.tipo_cuenta || '-'"></span></p>
-                                                        <p x-show="enl.monto"><span class="font-medium">Monto:</span> <span x-text="parseFloat(enl.monto).toFixed(2) + ' L.'"></span></p>
+                                                        <p x-show="enl.monto"><span class="font-medium">Monto:</span> <span x-text="fmtMonto(enl.monto) + ' L.'"></span></p>
                                                     </div>
                                                     <p class="text-xs text-blue-500 mt-2">Realice su depósito o transferencia a esta cuenta y suba su comprobante.</p>
                                                 </div>
@@ -409,7 +409,7 @@
             <div class="absolute inset-0 bg-black/50" @click="selectedPago = null"></div>
             <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Subir Comprobante</h3>
-                <p class="text-sm text-gray-500 mb-4">Pago: <span class="font-medium" x-text="selectedPago.codigo"></span> — <span class="inline-flex items-baseline gap-1 font-bold tabular-nums text-gray-900 whitespace-nowrap"><span class="text-xs font-medium text-gray-500">L.</span><span x-text="parseFloat(selectedPago.monto).toFixed(2)"></span></span></p>
+                <p class="text-sm text-gray-500 mb-4">Pago: <span class="font-medium" x-text="selectedPago.codigo"></span> — <span class="inline-flex items-baseline gap-1 font-bold tabular-nums text-gray-900 whitespace-nowrap"><span class="text-xs font-medium text-gray-500">L.</span><span x-text="fmtMonto(selectedPago.monto)"></span></span></p>
                 <div class="space-y-4">
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Método de pago *</label>
                         <select x-model="formComp.metodo_pago_id" :disabled="!!selectedPago?.metodo_pago_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed">
@@ -457,12 +457,20 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function pagosView() {
     return {
         loading: true, pagos: [], tienePendientes: false,
         flujoPortal: { habilita_carga_comprobante: true, requiere_comprobante: true, habilita_solicitud_link: true },
 
-        showModal: false, modalLoading: false,
+        showModal: false, modalLoading: false, triggerElement: null,
         matriculasPendientes: [], metodosPago: [], enlacesDisponibles: [],
         selectedObligaciones: {},
         form: { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null },
@@ -671,7 +679,7 @@ function pagosView() {
             this.pollingInterval = setInterval(() => this.loadPagos(), 30000);
         },
 
-        async abrirNuevoPago() {
+        async abrirNuevoPago(event) {
             this.showModal = true;
             this.modalLoading = true;
             this.modalError = ''; this.formArchivoError = '';
@@ -680,6 +688,7 @@ function pagosView() {
             this.matriculasPendientes = [];
             this.tienePendientes = false;
             this.matriculaSeleccionadaId = null;
+            this.triggerElement = event ? event.target : null;
             const token = this.token();
             try {
                 const [metodosRes, portalRes] = await Promise.allSettled([
@@ -711,6 +720,13 @@ function pagosView() {
             if (this.matriculasPendientes.length === 0) { this.modalError = 'No hay obligaciones pendientes'; return; }
             if (!this.esMetodoLink(this.form.metodo_pago_id) && this.flujoPortal.requiere_comprobante && !this.form.archivo) {
                 this.modalError = 'Debe adjuntar un comprobante de pago'; return;
+            }
+            if (this.esMetodoLink(this.form.metodo_pago_id)) {
+                const pagosConSolicitud = this.pagos.filter(p => ['solicita_link','esperando_respuesta','en_revision'].includes(p.estado) && p.obligaciones_seleccionadas && p.obligaciones_seleccionadas.length > 0);
+                if (pagosConSolicitud.length > 0) {
+                    this.modalError = 'Ya tiene una solicitud de link en proceso. Debe esperar la respuesta de contabilidad antes de solicitar otro link para las mismas obligaciones.';
+                    return;
+                }
             }
             this.enviando = true; this.modalError = '';
             const token = this.token();
@@ -760,6 +776,10 @@ function pagosView() {
                             });
                         }
                         this.showModal = false;
+                        if (this.triggerElement) {
+                            this.triggerElement.focus();
+                            this.triggerElement = null;
+                        }
                         this.loadPagos();
                         if (data.data?.alerta_duplicado) {
                             window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Pago registrado. La referencia será verificada por contabilidad.', type: 'warning' } }));

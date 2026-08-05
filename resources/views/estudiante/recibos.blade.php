@@ -59,7 +59,7 @@
                                         <td class="px-4 py-3 text-gray-500" x-text="r.veces_reimpreso > 0 ? r.veces_reimpreso : '0'"></td>
                                         <td class="px-4 py-3 text-gray-700" x-text="r.concepto_origen || '-'"></td>
                                         <td class="px-4 py-3 text-gray-500" x-text="r.hora || '-'"></td>
-                                        <td class="px-4 py-3 font-semibold text-gray-900" x-text="parseFloat(r.monto_total).toFixed(2) + ' L.'"></td>
+                                        <td class="px-4 py-3 font-semibold text-gray-900" x-text="fmtMonto(r.monto_total) + ' L.'"></td>
                                         <td class="px-4 py-3 text-gray-500" x-text="r.metodo || '-'"></td>
                                         <td class="px-4 py-3 text-right">
                                             <button @click="verDetalle(r)" class="text-xs font-medium text-brand-600 hover:text-brand-700">Ver</button>
@@ -90,7 +90,7 @@
                     <div class="flex justify-between"><span class="text-gray-400">N° Recibo</span><span class="font-mono font-medium" x-text="reciboDetalle.numero_recibo"></span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Código Pago</span><span class="font-mono font-medium text-brand-600" x-text="reciboDetalle.codigo_pago || '-'"></span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Concepto</span><span x-text="reciboDetalle.concepto_origen || '-' "></span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Monto</span><span class="font-semibold" x-text="parseFloat(reciboDetalle.monto_total).toFixed(2) + ' L.'"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Monto</span><span class="font-semibold" x-text="fmtMonto(reciboDetalle.monto_total) + ' L.'"></span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Fecha</span><span x-text="reciboDetalle.fecha || '-' "></span></div>
                     <div class="flex justify-between"><span class="text-gray-400">Hora</span><span x-text="reciboDetalle.hora || '-' "></span></div>
                 </div>
@@ -104,6 +104,14 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function recibosView() {
     return { loading: true, recibos: [], showDetalle: false, reciboDetalle: null,
         async loadRecibos() {

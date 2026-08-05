@@ -82,6 +82,14 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function historialView() {
     return {
         loading: true,
@@ -97,7 +105,7 @@ function historialView() {
                     this.calificaciones = data.data || [];
                     const notas = this.calificaciones.map(c => Number(c.nota_final)).filter(n => !Number.isNaN(n));
                     this.resumen = {
-                        promedio: notas.length ? (notas.reduce((s, n) => s + n, 0) / notas.length).toFixed(2) : '-',
+                        promedio: notas.length ? fmtMonto(notas.reduce((s, n) => s + n, 0) / notas.length) : '-',
                         aprobadas: this.calificaciones.filter(c => c.estado === 'aprobado').length,
                         reprobadas: this.calificaciones.filter(c => c.estado === 'reprobado').length,
                         pendientes: this.calificaciones.filter(c => c.estado === 'pendiente').length,

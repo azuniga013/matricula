@@ -32,7 +32,7 @@
                                     </div>
                                     <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="m.estado === 'reservada' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'" x-text="m.estado"></span>
                                 </div>
-                                <p class="text-sm text-gray-600 mt-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: ' + m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0).toFixed(2) + ' L.'"></p>
+                                <p class="text-sm text-gray-600 mt-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: L. ' + fmtMonto(m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0))"></p>
                             </div>
                         </template>
                     </div>
@@ -83,7 +83,7 @@
                         <template x-for="o in portal.obligaciones" :key="o.id">
                             <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
                                 <div><p class="text-sm font-medium text-gray-900" x-text="o.nombre_cargo"></p><p class="text-xs text-gray-500">Vence: <span x-text="o.fecha_vencimiento"></span></p></div>
-                                <div class="text-right"><p class="text-sm font-bold text-amber-700" x-text="parseFloat(o.saldo).toFixed(2) + ' L.'"></p><p class="text-xs text-gray-400" x-text="'Pagado: ' + parseFloat(o.monto_pagado).toFixed(2) + ' L.'"></p></div>
+                                <div class="text-right"><p class="text-sm font-bold text-amber-700" x-text="fmtMonto(o.saldo) + ' L.'"></p><p class="text-xs text-gray-400" x-text="'Pagado: ' + fmtMonto(o.monto_pagado) + ' L.'"></p></div>
                             </div>
                         </template>
                     </div>
@@ -142,6 +142,14 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function dashboard() {
     return { loading: true, portal: null, async loadData() {
         const token = localStorage.getItem('estudiante_token');

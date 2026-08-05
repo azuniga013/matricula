@@ -49,7 +49,7 @@
                             </div>
                             <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="m.estado === 'reservada' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'" x-text="m.estado"></span>
                         </div>
-                        <p class="text-sm text-gray-600 mt-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: ' + m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0).toFixed(2) + ' L.'"></p>
+                        <p class="text-sm text-gray-600 mt-3" x-text="'Obligaciones pendientes: ' + m.obligaciones.length + ' · Total: L. ' + fmtMonto(m.obligaciones.reduce((s, o) => s + Number(o.saldo || 0), 0))"></p>
                     </div>
                 </template>
             </div>
@@ -67,7 +67,7 @@
                 <div class="flex justify-between text-sm"><span class="text-gray-500">Estado matrícula</span><span class="font-medium" x-text="resultado.estado_matricula === 'reservada' ? 'Pendiente' : resultado.estado_matricula"></span></div>
                 <div class="flex justify-between text-sm"><span class="text-gray-500">Estado pago</span><span class="font-medium" x-text="resultado.estado_pago === 'solicita_link' ? 'Solicita link' : resultado.estado_pago"></span></div>
                 <div class="flex justify-between text-sm"><span class="text-gray-500">Obligaciones</span><span class="font-medium" x-text="resultado.obligaciones_cantidad + ' registradas'"></span></div>
-                <div class="flex justify-between text-sm"><span class="text-gray-500">Monto total</span><span class="font-semibold text-gray-900" x-text="parseFloat(resultado.obligaciones_total || 0).toFixed(2) + ' L.'"></span></div>
+                <div class="flex justify-between text-sm"><span class="text-gray-500">Monto total</span><span class="font-semibold text-gray-900" x-text="fmtMonto(resultado.obligaciones_total || 0) + ' L.'"></span></div>
             </div>
             <p class="text-sm text-gray-500 mb-6" x-text="resultado.estado_pago === 'solicita_link' ? 'Su solicitud fue enviada. Contabilidad cargará el enlace en la sección de pagos.' : 'Realice su pago y suba el comprobante para confirmar su matrícula.'"></p>
             <div class="flex gap-3 justify-center">
@@ -103,7 +103,7 @@
                             <div class="flex justify-between"><span class="text-gray-500">Docente:</span><span class="font-medium text-gray-900" x-text="o.docente || '-'"></span></div>
                             <div class="flex justify-between"><span class="text-gray-500">Cupos:</span><span class="font-medium" :class="o.cupos_disponibles <= 3 ? 'text-amber-600' : 'text-brand-600'" x-text="o.cupos_disponibles + ' disponibles'"></span></div>
                             <template x-if="o.monto_total">
-                                <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-gray-900" x-text="parseFloat(o.monto_total).toFixed(2) + ' L.'"></span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-gray-900" x-text="fmtMonto(o.monto_total) + ' L.'"></span></div>
                             </template>
                         </div>
                         <div class="mt-4 flex gap-2">
@@ -129,6 +129,14 @@
 @endsection
 @section('scripts')
 <script>
+function fmtMonto(val) {
+    const n = parseFloat(val);
+    if (isNaN(n)) return '0.00';
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 function matricula() {
     return { loading: true, periodoActual: null, ofertas: [], matriculasPendientes: [], selected: null, saving: false, error: '', resultado: null,
         async loadOfertas() {

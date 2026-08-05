@@ -312,6 +312,42 @@ class PortalEstudianteTest extends TestCase
         $misPagos->assertOk()->assertJsonFragment(['estado' => 'solicita_link']);
     }
 
+    public function test_no_puede_solicitar_link_doble_para_misma_obligacion(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $obligacionIds = $matricula->obligaciones()->pluck('id')->all();
+
+        $primerPago = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $obligacionIds,
+        ], $this->studentHeaders());
+
+        $primerPago->assertCreated()
+            ->assertJsonPath('data.estado', 'solicita_link');
+
+        $segundoPago = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $obligacionIds,
+        ], $this->studentHeaders());
+
+        $segundoPago->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('codigo', 422)
+            ->assertJsonPath('mensaje', 'Ya tiene una solicitud de pago en proceso para estas obligaciones. Espere la respuesta de contabilidad antes de solicitar otro link.');
+
+        $pagosConSolicitud = \App\Models\Pago::where('estudiante_id', $this->estudiante->id)
+            ->whereIn('estado', ['solicita_link', 'esperando_respuesta', 'en_revision'])
+            ->count();
+        $this->assertEquals(1, $pagosConSolicitud, 'Solo debe existir una solicitud de link en proceso');
+    }
+
     public function test_reenganchar_flujo_pago_reencauza_matricula_y_pago(): void
     {
         $this->postJson('/api/v1/estudiantes/reservar-matricula', [
