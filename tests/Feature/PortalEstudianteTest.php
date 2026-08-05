@@ -176,9 +176,42 @@ class PortalEstudianteTest extends TestCase
         $response = $this->getJson('/api/v1/estudiantes/mis-ofertas', $this->studentHeaders());
 
         $response->assertOk()
-            ->assertJsonPath('resultado', 'A');
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.periodo_actual.codigo', '2026-I')
+            ->assertJsonPath('data.periodo_actual.fecha_inicio', now()->toDateString())
+            ->assertJsonPath('data.ofertas.0.periodo_codigo', '2026-I')
+            ->assertJsonPath('data.ofertas.0.periodo_fecha_inicio', now()->toDateString());
 
         $this->assertNotEmpty($response->json('data'));
+    }
+
+    public function test_mis_ofertas_no_devuelve_ofertas_de_periodo_cerrado(): void
+    {
+        PeriodoAcademico::whereKey($this->oferta->periodo_academico_id)->update([
+            'fecha_fin' => now()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->getJson('/api/v1/estudiantes/mis-ofertas', $this->studentHeaders());
+
+        $response->assertOk()
+            ->assertJsonPath('data.periodo_actual', null)
+            ->assertJsonPath('data.ofertas', []);
+    }
+
+    public function test_no_reservar_en_periodo_cerrado(): void
+    {
+        PeriodoAcademico::whereKey($this->oferta->periodo_academico_id)->update([
+            'fecha_fin' => now()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('codigo_error', '422_PERIODO_NO_ABIERTO');
+
+        $this->assertDatabaseCount('matriculas', 0);
     }
 
     public function test_reservar_matricula(): void

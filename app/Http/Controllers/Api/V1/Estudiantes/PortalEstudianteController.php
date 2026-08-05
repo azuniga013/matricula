@@ -31,6 +31,18 @@ class PortalEstudianteController extends Controller
 
         $periodoActivo = \App\Models\PeriodoAcademico::abierto()->orderByDesc('fecha_inicio')->first();
 
+        if (!$periodoActivo) {
+            return response()->json([
+                'resultado' => 'A',
+                'codigo' => 0,
+                'mensaje' => 'No hay un período académico abierto para matrícula',
+                'data' => [
+                    'periodo_actual' => null,
+                    'ofertas' => [],
+                ],
+            ]);
+        }
+
         $nivelesAprobados = \App\Models\HistorialAcademico::where('estudiante_id', $estudiante->id)
             ->where('estado', 'aprobado')
             ->pluck('nivel_academico_id')
@@ -63,7 +75,7 @@ class PortalEstudianteController extends Controller
         $ofertas = OfertaAcademica::where('sucursal_id', $estudiante->sucursal_id)
             ->where('estado', 'abierto')
             ->whereRaw('cupo_maximo - cupos_matriculados - cupos_reservados > 0')
-            ->when($periodoActivo, fn ($q) => $q->where('periodo_academico_id', $periodoActivo->id))
+            ->where('periodo_academico_id', $periodoActivo->id)
             ->when($nivelesAprobados->isNotEmpty(), function ($q) use ($nivelesAprobados) {
                 $q->whereHas('nivelAcademico', function ($nivelQuery) use ($nivelesAprobados) {
                     $nivelQuery->whereNotIn('id', $nivelesAprobados);
@@ -77,6 +89,7 @@ class PortalEstudianteController extends Controller
                 'modalidad',
                 'horario',
                 'docente',
+                'periodoAcademico',
                 'planCobro.detalles',
             ])
             ->get()
@@ -93,6 +106,9 @@ class PortalEstudianteController extends Controller
                 'cupos_disponibles' => $o->cupos_disponibles,
                 'monto_total' => $o->planCobro ? $o->planCobro->detalles->sum('monto') : null,
                 'periodo' => $o->periodoAcademico->nombre ?? null,
+                'periodo_codigo' => $o->periodoAcademico->codigo ?? null,
+                'periodo_fecha_inicio' => $o->periodoAcademico?->fecha_inicio?->toDateString(),
+                'periodo_fecha_fin' => $o->periodoAcademico?->fecha_fin?->toDateString(),
             ]);
 
         return response()->json([
@@ -104,6 +120,8 @@ class PortalEstudianteController extends Controller
                     'id' => $periodoActivo->id,
                     'codigo' => $periodoActivo->codigo,
                     'nombre' => $periodoActivo->nombre,
+                    'fecha_inicio' => $periodoActivo->fecha_inicio->toDateString(),
+                    'fecha_fin' => $periodoActivo->fecha_fin->toDateString(),
                 ] : null,
                 'ofertas' => $ofertas,
             ],
@@ -118,7 +136,7 @@ class PortalEstudianteController extends Controller
             'oferta_academica_id' => 'required|exists:ofertas_academicas,id',
         ]);
 
-        $oferta = OfertaAcademica::findOrFail($datos['oferta_academica_id']);
+        $oferta = OfertaAcademica::with('periodoAcademico')->findOrFail($datos['oferta_academica_id']);
 
         if ($oferta->sucursal_id !== $estudiante->sucursal_id) {
             return \App\Helpers\RespuestaError::make('422_OFERTA_NO_PERTENECE_SUCURSAL', 422, 'La oferta no pertenece a su sucursal')
@@ -127,6 +145,11 @@ class PortalEstudianteController extends Controller
 
         if ($oferta->estado !== 'abierto') {
             return \App\Helpers\RespuestaError::make('422_OFERTA_NO_ABIERTA', 422, 'La oferta no está abierta para matrícula')
+                ->response($request);
+        }
+
+        if (!$oferta->periodoAcademico?->estaAbierto()) {
+            return \App\Helpers\RespuestaError::make('422_PERIODO_NO_ABIERTO', 422, 'El período académico no está abierto para matrícula')
                 ->response($request);
         }
 

@@ -51,8 +51,8 @@ class PeriodoAcademico extends Model
     public function scopeAbierto($query)
     {
         return $query->where('periodos_academicos.estado', 'activo')
-            ->where('fecha_inicio', '<=', now())
-            ->where('fecha_fin', '>=', now());
+            ->whereDate('fecha_inicio', '<=', today())
+            ->whereDate('fecha_fin', '>=', today());
     }
 
     public function scopeOrdenados($query)
@@ -63,7 +63,7 @@ class PeriodoAcademico extends Model
     public function estaAbierto(): bool
     {
         return $this->estado === 'activo'
-            && $this->fecha_inicio->lte(now())
-            && $this->fecha_fin->gte(now());
+            && $this->fecha_inicio->lte(today())
+            && $this->fecha_fin->gte(today());
     }
 }

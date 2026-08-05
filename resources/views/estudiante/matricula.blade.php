@@ -21,11 +21,14 @@
         </div>
     </div>
 
-    <template x-if="periodoActual">
-        <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-sm text-brand-700 border border-brand-100">
-            <span class="font-medium">Período activo:</span>
-            <span x-text="periodoActual.nombre"></span>
-        </div>
+     <template x-if="periodoActual">
+         <div class="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700 border border-brand-100">
+             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                 <span class="font-semibold">Período de matrícula:</span>
+                 <span x-text="(periodoActual.codigo ? periodoActual.codigo + ' · ' : '') + periodoActual.nombre"></span>
+             </div>
+             <div class="mt-1 text-xs text-brand-600" x-text="'Vigencia: ' + fmtFecha(periodoActual.fecha_inicio) + ' al ' + fmtFecha(periodoActual.fecha_fin)"></div>
+         </div>
     </template>
 
     <template x-if="loading"><div class="flex items-center justify-center py-20"><div class="animate-spin rounded-full h-8 w-8 border-2 border-brand-500/20 border-t-brand-500"></div></div></template>
@@ -101,7 +104,9 @@
                         <div class="space-y-2 text-sm">
                             <div class="flex justify-between"><span class="text-gray-500">Horario:</span><span class="font-medium text-gray-900" x-text="o.horario || '-'"></span></div>
                             <div class="flex justify-between"><span class="text-gray-500">Docente:</span><span class="font-medium text-gray-900" x-text="o.docente || '-'"></span></div>
-                            <div class="flex justify-between"><span class="text-gray-500">Cupos:</span><span class="font-medium" :class="o.cupos_disponibles <= 3 ? 'text-amber-600' : 'text-brand-600'" x-text="o.cupos_disponibles + ' disponibles'"></span></div>
+                             <div class="flex justify-between"><span class="text-gray-500">Período:</span><span class="font-medium text-gray-900 text-right" x-text="(o.periodo_codigo ? o.periodo_codigo + ' · ' : '') + (o.periodo || '-')"></span></div>
+                             <div class="flex justify-between"><span class="text-gray-500">Vigencia:</span><span class="font-medium text-gray-900 text-right" x-text="fmtFecha(o.periodo_fecha_inicio) + ' al ' + fmtFecha(o.periodo_fecha_fin)"></span></div>
+                             <div class="flex justify-between"><span class="text-gray-500">Cupos:</span><span class="font-medium" :class="o.cupos_disponibles <= 3 ? 'text-amber-600' : 'text-brand-600'" x-text="o.cupos_disponibles + ' disponibles'"></span></div>
                             <template x-if="o.monto_total">
                                 <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-gray-900" x-text="fmtMonto(o.monto_total) + ' L.'"></span></div>
                             </template>
@@ -115,7 +120,7 @@
             <template x-if="selected">
                 <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <h3 class="font-semibold text-gray-900 mb-3">Confirmar Reserva</h3>
-                    <p class="text-sm text-gray-500 mb-4">Está a punto de reservar una matrícula para <span class="font-medium" x-text="selected.nivel"></span> - <span x-text="selected.horario"></span>.</p>
+                     <p class="text-sm text-gray-500 mb-4">Está a punto de reservar una matrícula para <span class="font-medium" x-text="selected.nivel"></span> - <span x-text="selected.horario"></span> en el período <span class="font-medium" x-text="(selected.periodo_codigo ? selected.periodo_codigo + ' · ' : '') + selected.periodo"></span>, vigente del <span class="font-medium" x-text="fmtFecha(selected.periodo_fecha_inicio)"></span> al <span class="font-medium" x-text="fmtFecha(selected.periodo_fecha_fin)"></span>.</p>
                     <template x-if="error"><p class="text-sm text-red-600 mb-3" x-text="error"></p></template>
                     <button @click="reservar()" :disabled="saving" class="px-6 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                         <span x-show="!saving">Reservar Matrícula</span>
@@ -135,6 +140,12 @@ function fmtMonto(val) {
     const parts = n.toFixed(2).split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return parts.join('.');
+}
+
+function fmtFecha(val) {
+    if (!val) return '-';
+    const partes = String(val).split('-');
+    return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : val;
 }
 
 function matricula() {
