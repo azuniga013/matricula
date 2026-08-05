@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\{
-    Aula, AccesoEstudiante, ConceptoPago, DepartamentoAcademico,
+    Aula, AccesoEstudiante, ConceptoPago, CuentaBancaria, DepartamentoAcademico,
     Docente, Estudiante, Horario, MetodoPago, Modalidad, NivelAcademico,
     OfertaAcademica, PeriodoAcademico, PlanCobro, PlanEstudio,
     Sucursal, VersionPlanEstudio
@@ -169,6 +169,20 @@ class PortalEstudianteTest extends TestCase
             ->assertJsonStructure([
                 'data' => ['estudiante', 'nivel_actual', 'matriculas', 'obligaciones', 'pagos', 'recibos', 'whatsapp'],
             ]);
+    }
+
+    public function test_portal_incluye_las_cuentas_bancarias_activas(): void
+    {
+        $cuenta = CuentaBancaria::create([
+            'codigo' => 'CUENTA-PORTAL', 'nombre' => 'Cuenta portal', 'banco' => 'Banco de prueba',
+            'numero_cuenta' => '123456789', 'tipo_cuenta' => 'ahorro', 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+
+        $this->postJson('/api/v1/estudiantes/portal', [], $this->studentHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.cuentas_bancarias.0.id', $cuenta->id)
+            ->assertJsonPath('data.cuentas_bancarias.0.banco', 'Banco de prueba');
     }
 
     public function test_mis_ofertas(): void

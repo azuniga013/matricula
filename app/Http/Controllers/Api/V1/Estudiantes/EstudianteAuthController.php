@@ -477,6 +477,9 @@ class EstudianteAuthController extends Controller
         }
 
         $flujoPagoMatricula = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', null, null);
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()
+            ->orderBy('banco')
+            ->get(['id', 'codigo', 'nombre', 'banco', 'numero_cuenta', 'tipo_cuenta']);
 
         return response()->json([
             'resultado' => 'A',
@@ -498,6 +501,7 @@ class EstudianteAuthController extends Controller
                 'pagos' => $pagos,
                 'recibos' => $recibos,
                 'calificaciones' => $calificaciones,
+                'cuentas_bancarias' => $cuentasBancarias,
                 'whatsapp' => $whatsapp,
                 'flujo_pago_matricula' => $flujoPagoMatricula,
                 'periodo_actual' => $periodoActual ? [

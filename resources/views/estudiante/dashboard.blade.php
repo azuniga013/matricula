@@ -39,8 +39,7 @@
                 </div>
             </template>
 
-            <template x-if="cuentasBancarias.length > 0">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-900">Cuentas para depósito y transferencia</h3>
@@ -48,7 +47,7 @@
                         </div>
                         <a href="/estudiante/pagos" class="text-sm font-medium text-brand-600 hover:text-brand-700 whitespace-nowrap">Registrar pago →</a>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <template x-if="cuentasBancarias.length > 0"><div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <template x-for="cuenta in cuentasBancarias" :key="cuenta.id">
                             <div class="rounded-lg border border-brand-100 bg-brand-50/40 p-4">
                                 <p class="text-xs font-medium uppercase tracking-wide text-brand-700" x-text="cuenta.banco"></p>
@@ -57,9 +56,9 @@
                                 <p class="mt-1 text-xs text-gray-500" x-text="'Cuenta de ' + cuenta.tipo_cuenta"></p>
                             </div>
                         </template>
-                    </div>
-                </div>
-            </template>
+                    </div></template>
+                    <template x-if="cuentasBancarias.length === 0"><p class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">Aún no hay cuentas bancarias activas configuradas. Contacte a administración antes de realizar el pago.</p></template>
+            </div>
 
             <template x-if="portal?.periodo_actual && portal?.calificaciones?.filter(c => c.periodo === portal.periodo_actual.nombre).length > 0 && portal?.calificaciones?.filter(c => c.periodo === portal.periodo_actual.nombre).every(c => c.estado !== 'pendiente')">
                 <div class="rounded-xl border border-blue-200 bg-blue-50 p-5">
@@ -178,14 +177,9 @@ function dashboard() {
         if (!token) { window.location.href = '/estudiante/login'; return; }
         try {
             const headers = { Authorization: `Bearer ${token}` };
-            const [portalResponse, cuentasResponse] = await Promise.allSettled([
-                window.axios.post('/api/v1/estudiantes/portal', {}, { headers }),
-                window.axios.get('/api/v1/estudiantes/cuentas-bancarias', { headers }),
-            ]);
-            const data = portalResponse.status === 'fulfilled' ? portalResponse.value.data : null;
-            if (data?.resultado === 'A') { this.portal = data.data; localStorage.setItem('estudiante_data', JSON.stringify(data.data.estudiante)); }
+            const { data } = await window.axios.post('/api/v1/estudiantes/portal', {}, { headers });
+            if (data?.resultado === 'A') { this.portal = data.data; this.cuentasBancarias = data.data.cuentas_bancarias || []; localStorage.setItem('estudiante_data', JSON.stringify(data.data.estudiante)); }
             else { window.location.href = '/estudiante/login'; }
-            if (cuentasResponse.status === 'fulfilled' && cuentasResponse.value.data?.resultado === 'A') this.cuentasBancarias = cuentasResponse.value.data.data || [];
         } catch(e) { if (e?.response?.status === 401) window.location.href = '/estudiante/login'; }
         finally { this.loading = false; }
     }, async init() { this.loadData(); this.pollingInterval = setInterval(() => this.loadData(), 30000); }};
