@@ -333,6 +333,9 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/siguiente-recibo', [PagoController::class, 'siguienteRecibo'])
             ->middleware('permission:pagos.crear');
 
+        Route::get('/obligaciones-estudiante', [PagoController::class, 'obligacionesEstudiante'])
+            ->middleware('permission:pagos.crear');
+
         Route::post('/registrar', [PagoController::class, 'registrar'])
             ->middleware('permission:pagos.crear');
 

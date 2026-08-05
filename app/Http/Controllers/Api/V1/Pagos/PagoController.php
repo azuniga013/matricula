@@ -93,6 +93,56 @@ class PagoController extends Controller
         ]);
     }
 
+    public function obligacionesEstudiante(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'estudiante_id' => 'required|exists:estudiantes,id',
+            'concepto_pago_id' => 'required|exists:conceptos_pago,id',
+        ]);
+
+        $concepto = ConceptoPago::findOrFail($datos['concepto_pago_id']);
+        $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $concepto->id, null);
+
+        if (!in_array($concepto->codigo, ['MAT', 'CUO'], true) || empty($configFlujo['habilita_seleccion_obligaciones'])) {
+            return response()->json([
+                'resultado' => 'A',
+                'codigo' => 0,
+                'mensaje' => 'No hay obligaciones seleccionables para este concepto',
+                'data' => ['habilita_seleccion_obligaciones' => false, 'obligaciones' => []],
+            ]);
+        }
+
+        $obligaciones = ObligacionPagoEstudiante::with(['matricula:id,codigo', 'conceptoPago:id,codigo,nombre'])
+            ->whereHas('matricula', fn ($q) => $q->where('estudiante_id', $datos['estudiante_id']))
+            ->whereIn('estado', ['pendiente', 'parcial'])
+            ->where('concepto_pago_id', $concepto->id)
+            ->orderBy('matricula_id')
+            ->orderBy('numero_cuota')
+            ->get()
+            ->map(fn ($obligacion) => [
+                'id' => $obligacion->id,
+                'matricula_id' => $obligacion->matricula_id,
+                'matricula_codigo' => $obligacion->matricula?->codigo,
+                'concepto' => $obligacion->conceptoPago?->codigo,
+                'numero_cuota' => $obligacion->numero_cuota,
+                'nombre_cargo' => $obligacion->nombre_cargo,
+                'monto' => (float) $obligacion->monto,
+                'monto_pagado' => (float) $obligacion->monto_pagado,
+                'saldo' => $obligacion->saldoPendiente(),
+                'fecha_vencimiento' => $obligacion->fecha_vencimiento?->format('d/m/Y'),
+            ]);
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => 'OK',
+            'data' => [
+                'habilita_seleccion_obligaciones' => true,
+                'obligaciones' => $obligaciones,
+            ],
+        ]);
+    }
+
     public function registrar(Request $request): JsonResponse
     {
         $request->validate([
@@ -203,10 +253,19 @@ class PagoController extends Controller
                     }
                 }
 
-                $obligaciones = ObligacionPagoEstudiante::where('matricula_id', $pago->matricula_id)
-                    ->where('estado', 'pendiente')
-                    ->orderBy('numero_cuota')
-                    ->get();
+                $obligacionesQuery = ObligacionPagoEstudiante::where('matricula_id', $pago->matricula_id)
+                    ->whereIn('estado', ['pendiente', 'parcial'])
+                    ->orderBy('numero_cuota');
+
+                if ($request->filled('obligaciones')) {
+                    $ids = collect($request->input('obligaciones'))
+                        ->pluck('obligacion_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->values();
+                    $obligacionesQuery->whereIn('id', $ids);
+                }
+
+                $obligaciones = $obligacionesQuery->get();
 
                 $montoRestante = $pago->monto;
 
@@ -214,7 +273,11 @@ class PagoController extends Controller
                     if ($montoRestante <= 0) break;
 
                     $saldo = $obligacion->monto - $obligacion->monto_pagado;
-                    $montoAplicar = min($montoRestante, $saldo);
+                    $seleccion = collect($request->input('obligaciones', []))
+                        ->firstWhere('obligacion_id', $obligacion->id);
+                    $montoAplicar = $seleccion
+                        ? min((float) $seleccion['monto_aplicado'], $saldo, $montoRestante)
+                        : min($montoRestante, $saldo);
 
                     $obligacion->update([
                         'monto_pagado' => $obligacion->monto_pagado + $montoAplicar,

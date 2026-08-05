@@ -155,6 +155,18 @@ class PagoTest extends TestCase
         ]);
     }
 
+    public function test_consulta_obligaciones_pendientes_por_concepto_para_pago_administrativo(): void
+    {
+        $response = $this->getJson('/api/v1/pagos/obligaciones-estudiante?estudiante_id=' . $this->estudiante->id . '&concepto_pago_id=' . $this->conceptoCuoId, $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.habilita_seleccion_obligaciones', true)
+            ->assertJsonCount(1, 'data.obligaciones')
+            ->assertJsonPath('data.obligaciones.0.concepto', 'CUO')
+            ->assertJsonPath('data.obligaciones.0.saldo', 1100);
+    }
+
     public function test_aprobar_pago_aplica_a_obligaciones(): void
     {
         $pago = $this->postJson('/api/v1/pagos/registrar', [

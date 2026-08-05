@@ -411,7 +411,7 @@
                         <input x-model="busquedaEstudiante" @input.debounce.300ms="buscarEstudiantes()" type="text" placeholder="Buscar estudiante..." class="input">
                         <div x-show="resultadosEstudiantes.length > 0" class="relative z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                             <template x-for="e in resultadosEstudiantes" :key="e.id">
-                                <button type="button" @click="form.estudiante_id = e.id; busquedaEstudiante = e.codigo + ' — ' + (e.nombres || e.nombre || '') + ' ' + (e.apellidos || e.apellido || ''); resultadosEstudiantes = [];" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"><span class="font-medium" x-text="e.codigo + ' — ' + (e.nombres || e.nombre || '') + ' ' + (e.apellidos || e.apellido || '')"></span></button>
+                                <button type="button" @click="seleccionarEstudiante(e)" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"><span class="font-medium" x-text="e.codigo + ' — ' + (e.nombres || e.nombre || '') + ' ' + (e.apellidos || e.apellido || '')"></span></button>
                     </template>
                     <div class="col-span-2">
                         <label class="label">Código de Recibo</label>
@@ -429,6 +429,31 @@
                         <label class="label">Método de Pago</label>
                         <select x-model="form.metodo_pago_id" @change="onMetodoChange()" required class="input"><option value="">Seleccionar...</option><template x-for="m in metodos" :key="m.id"><option :value="m.id" x-text="m.nombre"></option></template></select>
                     </div>
+                    <template x-if="esMATCUO && flujo.habilita_seleccion_obligaciones">
+                        <div class="col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="label text-emerald-900">Obligaciones pendientes</label>
+                                <button type="button" @click="seleccionarTodasObligaciones()" class="text-xs font-medium text-emerald-700">Seleccionar todas</button>
+                            </div>
+                            <template x-if="!form.estudiante_id">
+                                <p class="text-xs text-amber-700">Seleccione primero un estudiante.</p>
+                            </template>
+                            <template x-if="form.estudiante_id && obligacionesPendientes.length === 0">
+                                <p class="text-xs text-amber-700">No hay obligaciones pendientes para este concepto.</p>
+                            </template>
+                            <div class="space-y-2 max-h-48 overflow-y-auto" x-show="obligacionesPendientes.length > 0">
+                                <template x-for="o in obligacionesPendientes" :key="o.id">
+                                    <label class="flex items-center justify-between gap-3 rounded border border-emerald-100 bg-white px-3 py-2 text-sm">
+                                        <span class="flex items-center gap-2">
+                                            <input type="checkbox" :value="o.id" x-model="obligacionesSeleccionadas" @change="actualizarMontoObligaciones()" class="rounded border-gray-300 text-emerald-600">
+                                            <span><span class="font-medium" x-text="o.matricula_codigo + ' · ' + o.nombre_cargo"></span><span class="block text-xs text-gray-500" x-text="'Vencimiento: ' + (o.fecha_vencimiento || '-')"></span></span>
+                                        </span>
+                                        <span class="font-semibold whitespace-nowrap">L <span x-text="fmtMonto(o.saldo)"></span></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
                     <div>
                         <label class="label">Monto (L)</label>
                         <input x-model.number="form.monto" type="number" step="0.01" min="0" required class="input">
@@ -786,7 +811,7 @@ function pagos() {
         flujo: { habilita_aprobacion_pago: true, habilita_solicitud_link: true, habilita_carga_comprobante: true, requiere_comprobante: true, habilita_generacion_recibo: true },
         debugPagos: { filtroActivo: 'N/D', ultimoConteo: 'N/D', respuestas: {} },
         form: { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', monto: 0, fecha_proceso: '', referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, solicitar_link: false },
-        busquedaEstudiante: '', resultadosEstudiantes: [],
+        busquedaEstudiante: '', resultadosEstudiantes: [], obligacionesPendientes: [], obligacionesSeleccionadas: [],
         filtroRecibos: { fecha_desde: '', fecha_hasta: '', estado: '' },
         showComprobante: false, showRechazo: false, showRecibo: false, showAnulacion: false,
         showDetalle: false, detallePago: null,
@@ -826,6 +851,11 @@ function pagos() {
             return c && c.codigo === 'VLI';
         },
 
+        get esMATCUO() {
+            const concepto = this.conceptos.find(x => x.id == this.form.concepto_pago_id);
+            return ['MAT', 'CUO'].includes(concepto?.codigo);
+        },
+
         get totalLibroSugerido() {
             if (!this.form.inventario_libro_id || !this.form.cantidad_libro) return 0;
             const l = this.libros.find(x => x.id == this.form.inventario_libro_id);
@@ -838,6 +868,41 @@ function pagos() {
             if (!this.esVLI) {
                 this.form.inventario_libro_id = '';
                 this.form.cantidad_libro = 1;
+            }
+            this.obligacionesPendientes = [];
+            this.obligacionesSeleccionadas = [];
+            this.cargarObligaciones();
+        },
+
+        seleccionarEstudiante(estudiante) {
+            this.form.estudiante_id = estudiante.id;
+            this.busquedaEstudiante = estudiante.codigo + ' — ' + (estudiante.nombres || estudiante.nombre || '') + ' ' + (estudiante.apellidos || estudiante.apellido || '');
+            this.resultadosEstudiantes = [];
+            this.cargarObligaciones();
+        },
+
+        async cargarObligaciones() {
+            if (!this.form.estudiante_id || !this.esMATCUO) return;
+            try {
+                const params = new URLSearchParams({ estudiante_id: this.form.estudiante_id, concepto_pago_id: this.form.concepto_pago_id });
+                const { data } = await window.axios.get(`/api/v1/pagos/obligaciones-estudiante?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.obligacionesPendientes = data.data?.obligaciones || [];
+                this.obligacionesSeleccionadas = [];
+                this.actualizarMontoObligaciones();
+            } catch (e) {
+                this.obligacionesPendientes = [];
+                this.error = window.extractError(e, 'No se pudieron cargar las obligaciones');
+            }
+        },
+
+        seleccionarTodasObligaciones() {
+            this.obligacionesSeleccionadas = this.obligacionesPendientes.map(o => String(o.id));
+            this.actualizarMontoObligaciones();
+        },
+
+        actualizarMontoObligaciones() {
+            if (this.esMATCUO && this.obligacionesSeleccionadas.length > 0) {
+                this.form.monto = this.obligacionesPendientes.filter(o => this.obligacionesSeleccionadas.includes(String(o.id))).reduce((total, o) => total + Number(o.saldo || 0), 0);
             }
         },
 
@@ -972,7 +1037,7 @@ function pagos() {
         async openModal() {
             const hoy = window.toLocalDateInput();
             this.form = { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', monto: 0, fecha_proceso: hoy, referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, codigo_recibo: '', solicitar_link: false };
-            this.busquedaEstudiante = ''; this.resultadosEstudiantes = []; this.error = '';
+            this.busquedaEstudiante = ''; this.resultadosEstudiantes = []; this.obligacionesPendientes = []; this.obligacionesSeleccionadas = []; this.error = '';
             this.showModal = true;
             this.siguienteReciboCargado = false;
             try {
@@ -990,6 +1055,11 @@ function pagos() {
                 const payload = { ...this.form };
                 payload.solicitar_link = !!payload.solicitar_link;
                 if (!this.flujo.habilita_solicitud_link) payload.solicitar_link = false;
+                if (this.esMATCUO && this.obligacionesSeleccionadas.length > 0) {
+                    const seleccionadas = this.obligacionesPendientes.filter(o => this.obligacionesSeleccionadas.includes(String(o.id)));
+                    payload.matricula_id = seleccionadas[0]?.matricula_id || null;
+                    payload.obligaciones = seleccionadas.map(o => ({ obligacion_id: o.id, monto_aplicado: o.saldo }));
+                }
                 const { data } = await window.axios.post('/api/v1/pagos/registrar', payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') { this.showModal = false; this.toast('Pago registrado', 'success'); await this.load(); }
                 else { this.error = data.mensaje || 'Error'; }
