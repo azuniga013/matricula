@@ -469,7 +469,7 @@ class PortalEstudianteController extends Controller
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
             'referencia' => 'nullable|string|max:100',
             'fecha_pago' => 'nullable|date',
-            'comprobante' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'comprobante' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         $pago = Pago::findOrFail($datos['pago_id']);
@@ -505,22 +505,24 @@ class PortalEstudianteController extends Controller
         if (empty($configFlujo['habilita_carga_comprobante'])) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'La carga de comprobante está deshabilitada para este proceso'], 422);
         }
-        if (!empty($configFlujo['requiere_comprobante']) && !$request->hasFile('comprobante')) {
+        if (!empty($configFlujo['requiere_comprobante']) && !$metodo->permite_link_pago && !$request->hasFile('comprobante')) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'Este proceso requiere comprobante'], 422);
         }
 
-        $archivo = $request->file('comprobante');
-        $nombreArchivo = time() . '_' . Str::random(10) . '.' . $archivo->getClientOriginalExtension();
-        $ruta = $archivo->storeAs('comprobantes', $nombreArchivo, 'public');
+        if ($request->hasFile('comprobante')) {
+            $archivo = $request->file('comprobante');
+            $nombreArchivo = time() . '_' . Str::random(10) . '.' . $archivo->getClientOriginalExtension();
+            $ruta = $archivo->storeAs('comprobantes', $nombreArchivo, 'public');
 
-        \App\Models\ComprobantePago::create([
-            'pago_id' => $pago->id,
-            'nombre_archivo' => $archivo->getClientOriginalName(),
-            'ruta_archivo' => $ruta,
-            'tipo_archivo' => $archivo->getMimeType(),
-            'tamano_bytes' => $archivo->getSize(),
-            'estado' => 'pendiente',
-        ]);
+            \App\Models\ComprobantePago::create([
+                'pago_id' => $pago->id,
+                'nombre_archivo' => $archivo->getClientOriginalName(),
+                'ruta_archivo' => $ruta,
+                'tipo_archivo' => $archivo->getMimeType(),
+                'tamano_bytes' => $archivo->getSize(),
+                'estado' => 'pendiente',
+            ]);
+        }
 
         $actualizar = [
             'estado' => 'en_revision',

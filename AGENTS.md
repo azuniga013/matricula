@@ -80,6 +80,8 @@ Ejemplos:
 
 La documentaciÃ³n tÃ©cnica y comentarios funcionales deben escribirse en espaÃ±ol.
 
+Los comentarios en el cÃ³digo (feed, docblocks, inline comments) deben mantenerse en espaÃ±ol cuando representen conceptos del dominio o expliquen lÃ³gica de negocio. Los comentarios tÃ©cnicos de framework o librerÃ­as pueden mantenerse en inglÃ©s si son estÃ¡ndar del ecosistema.
+
 ---
 
 ## 3. Arquitectura actual
