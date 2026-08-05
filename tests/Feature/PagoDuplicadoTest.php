@@ -382,6 +382,7 @@ class PagoDuplicadoTest extends TestCase
             'estado' => 'pendiente',
             'referencia_externa' => null,
             'fecha_proceso' => null,
+            'fecha_deposito' => null,
             'creado_en' => now(),
         ]);
 

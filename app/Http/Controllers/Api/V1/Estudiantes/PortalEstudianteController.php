@@ -400,7 +400,7 @@ class PortalEstudianteController extends Controller
                 'monto' => $montoTotal,
                 'estado' => (!empty($datos['solicitar_link']) || $metodo->permite_link_pago || $metodo->codigo === 'LNK') ? 'solicita_link' : 'pendiente',
                 'referencia_externa' => $referenciaLimpia ?? ($datos['referencia'] ?? null),
-                'fecha_proceso' => $fechaProcesoCarbon,
+                'fecha_deposito' => $fechaProcesoCarbon,
                 'creado_en' => now(),
             ]);
 
@@ -423,7 +423,7 @@ class PortalEstudianteController extends Controller
         $duplicado = app(DetectorPagoDuplicado::class)->aplicar(
             $resultado,
             $resultado->referencia_externa,
-            $resultado->fecha_proceso ? \Illuminate\Support\Carbon::instance($resultado->fecha_proceso) : null
+            $resultado->fecha_deposito ? \Illuminate\Support\Carbon::instance($resultado->fecha_deposito) : null
         );
 
         return response()->json([
@@ -516,7 +516,7 @@ class PortalEstudianteController extends Controller
             $actualizar['referencia_externa'] = $validacion['referencia'];
         }
         if ($validacion['fecha_carbon'] !== null) {
-            $actualizar['fecha_proceso'] = $validacion['fecha_carbon'];
+            $actualizar['fecha_deposito'] = $validacion['fecha_carbon'];
         }
 
         $pago->update($actualizar);
@@ -524,7 +524,7 @@ class PortalEstudianteController extends Controller
         app(DetectorPagoDuplicado::class)->aplicar(
             $pago->fresh(),
             $pago->fresh()->referencia_externa,
-            $pago->fresh()->fecha_proceso ? \Illuminate\Support\Carbon::instance($pago->fresh()->fecha_proceso) : null
+            $pago->fresh()->fecha_deposito ? \Illuminate\Support\Carbon::instance($pago->fresh()->fecha_deposito) : null
         );
 
         if ($pago->matricula_id) {

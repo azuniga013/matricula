@@ -35,14 +35,14 @@ class DetectorPagoDuplicado
             ->where('estudiante_id', '!=', $estudianteId)
             ->whereNotNull('referencia_externa')
             ->whereRaw('TRIM(referencia_externa) = ?', [$referencia])
-            ->whereNotNull('fecha_proceso')
-            ->whereDate('fecha_proceso', $fechaProceso->toDateString());
+            ->whereNotNull('fecha_deposito')
+            ->whereDate('fecha_deposito', $fechaProceso->toDateString());
 
         if ($excluirPagoId !== null) {
             $query->where('id', '!=', $excluirPagoId);
         }
 
-        return $query->orderBy('fecha_proceso')
+        return $query->orderBy('fecha_deposito')
             ->limit(10)
             ->get()
             ->all();
@@ -97,7 +97,7 @@ class DetectorPagoDuplicado
                 '%s (%s · %s · %s%s)',
                 $c->codigo,
                 $nombre,
-                $c->fecha_proceso?->format('d/m/Y'),
+                $c->fecha_deposito?->format('d/m/Y'),
                 $c->estado,
                 $recibo
             );
@@ -125,7 +125,7 @@ class DetectorPagoDuplicado
                     : 'Estudiante #' . $c->estudiante_id,
                 'metodo' => (string) ($c->metodoPago?->nombre ?? '—'),
                 'referencia' => (string) ($c->referencia_externa ?? '—'),
-                'fecha' => $c->fecha_proceso?->format('d/m/Y'),
+                'fecha' => $c->fecha_deposito?->format('d/m/Y'),
                 'monto' => $c->monto !== null ? number_format((float) $c->monto, 2) : '—',
                 'estado' => $c->estado ?: '—',
                 'numero_recibo' => $recibo?->numero_recibo ? (string) $recibo->numero_recibo : null,
@@ -143,7 +143,7 @@ class DetectorPagoDuplicado
                 nombreEstudianteNuevo: $nombreCompleto,
                 metodo: (string) ($pago->metodoPago?->nombre ?? '—'),
                 referencia: (string) ($pago->referencia_externa ?? ''),
-                fechaPago: $pago->fecha_proceso?->format('d/m/Y'),
+                fechaPago: $pago->fecha_deposito?->format('d/m/Y'),
                 coincidencias: $coincidenciasData
             ));
         } catch (\Throwable $e) {

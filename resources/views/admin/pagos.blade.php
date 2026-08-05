@@ -669,7 +669,8 @@
                     <div><span class="text-gray-400">Monto</span><p class="font-semibold text-lg">L <span x-text="fmtMonto(detallePago?.monto)"></span></p></div>
                     <div><span class="text-gray-400">Referencia</span><p x-text="detallePago?.referencia_externa || '-'"></p></div>
                     <div><span class="text-gray-400">Sucursal</span><p x-text="detallePago?.sucursal?.nombre || '-'"></p></div>
-                    <div><span class="text-gray-400">Fecha</span><p x-text="fmtFecha(detallePago?.fecha_proceso || detallePago?.fecha_aprobacion || detallePago?.creado_en)"></p></div>
+                    <div><span class="text-gray-400">Fecha depósito</span><p x-text="fmtFecha(detallePago?.fecha_deposito) || '-'"></p></div>
+                    <div><span class="text-gray-400">Fecha proceso</span><p x-text="fmtFecha(detallePago?.fecha_proceso || detallePago?.fecha_aprobacion || detallePago?.creado_en)"></p></div>
                     <div><span class="text-gray-400">Hora</span><p x-text="fmtHora(detallePago?.fecha_proceso || detallePago?.fecha_aprobacion || detallePago?.creado_en)"></p></div>
                 </div>
 
