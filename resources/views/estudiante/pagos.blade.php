@@ -330,13 +330,19 @@
                                 </div>
                             </template>
 
-                            <template x-if="esMetodoValidable(form.metodo_pago_id)">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label>
-                                    <input x-model="form.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()">
-                                    <p class="text-xs text-gray-400 mt-1">Fecha en la que realizó el depósito o transferencia.</p>
-                                </div>
-                            </template>
+                             <template x-if="esMetodoValidable(form.metodo_pago_id)">
+                                 <div>
+                                     <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label>
+                                     <input x-model="form.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()">
+                                     <p class="text-xs text-gray-400 mt-1">Fecha en la que realizó el depósito o transferencia.</p>
+                                 </div>
+                             </template>
+                             <template x-if="esMetodoValidable(form.metodo_pago_id)">
+                                 <div>
+                                     <label class="block text-sm font-medium text-gray-700 mb-1">Cuenta bancaria donde realizó el pago <span class="text-red-500">*</span></label>
+                                     <select x-model="form.cuenta_bancaria_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select>
+                                 </div>
+                             </template>
 
                             <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id)">
                                 <div>
@@ -423,6 +429,9 @@
                     <template x-if="esMetodoValidable(formComp.metodo_pago_id)">
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Fecha de pago <span class="text-red-500">*</span></label><input x-model="formComp.fecha_pago" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :max="hoyStr()"></div>
                     </template>
+                    <template x-if="esMetodoValidable(formComp.metodo_pago_id)">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Cuenta bancaria donde realizó el pago <span class="text-red-500">*</span></label><select x-model="formComp.cuenta_bancaria_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select></div>
+                    </template>
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Comprobante (JPG, PNG, PDF, máx 5MB) *</label><input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="handleCompFileChange($event)" class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"><p x-show="compFileError" class="text-xs text-red-500 mt-1" x-text="compFileError"></p></div>
                 </div>
                 <template x-if="uploadError"><p class="text-sm text-red-600 mt-3" x-text="uploadError"></p></template>
@@ -471,9 +480,9 @@ function pagosView() {
         flujoPortal: { habilita_carga_comprobante: true, requiere_comprobante: true, habilita_solicitud_link: true },
 
         showModal: false, modalLoading: false, triggerElement: null,
-        matriculasPendientes: [], metodosPago: [], enlacesDisponibles: [],
+        matriculasPendientes: [], metodosPago: [], cuentasBancarias: [], enlacesDisponibles: [],
         selectedObligaciones: {},
-        form: { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null },
+        form: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null },
         formArchivoError: '',
         enviando: false, modalError: '',
         matriculaSeleccionadaId: null,
@@ -482,7 +491,7 @@ function pagosView() {
         selectedPago: null,
         pagoMotivo: null,
         showMotivoRechazo: false,
-        formComp: { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null },
+        formComp: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null },
         uploading: false, uploadError: '', compFileError: '',
         estudianteActualId: null,
 
@@ -598,11 +607,13 @@ function pagosView() {
             if (this.esMetodoTarjeta(this.form.metodo_pago_id)) {
                 this.form.referencia = '';
                 this.form.fecha_pago = '';
+                this.form.cuenta_bancaria_id = '';
                 this.form.archivo = null;
             }
             if (this.esMetodoLink(this.form.metodo_pago_id)) {
                 this.form.referencia = '';
                 this.form.fecha_pago = '';
+                this.form.cuenta_bancaria_id = '';
                 this.cargarEnlacesDisponibles();
             }
         },
@@ -683,7 +694,7 @@ function pagosView() {
             this.showModal = true;
             this.modalLoading = true;
             this.modalError = ''; this.formArchivoError = '';
-            this.form = { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null };
+            this.form = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null };
             this.selectedObligaciones = {};
             this.matriculasPendientes = [];
             this.tienePendientes = false;
@@ -691,12 +702,16 @@ function pagosView() {
             this.triggerElement = event ? event.target : null;
             const token = this.token();
             try {
-                const [metodosRes, portalRes] = await Promise.allSettled([
+                const [metodosRes, cuentasRes, portalRes] = await Promise.allSettled([
                     window.axios.get('/api/v1/estudiantes/metodos-pago'),
+                    window.axios.get('/api/v1/estudiantes/cuentas-bancarias', { headers: { Authorization: `Bearer ${token}` } }),
                     window.axios.post('/api/v1/estudiantes/portal', {}, { headers: { Authorization: `Bearer ${token}` } }),
                 ]);
                 if (metodosRes.status === 'fulfilled' && metodosRes.value.data.resultado === 'A') {
                     this.metodosPago = metodosRes.value.data.data || [];
+                }
+                if (cuentasRes.status === 'fulfilled' && cuentasRes.value.data.resultado === 'A') {
+                    this.cuentasBancarias = cuentasRes.value.data.data || [];
                 }
                 if (portalRes.status === 'fulfilled' && portalRes.value.data.resultado === 'A') {
                     const data = portalRes.value.data.data;
@@ -750,11 +765,13 @@ function pagosView() {
                     if (this.esMetodoValidable(this.form.metodo_pago_id)) {
                         if (!this.form.referencia || !this.form.referencia.trim()) { this.modalError = 'Ingrese el número de referencia'; this.enviando = false; return; }
                         if (!this.form.fecha_pago) { this.modalError = 'Ingrese la fecha de pago'; this.enviando = false; return; }
+                        if (!this.form.cuenta_bancaria_id) { this.modalError = 'Seleccione la cuenta bancaria donde realizó el pago'; this.enviando = false; return; }
                     }
                     const payload = {
                         matricula_id: m.id,
                         metodo_pago_id: this.form.metodo_pago_id,
                         referencia: this.form.referencia || '',
+                        cuenta_bancaria_id: this.form.cuenta_bancaria_id || null,
                         obligacion_ids: ids,
                     };
                     if (this.form.fecha_pago) payload.fecha_pago = this.form.fecha_pago;
@@ -769,6 +786,7 @@ function pagosView() {
                             fd.append('pago_id', pagoId);
                             fd.append('metodo_pago_id', this.form.metodo_pago_id);
                             fd.append('referencia', this.form.referencia || '');
+                            if (this.form.cuenta_bancaria_id) fd.append('cuenta_bancaria_id', this.form.cuenta_bancaria_id);
                             if (this.form.fecha_pago) fd.append('fecha_pago', this.form.fecha_pago);
                             fd.append('comprobante', this.form.archivo);
                             await window.axios.post('/api/v1/estudiantes/subir-comprobante', fd, {
@@ -838,7 +856,7 @@ function pagosView() {
 
         subirComprobantePago(p) {
             this.selectedPago = p;
-            this.formComp = { metodo_pago_id: p.metodo_pago_id || '', referencia: '', fecha_pago: '', archivo: null };
+            this.formComp = { metodo_pago_id: p.metodo_pago_id || '', cuenta_bancaria_id: p.cuenta_bancaria_id || '', referencia: '', fecha_pago: '', archivo: null };
             this.uploadError = '';
         },
 
@@ -875,6 +893,7 @@ function pagosView() {
             if (this.esMetodoValidable(this.formComp.metodo_pago_id)) {
                 if (!this.formComp.referencia || !this.formComp.referencia.trim()) { this.uploadError = 'Ingrese el número de referencia'; return; }
                 if (!this.formComp.fecha_pago) { this.uploadError = 'Ingrese la fecha de pago'; return; }
+                if (!this.formComp.cuenta_bancaria_id) { this.uploadError = 'Seleccione la cuenta bancaria donde realizó el pago'; return; }
             }
             this.uploading = true; this.uploadError = '';
             const token = this.token();
@@ -883,6 +902,7 @@ function pagosView() {
                 fd.append('pago_id', this.selectedPago.id);
                 fd.append('metodo_pago_id', this.formComp.metodo_pago_id);
                 fd.append('referencia', this.formComp.referencia);
+                if (this.formComp.cuenta_bancaria_id) fd.append('cuenta_bancaria_id', this.formComp.cuenta_bancaria_id);
                 if (this.formComp.fecha_pago) fd.append('fecha_pago', this.formComp.fecha_pago);
                 fd.append('comprobante', this.formComp.archivo);
                 const { data } = await window.axios.post('/api/v1/estudiantes/subir-comprobante', fd, {
@@ -890,7 +910,7 @@ function pagosView() {
                 });
                 if (data.resultado === 'A') {
                     this.selectedPago = null;
-                    this.formComp = { metodo_pago_id: '', referencia: '', fecha_pago: '', archivo: null };
+                    this.formComp = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null };
                     this.loadPagos();
                     window.dispatchEvent(new CustomEvent('show-toast', {
                         detail: { message: 'Comprobante subido exitosamente', type: 'success' }

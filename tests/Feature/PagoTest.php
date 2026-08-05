@@ -155,6 +155,38 @@ class PagoTest extends TestCase
         ]);
     }
 
+    public function test_deposito_requiere_cuenta_bancaria_activa_y_la_conserva_en_el_pago(): void
+    {
+        $metodoDepositoId = DB::table('metodos_pago')->insertGetId([
+            'codigo' => 'DEP', 'nombre' => 'Depósito', 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+        $cuenta = CuentaBancaria::create([
+            'codigo' => 'BAC-DEP-TEST', 'nombre' => 'Cuenta de depósito', 'banco' => 'BAC',
+            'numero_cuenta' => '123456789', 'tipo_cuenta' => 'ahorro', 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+        $datosBase = [
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $metodoDepositoId,
+            'monto' => 1200.00,
+        ];
+
+        $this->postJson('/api/v1/pagos/registrar', $datosBase, $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('codigo_error', '422_CUENTA_BANCARIA_REQUERIDA');
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            ...$datosBase,
+            'cuenta_bancaria_id' => $cuenta->id,
+        ], $this->headers());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.cuenta_bancaria_id', $cuenta->id);
+        $this->assertDatabaseHas('pagos', ['id' => $response->json('data.id'), 'cuenta_bancaria_id' => $cuenta->id]);
+    }
+
     public function test_consulta_obligaciones_pendientes_por_concepto_para_pago_administrativo(): void
     {
         $response = $this->getJson('/api/v1/pagos/obligaciones-estudiante?estudiante_id=' . $this->estudiante->id . '&concepto_pago_id=' . $this->conceptoCuoId, $this->headers());

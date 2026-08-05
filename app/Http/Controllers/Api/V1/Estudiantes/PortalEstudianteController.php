@@ -13,6 +13,7 @@ use App\Models\OfertaAcademica;
 use App\Models\Pago;
 use App\Models\AplicacionPago;
 use App\Models\ConceptoPago;
+use App\Models\CuentaBancaria;
 use App\Services\ServicioNomenclatura;
 use App\Services\ResolutorFlujoMatricula;
 use App\Services\DetectorPagoDuplicado;
@@ -325,6 +326,7 @@ class PortalEstudianteController extends Controller
         $datos = $request->validate([
             'matricula_id' => 'required|exists:matriculas,id',
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
+            'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'referencia' => 'nullable|string|max:100',
             'fecha_pago' => 'nullable|date',
             'solicitar_link' => 'nullable|boolean',
@@ -332,7 +334,8 @@ class PortalEstudianteController extends Controller
             'obligacion_ids.*' => 'integer|exists:obligaciones_pago_estudiante,id',
         ]);
 
-        $validacion = $this->validarReferenciaFechaMetodo($datos, (int) $datos['metodo_pago_id']);
+        $metodo = \App\Models\MetodoPago::findOrFail($datos['metodo_pago_id']);
+        $validacion = $this->validarReferenciaFechaMetodo($datos, $metodo->id);
         if (!$validacion['ok']) {
             return response()->json([
                 'resultado' => 'R',
@@ -345,7 +348,15 @@ class PortalEstudianteController extends Controller
         $matricula = Matricula::where('estudiante_id', $estudiante->id)
             ->with('ofertaAcademica.planCobro.detalles.conceptoPago')
             ->findOrFail($datos['matricula_id']);
-        $metodo = \App\Models\MetodoPago::findOrFail($datos['metodo_pago_id']);
+        $cuentaBancaria = $this->validarCuentaBancaria($metodo, $datos['cuenta_bancaria_id'] ?? null);
+        if ($cuentaBancaria === false) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_CUENTA_BANCARIA_REQUERIDA',
+                'mensaje' => 'Debe seleccionar una cuenta bancaria activa para pagos por depósito o transferencia.',
+            ], 422);
+        }
 
         if (!in_array($matricula->estado, ['reservada', 'matriculado'])) {
             return response()->json([
@@ -422,7 +433,7 @@ class PortalEstudianteController extends Controller
         $referenciaLimpia = $validacion['referencia'];
         $fechaProcesoCarbon = $validacion['fecha_carbon'];
 
-        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $metodo, $configFlujo, $referenciaLimpia, $fechaProcesoCarbon) {
+        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $metodo, $cuentaBancaria, $configFlujo, $referenciaLimpia, $fechaProcesoCarbon) {
             $codigoPago = app(ServicioNomenclatura::class)->generarCodigo(
                 entidad: 'pagos_' . date('Y'),
                 formato: 'PAG-{ANIO}-{SECUENCIA:6}',
@@ -436,6 +447,7 @@ class PortalEstudianteController extends Controller
                 'matricula_id' => $matricula->id,
                 'concepto_pago_id' => $primerConcepto->id,
                 'metodo_pago_id' => $datos['metodo_pago_id'],
+                'cuenta_bancaria_id' => $cuentaBancaria?->id,
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $montoTotal,
                 'estado' => (!empty($datos['solicitar_link']) || $metodo->permite_link_pago || $metodo->codigo === 'LNK') ? 'solicita_link' : 'pendiente',
@@ -490,6 +502,7 @@ class PortalEstudianteController extends Controller
         $datos = $request->validate([
             'pago_id' => 'required|exists:pagos,id',
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
+            'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'referencia' => 'nullable|string|max:100',
             'fecha_pago' => 'nullable|date',
             'comprobante' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
@@ -521,6 +534,15 @@ class PortalEstudianteController extends Controller
                 'codigo' => 422,
                 'codigo_error' => '422_VALIDACION',
                 'mensaje' => $validacion['error'],
+            ], 422);
+        }
+        $cuentaBancaria = $this->validarCuentaBancaria($metodo, $datos['cuenta_bancaria_id'] ?? $pago->cuenta_bancaria_id);
+        if ($cuentaBancaria === false) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_CUENTA_BANCARIA_REQUERIDA',
+                'mensaje' => 'Debe seleccionar una cuenta bancaria activa para pagos por depósito o transferencia.',
             ], 422);
         }
 
@@ -559,6 +581,9 @@ class PortalEstudianteController extends Controller
         }
         if ($validacion['fecha_carbon'] !== null) {
             $actualizar['fecha_deposito'] = $validacion['fecha_carbon'];
+        }
+        if ($cuentaBancaria) {
+            $actualizar['cuenta_bancaria_id'] = $cuentaBancaria->id;
         }
 
         $pago->update($actualizar);
@@ -1070,5 +1095,18 @@ class PortalEstudianteController extends Controller
             'referencia' => $referencia !== '' ? $referencia : null,
             'fecha_carbon' => $fechaCarbon,
         ];
+    }
+
+    private function validarCuentaBancaria(\App\Models\MetodoPago $metodo, mixed $cuentaBancariaId): CuentaBancaria|false|null
+    {
+        if (!in_array($metodo->codigo, ['DEP', 'TRA'], true)) {
+            return null;
+        }
+
+        if (!$cuentaBancariaId) {
+            return false;
+        }
+
+        return CuentaBancaria::activas()->find($cuentaBancariaId) ?: false;
     }
 }

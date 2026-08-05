@@ -18,7 +18,7 @@ class Pago extends Model
 
     protected $fillable = [
         'codigo', 'estudiante_id', 'matricula_id', 'concepto_pago_id',
-        'metodo_pago_id', 'proveedor_pago_id', 'transaccion_id', 'procesador_respuesta',
+        'metodo_pago_id', 'cuenta_bancaria_id', 'proveedor_pago_id', 'transaccion_id', 'procesador_respuesta',
         'sucursal_id', 'sesion_caja_id', 'monto', 'fecha_proceso', 'fecha_deposito', 'estado', 'referencia_externa',
         'alerta_duplicado', 'alerta_duplicado_mensaje', 'alerta_duplicado_en',
         'link_pago_url', 'link_pago_estado', 'link_generado_por', 'link_generado_en',
@@ -68,6 +68,11 @@ class Pago extends Model
     public function proveedorPago(): BelongsTo
     {
         return $this->belongsTo(ProveedorPago::class, 'proveedor_pago_id');
+    }
+
+    public function cuentaBancaria(): BelongsTo
+    {
+        return $this->belongsTo(CuentaBancaria::class, 'cuenta_bancaria_id');
     }
 
     public function sucursal(): BelongsTo

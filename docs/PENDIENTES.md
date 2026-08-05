@@ -38,6 +38,7 @@ tarea; los documentos fechados, `docs/avance.md` y el historial de
 | `P-007` | `pendiente` | Probar integralmente las configuraciones de flujo de matrícula. | Cubrir origen, concepto, método, precedencia, fallback `tecnico`, banderas, link de pago, comprobante, reenganche y desactivación. |
 | `P-008` | `pendiente` | Revisar la consistencia de las transiciones de matrícula, pago, obligación, cupo y recibo. | Comparar reglas en `docs/REGLAS_NEGOCIO_POR_DOMINIO.md` con controladores y pruebas; corregir divergencias. |
 | `P-009` | `por_validar` | Revisar fechas y datos históricos de pagos y recibos. | Confirmar que `fecha_proceso` y `fecha_recibo` coincidan en grid, detalle, impresión y reportes. |
+| `P-013` | `completado` | Exigir cuenta bancaria para depósitos y transferencias. | Migración `2026_08_05_000001`; API administrativa y portal del estudiante validan cuenta activa, la persisten en el pago y la muestran para seleccionar. Verificado con `PagoTest` enfocado y `npm run build`. |
 | `P-011` | `completado` | Ocultar ofertas de periodos cerrados en el Portal del Estudiante. | `mis-ofertas` devuelve vacío sin periodo abierto; la reserva rechaza periodos cerrados con `422_PERIODO_NO_ABIERTO`. Verificado en `PortalEstudianteTest`. |
 | `P-012` | `completado` | Mostrar en Matrícula Online el periodo académico en el que se está registrando el estudiante. | La API entrega código, nombre y fechas; la vista muestra la vigencia en el resumen, cada oferta y la confirmación. Verificado con `PortalEstudianteTest` y `npm run build`. |
 

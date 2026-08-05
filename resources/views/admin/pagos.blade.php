@@ -429,6 +429,10 @@
                         <label class="label">Método de Pago</label>
                         <select x-model="form.metodo_pago_id" @change="onMetodoChange()" required class="input"><option value="">Seleccionar...</option><template x-for="m in metodos" :key="m.id"><option :value="m.id" x-text="m.nombre"></option></template></select>
                     </div>
+                    <div class="col-span-2" x-show="requiereCuentaBancaria(form.metodo_pago_id)">
+                        <label class="label">Cuenta bancaria donde se realizó el pago *</label>
+                        <select x-model="form.cuenta_bancaria_id" :required="requiereCuentaBancaria(form.metodo_pago_id)" class="input"><option value="">Seleccionar...</option><template x-for="cuenta in cuentasBancarias" :key="cuenta.id"><option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')'"></option></template></select>
+                    </div>
                     <template x-if="esMATCUO && flujo.habilita_seleccion_obligaciones">
                         <div class="col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                             <div class="flex items-center justify-between mb-2">
@@ -810,7 +814,7 @@ function pagos() {
         pagosPendientes: [], pagosEnRevision: [], pagosAprobados: [], pagosRechazados: [], pagosSolicitaLink: [], recibos: [], conceptos: [], metodos: [], libros: [], metodoPermiteLink: false,
         flujo: { habilita_aprobacion_pago: true, habilita_solicitud_link: true, habilita_carga_comprobante: true, requiere_comprobante: true, habilita_generacion_recibo: true, habilita_seleccion_obligaciones: true },
         debugPagos: { filtroActivo: 'N/D', ultimoConteo: 'N/D', respuestas: {} },
-        form: { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', monto: 0, fecha_proceso: '', referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, solicitar_link: false },
+        form: { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', cuenta_bancaria_id: '', monto: 0, fecha_proceso: '', referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, solicitar_link: false },
         busquedaEstudiante: '', resultadosEstudiantes: [], obligacionesPendientes: [], obligacionesSeleccionadas: [],
         filtroRecibos: { fecha_desde: '', fecha_hasta: '', estado: '' },
         showComprobante: false, showRechazo: false, showRecibo: false, showAnulacion: false,
@@ -910,7 +914,13 @@ function pagos() {
         onMetodoChange() {
             const metodo = this.metodos.find(x => x.id == this.form.metodo_pago_id);
             this.metodoPermiteLink = !!metodo?.permite_link_pago;
+            if (!this.requiereCuentaBancaria(this.form.metodo_pago_id)) this.form.cuenta_bancaria_id = '';
             this.cargarObligaciones();
+        },
+
+        requiereCuentaBancaria(id) {
+            const metodo = this.metodos.find(x => x.id == id);
+            return ['DEP', 'TRA'].includes(metodo?.codigo);
         },
 
         cambiarTab(nuevoTab) {
@@ -1038,7 +1048,7 @@ function pagos() {
 
         async openModal() {
             const hoy = window.toLocalDateInput();
-            this.form = { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', monto: 0, fecha_proceso: hoy, referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, codigo_recibo: '', solicitar_link: false };
+            this.form = { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', cuenta_bancaria_id: '', monto: 0, fecha_proceso: hoy, referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, codigo_recibo: '', solicitar_link: false };
             this.busquedaEstudiante = ''; this.resultadosEstudiantes = []; this.obligacionesPendientes = []; this.obligacionesSeleccionadas = []; this.error = '';
             this.showModal = true;
             this.siguienteReciboCargado = false;

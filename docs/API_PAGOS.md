@@ -8,6 +8,7 @@ Las respuestas usan la estructura estándar `resultado`, `codigo`, `mensaje` y `
 `POST /api/v1/pagos` — permiso `pagos.crear`.
 
 Datos: `matricula_id`, `metodo_pago_id`, `monto` y opcionalmente `documento_referencia`.
+Para métodos `DEP` (depósito) y `TRA` (transferencia), `cuenta_bancaria_id` es obligatorio y debe corresponder a una cuenta activa.
 El pago inicia en estado `cargado` y se valida contra la sucursal de la matrícula.
 
 ## Cargar comprobante

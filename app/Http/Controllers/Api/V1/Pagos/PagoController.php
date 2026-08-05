@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Pagos;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Pago, ComprobantePago, ObligacionPagoEstudiante, AplicacionPago, ReciboCaja, ConceptoPago, Matricula, OfertaAcademica, SesionCaja};
+use App\Models\{Pago, ComprobantePago, ObligacionPagoEstudiante, AplicacionPago, ReciboCaja, ConceptoPago, Matricula, OfertaAcademica, SesionCaja, CuentaBancaria};
 use App\Services\ServicioNomenclatura;
 use App\Services\ResolutorFlujoMatricula;
 use Carbon\Carbon;
@@ -29,6 +29,7 @@ class PagoController extends Controller
             'estudiante:id,codigo,nombre,apellido',
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',
+            'cuentaBancaria:id,codigo,nombre,banco,numero_cuenta,tipo_cuenta',
             'sucursal:id,codigo,nombre',
             'comprobantes:id,pago_id,nombre_archivo,ruta_archivo,tipo_archivo,tamano_bytes,creado_en',
             'aprobadoPor:id,name',
@@ -151,6 +152,7 @@ class PagoController extends Controller
             'matricula_id' => 'nullable|exists:matriculas,id',
             'concepto_pago_id' => 'required|exists:conceptos_pago,id',
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
+            'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'monto' => 'required|numeric|min:0.01',
             'fecha_proceso' => 'nullable|date',
             'referencia_externa' => 'nullable|string|max:100',
@@ -165,9 +167,18 @@ class PagoController extends Controller
 
         $metodoPagoId = $request->metodo_pago_id ? (int) $request->metodo_pago_id : null;
         $metodo = $metodoPagoId ? \App\Models\MetodoPago::find($metodoPagoId) : null;
+        $cuentaBancaria = $this->validarCuentaBancaria($metodo, $request->input('cuenta_bancaria_id'));
+        if ($cuentaBancaria === false) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_CUENTA_BANCARIA_REQUERIDA',
+                'mensaje' => 'Debe seleccionar una cuenta bancaria activa para pagos por depósito o transferencia.',
+            ], 422);
+        }
         $solicitaLink = $request->boolean('solicitar_link') || ($metodo?->permite_link_pago ?? false);
 
-        $resultado = DB::transaction(function () use ($request, $metodo, $solicitaLink) {
+        $resultado = DB::transaction(function () use ($request, $metodo, $cuentaBancaria, $solicitaLink) {
             $estudiante = \App\Models\Estudiante::findOrFail($request->estudiante_id);
             $concepto = ConceptoPago::findOrFail($request->concepto_pago_id);
             $fechaProceso = Carbon::parse($request->fecha_proceso ?? now());
@@ -186,6 +197,7 @@ class PagoController extends Controller
                 'matricula_id' => $request->matricula_id,
                 'concepto_pago_id' => $concepto->id,
                 'metodo_pago_id' => $request->metodo_pago_id,
+                'cuenta_bancaria_id' => $cuentaBancaria?->id,
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $request->monto,
                 'estado' => $solicitaLink ? 'solicita_link' : 'aprobado',
@@ -580,6 +592,7 @@ class PagoController extends Controller
             'estudiante:id,codigo,nombre,apellido',
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',
+            'cuentaBancaria:id,codigo,nombre,banco,numero_cuenta,tipo_cuenta',
             'sucursal:id,codigo,nombre',
             'comprobantes:id,nombre_archivo,ruta_archivo,tipo_archivo,estado',
             'aplicaciones:id,pago_id,obligacion_pago_estudiante_id,monto_aplicado,estado',
@@ -644,6 +657,19 @@ class PagoController extends Controller
             'mensaje' => 'OK',
             'data' => $preview,
         ]);
+    }
+
+    private function validarCuentaBancaria(?\App\Models\MetodoPago $metodo, mixed $cuentaBancariaId): CuentaBancaria|false|null
+    {
+        if (!$metodo || !in_array($metodo->codigo, ['DEP', 'TRA'], true)) {
+            return null;
+        }
+
+        if (!$cuentaBancariaId) {
+            return false;
+        }
+
+        return CuentaBancaria::activas()->find($cuentaBancariaId) ?: false;
     }
 
     private function generarRecibo(Pago $pago, ?string $codigoRecibo = null): ReciboCaja

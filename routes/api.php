@@ -89,6 +89,12 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::post('/reservar-matricula', [PortalEstudianteController::class, 'reservarMatricula']);
     Route::get('/mis-matriculas', [PortalEstudianteController::class, 'misMatriculas']);
     Route::post('/registrar-pago', [PortalEstudianteController::class, 'registrarPago']);
+    Route::get('/cuentas-bancarias', fn () => response()->json([
+        'resultado' => 'A',
+        'codigo' => 0,
+        'mensaje' => 'OK',
+        'data' => \App\Models\CuentaBancaria::activas()->orderBy('banco')->get(['id', 'codigo', 'nombre', 'banco', 'numero_cuenta', 'tipo_cuenta']),
+    ]));
     Route::post('/subir-comprobante', [PortalEstudianteController::class, 'subirComprobante']);
     Route::post('/confirmar-link-pago', [PortalEstudianteController::class, 'confirmarLinkPago']);
     Route::post('/reenganchar-flujo-pago', [PortalEstudianteController::class, 'reengancharFlujoPago']);

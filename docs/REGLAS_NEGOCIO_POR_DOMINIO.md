@@ -340,6 +340,8 @@ integridad transaccional.
 - Para depósitos y transferencias, la referencia y fecha deben poder detectarse
   contra pagos de otro estudiante para alertar posibles duplicados. La alerta
   no debe convertirse silenciosamente en aprobación.
+- Todo pago por depósito o transferencia debe indicar una cuenta bancaria activa
+  de la institución; el pago conserva esa cuenta para su revisión y auditoría.
 - Un recibo emitido no se edita directamente. Las correcciones usan anulación,
   reversión o ajuste autorizado.
 - Los únicos estados de recibo son `emitido`, `anulado` y `reversado`.
