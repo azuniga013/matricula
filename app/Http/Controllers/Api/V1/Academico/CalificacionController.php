@@ -41,6 +41,10 @@ class CalificacionController extends Controller
         }
 
         $calificaciones = $query->orderByDesc('calificaciones.id')->paginate($request->get('per_page', 25));
+        $calificaciones->getCollection()->transform(function (Calificacion $calificacion) {
+            $calificacion->setAttribute('aprobada', $calificacion->estaAprobada());
+            return $calificacion;
+        });
 
         return response()->json([
             'resultado' => 'A',

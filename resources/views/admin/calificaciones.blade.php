@@ -104,6 +104,7 @@
                             <th class="text-center w-28">Faltas</th>
                             <th class="text-center">Resultado</th>
                             <th class="text-center">Estado Registro</th>
+                            <th class="text-center">Certificado</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -132,10 +133,14 @@
                                         'badge-neutral': e.estado_registro === 'pendiente'
                                     }" class="badge" x-text="e.estado_registro"></span>
                                 </td>
+                                <td class="text-center">
+                                    <button x-show="esAprobado(e) && api.hasPermission('estudiantes.modificar') && e.calificacion_id"
+                                        @click="emitirCertificado(e)" class="btn btn-ghost btn-sm text-brand-600">Emitir PDF</button>
+                                </td>
                             </tr>
                         </template>
                         <template x-if="estudiantes.length === 0">
-                            <tr><td colspan="6" class="text-center py-10 text-gray-400 text-sm">No hay estudiantes matriculados en este grupo</td></tr>
+                            <tr><td colspan="7" class="text-center py-10 text-gray-400 text-sm">No hay estudiantes matriculados en este grupo</td></tr>
                         </template>
                     </tbody>
                 </table>
@@ -244,6 +249,19 @@ function calificaciones() {
             if (!nivel) return false;
             return Number(e.nota_final) >= Number(nivel.nota_minima_aprobar)
                 && Number(e.faltas || 0) <= Number(nivel.faltas_maximas_permitidas);
+        },
+
+        async emitirCertificado(e) {
+            try {
+                const { data } = await window.axios.post('/api/v1/estudiantes/certificados/electronicos/admin', {
+                    calificacion_id: e.calificacion_id,
+                }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (data.resultado === 'A') {
+                    window.open(data.data?.pdf_url || `/certificados/${data.data.token_validacion}/pdf`, '_blank');
+                }
+            } catch (error) {
+                this.toast(window.extractError(error, 'No se pudo emitir el certificado'), 'error');
+            }
         },
 
         conteoAprobados() {

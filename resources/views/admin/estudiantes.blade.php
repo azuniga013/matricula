@@ -213,7 +213,7 @@
                                         <td class="text-center font-semibold" :class="Number(c.nota_final) >= 80 ? 'text-green-600' : 'text-red-600'" x-text="c.nota_final ?? '-'"></td>
                                         <td class="text-center" x-text="c.faltas ?? 0"></td>
                                         <td><span :class="{'badge-success': c.estado === 'aprobado', 'badge-danger': c.estado === 'reprobado', 'badge-info': c.estado === 'matriculado'}" class="badge" x-text="c.estado"></span></td>
-                                        <td class="text-right"><button x-show="c.estado === 'aprobado'" @click="emitirCertificadoAdmin(c)" class="btn btn-ghost btn-sm text-brand-600">Emitir PDF</button></td>
+                                        <td class="text-right"><button x-show="c.aprobada && api.hasPermission('estudiantes.modificar')" @click="emitirCertificadoAdmin(c)" class="btn btn-ghost btn-sm text-brand-600">Emitir PDF</button></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -421,9 +421,10 @@ function estudiantes() {
                     codigo: c.codigo,
                     nivel: c.oferta_academica?.nivel_academico?.nombre || c.ofertaAcademica?.nivelAcademico?.nombre || '-',
                     periodo: c.oferta_academica?.periodo_academico?.nombre || c.ofertaAcademica?.periodoAcademico?.nombre || '-',
-                    nota_final: c.nota_final,
-                    estado: c.estado,
-                    creado_en: c.creado_en,
+                     nota_final: c.nota_final,
+                     estado: c.estado,
+                     aprobada: c.aprobada === true,
+                     creado_en: c.creado_en,
                     faltas: c.faltas,
                 }));
             } catch(err) {
