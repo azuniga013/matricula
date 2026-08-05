@@ -441,7 +441,7 @@ function estudiantes() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const { data } = await window.axios.post('/api/v1/estudiantes/certificados/electronicos/admin', {
-                    historial_academico_id: c.id,
+                    calificacion_id: c.id,
                 }, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     window.open(data.data?.pdf_url || `/certificados/${data.data.token_validacion}/pdf`, '_blank');
