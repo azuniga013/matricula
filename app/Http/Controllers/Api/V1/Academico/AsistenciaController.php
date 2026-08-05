@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AsistenciaEstudiante;
 use App\Models\Matricula;
 use App\Models\OfertaAcademica;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +26,12 @@ class AsistenciaController extends Controller
             'horario:id,codigo,nombre,hora_inicio,hora_fin',
             'docente:id,codigo,nombre,apellido',
         ])
-            ->whereIn('estado', ['abierto', 'activo'])
+            // Una oferta puede estar cerrada o llena para nuevas matrículas y
+            // aún requerir el pase de lista de sus estudiantes matriculados.
+            ->whereIn('estado', ['abierto', 'cerrado', 'lleno'])
             ->orderByDesc('id');
+
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $user, 'ofertas_academicas');
 
         if ($user->docente_id) {
             $query->where('docente_id', $user->docente_id);

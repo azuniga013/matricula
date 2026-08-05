@@ -52,6 +52,8 @@
                             <option :value="o.id" x-text="o.codigo + ' · ' + (o.nivel_academico?.nombre || '') + ' · ' + (o.horario?.nombre || '') + ' · ' + (o.docente?.nombre || '')"></option>
                         </template>
                     </select>
+                    <p x-show="!cargandoOfertas && ofertas.length === 0 && !errorCarga" class="mt-1 text-xs text-amber-700">No hay grupos disponibles con los filtros seleccionados.</p>
+                    <p x-show="errorCarga" class="mt-1 text-xs text-red-600" x-text="errorCarga"></p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
@@ -126,7 +128,7 @@
 <script>
 function asistencias() {
     return {
-        loading: false, guardando: false, cargandoOfertas: false,
+        loading: false, guardando: false, cargandoOfertas: false, errorCarga: '',
         periodos: [], sucursales: [], niveles: [], ofertas: [], estudiantes: [],
         ofertaId: '', fecha: window.toLocalDateInput(),
         filtros: { periodo: '', sucursal: '', nivel: '' },
@@ -156,21 +158,31 @@ function asistencias() {
 
         async cargarOfertas() {
             this.cargandoOfertas = true;
+            this.errorCarga = '';
             try {
                 let url = '/api/v1/asistencias/ofertas-disponibles?';
                 if (this.filtros.periodo) url += `periodo_academico_id=${this.filtros.periodo}&`;
                 if (this.filtros.sucursal) url += `sucursal_id=${this.filtros.sucursal}&`;
                 if (this.filtros.nivel) url += `nivel_academico_id=${this.filtros.nivel}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
                 this.ofertas = data.data || [];
-                if (!this.ofertas.find(o => o.id === this.ofertaId)) this.ofertaId = '';
-            } catch(e) { this.ofertas = []; }
+                if (!this.ofertas.some(o => String(o.id) === String(this.ofertaId))) this.ofertaId = '';
+            } catch(e) {
+                this.ofertas = [];
+                this.errorCarga = window.extractError(e, 'No fue posible cargar los grupos. Verifique sus permisos de asistencia.');
+            }
             finally { this.cargandoOfertas = false; }
         },
 
-        onFiltroPeriodo() { this.cargarOfertas(); },
-        onFiltroSucursal() { this.cargarOfertas(); },
-        onFiltroNivel() { this.cargarOfertas(); },
+        limpiarSeleccionGrupo() {
+            this.ofertaId = '';
+            this.estudiantes = [];
+        },
+
+        onFiltroPeriodo() { this.limpiarSeleccionGrupo(); this.cargarOfertas(); },
+        onFiltroSucursal() { this.limpiarSeleccionGrupo(); this.cargarOfertas(); },
+        onFiltroNivel() { this.limpiarSeleccionGrupo(); this.cargarOfertas(); },
 
         async loadAll() {
             this.preseleccionarPeriodo();
@@ -188,8 +200,12 @@ function asistencias() {
             this.loading = true;
             try {
                 const { data } = await window.axios.get(`/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=${this.ofertaId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los estudiantes');
                 this.estudiantes = (data.data || []).map(e => ({ ...e, estado: 'presente', observacion: '' }));
-            } catch(e) { console.error(e); this.estudiantes = []; }
+            } catch(e) {
+                this.estudiantes = [];
+                this.errorCarga = window.extractError(e, 'No fue posible cargar los estudiantes. Verifique sus permisos de asistencia.');
+            }
             finally { this.loading = false; }
         },
 

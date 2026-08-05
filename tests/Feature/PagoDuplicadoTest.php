@@ -6,7 +6,7 @@ use App\Models\{
     Aula, AccesoEstudiante, ConceptoPago, DepartamentoAcademico,
     Docente, Estudiante, Horario, MetodoPago, Modalidad, NivelAcademico,
     OfertaAcademica, PeriodoAcademico, PlanCobro, PlanEstudio,
-    Sucursal, VersionPlanEstudio, Pago
+    Sucursal, VersionPlanEstudio, Pago, CuentaBancaria
 };
 use App\Models\DetallePlanCobro;
 use App\Models\Matricula;
@@ -27,6 +27,7 @@ class PagoDuplicadoTest extends TestCase
     private string $tokenB;
     private OfertaAcademica $ofertaA;
     private OfertaAcademica $ofertaB;
+    private CuentaBancaria $cuentaBancaria;
 
     protected function setUp(): void
     {
@@ -153,6 +154,14 @@ class PagoDuplicadoTest extends TestCase
         MetodoPago::create(['codigo' => 'DEP', 'nombre' => 'Depósito', 'estado' => 'activo']);
         MetodoPago::create(['codigo' => 'TRA', 'nombre' => 'Transferencia', 'estado' => 'activo']);
         MetodoPago::create(['codigo' => 'LNK', 'nombre' => 'Link de pago', 'estado' => 'activo']);
+        $this->cuentaBancaria = CuentaBancaria::create([
+            'codigo' => 'CTA-TEST',
+            'nombre' => 'Cuenta de pruebas',
+            'banco' => 'Banco de pruebas',
+            'numero_cuenta' => '1234567890',
+            'tipo_cuenta' => 'ahorro',
+            'estado' => 'activo',
+        ]);
     }
 
     private function crearEstudianteConToken(string $email): array
@@ -207,6 +216,7 @@ class PagoDuplicadoTest extends TestCase
         $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-12345',
             'fecha_pago' => $fechaPago,
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
@@ -215,6 +225,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matB->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-12345',
             'fecha_pago' => $fechaPago,
             'obligacion_ids' => $matB->obligaciones()->pluck('id')->all(),
@@ -246,6 +257,7 @@ class PagoDuplicadoTest extends TestCase
         $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-11111',
             'fecha_pago' => '2026-08-01',
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
@@ -254,6 +266,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matB->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-99999',
             'fecha_pago' => '2026-08-01',
             'obligacion_ids' => $matB->obligaciones()->pluck('id')->all(),
@@ -282,6 +295,7 @@ class PagoDuplicadoTest extends TestCase
         $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-SHARED',
             'fecha_pago' => '2026-08-01',
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
@@ -290,6 +304,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matB->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-SHARED',
             'fecha_pago' => '2026-08-05',
             'obligacion_ids' => $matB->obligaciones()->pluck('id')->all(),
@@ -310,6 +325,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => '',
             'fecha_pago' => '2026-08-01',
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
@@ -328,6 +344,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoDep->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'DEP-NO-FECHA',
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
         ], $this->headersA());
@@ -348,6 +365,7 @@ class PagoDuplicadoTest extends TestCase
         $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matA->id,
             'metodo_pago_id' => $metodoTra->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'TRA-777',
             'fecha_pago' => '2026-08-03',
             'obligacion_ids' => $matA->obligaciones()->pluck('id')->all(),
@@ -356,6 +374,7 @@ class PagoDuplicadoTest extends TestCase
         $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
             'matricula_id' => $matB->id,
             'metodo_pago_id' => $metodoTra->id,
+            'cuenta_bancaria_id' => $this->cuentaBancaria->id,
             'referencia' => 'TRA-777',
             'fecha_pago' => '2026-08-03',
             'obligacion_ids' => $matB->obligaciones()->pluck('id')->all(),
