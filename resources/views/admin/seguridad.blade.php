@@ -1057,7 +1057,7 @@ function seguridad() {
                     this.flujoCrudError = 'Código, al menos un método y un concepto son obligatorios';
                     return;
                 }
-                const method = this.editingFlujoCrud ? 'put' : 'post';
+                const method = 'post';
                 const url = this.editingFlujoCrud ? `/api/v1/seguridad/configuraciones-flujo-matricula/${Number(this.editFlujoId)}` : '/api/v1/seguridad/configuraciones-flujo-matricula';
                 const payload = { ...this.flujoCrudForm, estado: this.flujoCrudForm.estado || 'activo', metodo_pago_id: this.flujoCrudForm.metodo_pago_ids[0] || null, metodo_pago_ids: this.flujoCrudForm.metodo_pago_ids.map(v => Number(v)), origen: 'tecnico', concepto_pago_ids: this.flujoCrudForm.concepto_pago_ids.map(v => Number(v)) };
                 const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });

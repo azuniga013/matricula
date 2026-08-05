@@ -137,7 +137,7 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::post('/configuraciones-flujo-matricula', [ConfiguracionFlujoMatriculaController::class, 'store'])
             ->middleware('permission:seguridad.crear');
 
-        Route::match(['PUT', 'PATCH'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
+        Route::match(['PUT', 'PATCH', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
             ->middleware('permission:seguridad.modificar');
 
         Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'destroy'])
