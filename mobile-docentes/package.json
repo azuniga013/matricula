@@ -5,9 +5,10 @@
   "main": "expo/AppEntry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "lint": "expo lint",
-    "build:apk": "eas build --platform android --profile internal"
+    "build:apk": "eas build --platform android --profile internal",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@react-native-community/netinfo": "^11.4.1",

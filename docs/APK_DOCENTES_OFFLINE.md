@@ -270,6 +270,21 @@ PayPal, Stripe, base de datos o llaves privadas dentro de la APK.
 La primera liberación debe ser una versión de prueba interna, no una versión
 de producción masiva.
 
+### Compilación local
+
+También se puede compilar sin enviar el código a EAS. Requiere Android SDK y
+Java 17 o superior. Desde `mobile-docentes/` se ejecuta `npx expo prebuild
+--platform android --no-install` y luego, en `android/`,
+`gradlew.bat assembleRelease`. La carpeta `android/` y todos los resultados de
+build están ignorados por Git.
+
+El APK que Gradle crea por defecto puede estar firmado con `Android Debug`.
+Ese APK solo sirve para verificación técnica local: **no debe cargarse al
+panel ni publicarse**. Para una distribución interna se debe configurar una
+llave institucional persistente, guardada fuera del repositorio y respaldada
+en el gestor institucional de secretos. La misma llave es obligatoria para
+actualizar la aplicación instalada.
+
 ## 11.1 Publicación y descarga oficial
 
 El archivo firmado se conserva en `storage/app/apk-docentes/`, fuera de la
@@ -355,3 +370,4 @@ afectados, validación realizada y cualquier limitación pendiente.
 | 2026-08-05 | Se generalizó el ignore de dependencias Node con `**/node_modules/`. | Todo subproyecto actual o futuro queda protegido contra versionar dependencias instaladas. |
 | 2026-08-05 | Se añadió publicación controlada de APK: tabla, almacenamiento privado, panel administrativo, permisos RBAC y URL pública `/apk/docentes`. | `DistribucionApkDocenteTest` cubre ausencia de APK, publicación y denegación RBAC; pendiente ejecutar migración, firmar y cargar la primera APK real. |
 | 2026-08-05 | Se documentó la futura notificación de faltas y tardanzas a responsables por correo y WhatsApp. | No hay envíos activos; la APK solo notificará al backend tras una sincronización confirmada e idempotente. |
+| 2026-08-05 | Se ejecutó compilación Android local con Java 17 y Android SDK. | Generó `app-release.apk` de 61 MB, SHA-256 `76C8964D9B89ECB2197A1944E8A70ABBBE394F892EF5B1C613DEBFBB59C8B671`; la firma detectada es `Android Debug`, por lo que no se publica. |
