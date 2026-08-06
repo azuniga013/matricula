@@ -71,8 +71,10 @@ export default function App() {
   }
 
   async function synchronizeQueue() {
-    if (!online) return Alert.alert('Sin conexión', 'La cola se enviará cuando recupere internet.');
+    if (!online) return { procesadas: 0, pendientes: pending().length, error: 'Sin conexión a internet.' };
     setSyncing(true);
+    let procesadas = 0;
+    let errorSincronizacion = null;
     try {
       for (const operation of pending()) {
         const data = JSON.parse(operation.datos);
@@ -80,12 +82,15 @@ export default function App() {
           if (operation.tipo === 'asistencia') await saveAttendance(operation.oferta_id, data.fecha, data.asistencias);
           if (operation.tipo === 'calificaciones') await saveGrades(operation.oferta_id, data.calificaciones);
           removePending(operation.uuid);
+          procesadas++;
         } catch (error) {
           markError(operation.uuid, error.message);
+          errorSincronizacion = error.message || 'El servidor no pudo guardar la información.';
           if ([401, 403, 422].includes(error.status)) break;
         }
       }
       await refresh();
+      return { procesadas, pendientes: pending().length, error: errorSincronizacion };
     } finally { setSyncing(false); }
   }
 
@@ -111,8 +116,10 @@ export default function App() {
   async function saveAttendanceLocally() {
     const asistencias = studentsForOffer.map((student) => ({ matricula_id: student.matricula_id, estado: attendance[student.matricula_id]?.estado || 'presente', observacion: attendance[student.matricula_id]?.observacion || null }));
     queue('asistencia', selected.id, { fecha: date, asistencias });
-    Alert.alert('Guardado local', 'La asistencia queda pendiente de sincronización.');
-    if (online) await synchronizeQueue();
+    if (!online) return Alert.alert('Guardado local', 'La asistencia queda pendiente de sincronización hasta recuperar internet.');
+    const resultado = await synchronizeQueue();
+    if (resultado.error) return Alert.alert('Asistencia pendiente', `${resultado.error} Se conserva localmente para reintentar.`);
+    Alert.alert('Asistencia sincronizada', `${resultado.procesadas} operación(es) guardada(s) en el servidor.`);
   }
   async function saveGradesLocally() {
     const calificaciones = studentsForOffer.map((student) => {
@@ -120,8 +127,10 @@ export default function App() {
       return { estudiante_id: id, nota_final: gradeRows[id]?.nota_final || null, faltas: Number(gradeRows[id]?.faltas || 0), observaciones: gradeRows[id]?.observaciones || null };
     });
     queue('calificaciones', selected.id, { calificaciones });
-    Alert.alert('Guardado local', 'Las notas quedan pendientes de sincronización.');
-    if (online) await synchronizeQueue();
+    if (!online) return Alert.alert('Guardado local', 'Las calificaciones quedan pendientes de sincronización hasta recuperar internet.');
+    const resultado = await synchronizeQueue();
+    if (resultado.error) return Alert.alert('Calificaciones pendientes', `${resultado.error} Se conservan localmente para reintentar.`);
+    Alert.alert('Calificaciones sincronizadas', `${resultado.procesadas} operación(es) guardada(s) en el servidor.`);
   }
   async function submitLogin() { setLoading(true); try { const profile = await login(email.trim(), password); setUser(profile); await refresh(null); } catch (error) { Alert.alert('No se pudo iniciar sesión', error.message); } finally { setLoading(false); } }
   async function closeSession() { await logout(); clearLocalData(); setUser(null); setModule(null); setSelected(null); setItems([]); }

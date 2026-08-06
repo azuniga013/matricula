@@ -19,6 +19,7 @@ env.smarter
 /mobile-docentes/node_modules
 /mobile-docentes/.signing
 /mobile-docentes/.expo
+/mobile-docentes/.expo-export
 /mobile-docentes/android
 /mobile-docentes/ios
 /mobile-docentes/dist

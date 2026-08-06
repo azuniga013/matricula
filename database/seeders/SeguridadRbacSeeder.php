@@ -54,5 +54,26 @@ class SeguridadRbacSeeder extends Seeder
                 );
             }
         }
+
+        // El docente gestiona únicamente sus ofertas asignadas; ese alcance se
+        // valida además en los controladores académicos. Estos son los permisos
+        // mínimos que necesita la APK y el pase de lista administrativo.
+        $rolDocente = Rol::where('codigo', 'DOCENTE')->first();
+        if ($rolDocente) {
+            $permisosDocente = Permiso::whereIn('codigo', [
+                'asistencias.consultar',
+                'asistencias.crear',
+                'calificaciones.consultar',
+                'calificaciones.crear',
+                'calificaciones.modificar',
+            ])->get();
+
+            foreach ($permisosDocente as $permiso) {
+                RolPermiso::updateOrCreate(
+                    ['rol_id' => $rolDocente->id, 'permiso_id' => $permiso->id],
+                    ['estado' => 'activo']
+                );
+            }
+        }
     }
 }

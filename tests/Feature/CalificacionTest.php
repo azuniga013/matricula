@@ -32,7 +32,7 @@ class CalificacionTest extends TestCase
 
         $rol = Rol::create(['codigo' => 'TEST_ADMIN', 'nombre' => 'Test Admin', 'estado' => 'activo']);
         $permisos = Permiso::where('codigo', 'like', 'calificaciones.%')
-            ->orWhere('codigo', 'asistencias.consultar')
+            ->orWhereIn('codigo', ['asistencias.consultar', 'asistencias.crear'])
             ->get();
         $rol->permisos()->attach($permisos->pluck('id')->toArray(), ['estado' => 'activo']);
 
@@ -175,13 +175,15 @@ class CalificacionTest extends TestCase
 
         $moduloAsistencias = Modulo::create(['codigo' => 'asistencias', 'nombre' => 'Asistencias', 'estado' => 'activo', 'orden' => 9]);
         $opcionAsistencias = OpcionModulo::create(['modulo_id' => $moduloAsistencias->id, 'codigo' => 'asistencias.lista', 'nombre' => 'Pasar lista', 'estado' => 'activo']);
-        Permiso::create([
-            'opcion_modulo_id' => $opcionAsistencias->id,
-            'codigo' => 'asistencias.consultar',
-            'nombre' => 'Consultar',
-            'accion' => 'consultar',
-            'estado' => 'activo',
-        ]);
+        foreach (['consultar', 'crear'] as $accion) {
+            Permiso::create([
+                'opcion_modulo_id' => $opcionAsistencias->id,
+                'codigo' => 'asistencias.' . $accion,
+                'nombre' => ucfirst($accion),
+                'accion' => $accion,
+                'estado' => 'activo',
+            ]);
+        }
     }
 
     private function headers(): array
@@ -262,6 +264,32 @@ class CalificacionTest extends TestCase
         $this->getJson('/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=' . $this->oferta->id, $this->headers())
             ->assertOk()
             ->assertJsonPath('data.0.estudiante_id', $this->estudiante->id);
+    }
+
+    public function test_registrar_asistencia_de_la_oferta(): void
+    {
+        $matriculaId = \DB::table('matriculas')
+            ->where('estudiante_id', $this->estudiante->id)
+            ->where('oferta_academica_id', $this->oferta->id)
+            ->value('id');
+
+        $this->postJson('/api/v1/asistencias/registrar', [
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-08-05',
+            'asistencias' => [[
+                'matricula_id' => $matriculaId,
+                'estado' => 'tardanza',
+            ]],
+        ], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.registradas', 1);
+
+        $this->assertTrue(
+            \App\Models\AsistenciaEstudiante::where('matricula_id', $matriculaId)
+                ->where('estado', 'tardanza')
+                ->whereDate('fecha', '2026-08-05')
+                ->exists()
+        );
     }
 
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
