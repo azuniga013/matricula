@@ -951,8 +951,7 @@ function catalogos() {
                 const url = this.editing
                     ? `/api/v1/catalogos-academicos/${this.currentTab.endpoint}/${this.editId}`
                     : `/api/v1/catalogos-academicos/${this.currentTab.endpoint}`;
-                const method = 'post';
-                const { data } = await window.axios[method](url, this.formData, {
+                const { data } = await window.api.actualizar(url, this.formData, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (data.resultado === 'A') {
@@ -1066,8 +1065,7 @@ function catalogos() {
                 const url = this.editandoVersion
                     ? `/api/v1/catalogos-academicos/versiones-plan-estudio/${this.editVersionId}`
                     : '/api/v1/catalogos-academicos/versiones-plan-estudio';
-                const method = 'post';
-                const { data } = await window.axios[method](url, this.versionForm, {
+                const { data } = await window.api.actualizar(url, this.versionForm, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (data.resultado === 'A') {

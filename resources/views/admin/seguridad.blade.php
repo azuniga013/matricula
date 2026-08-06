@@ -1057,10 +1057,9 @@ function seguridad() {
                     this.flujoCrudError = 'Código, al menos un método y un concepto son obligatorios';
                     return;
                 }
-                const method = 'post';
                 const url = this.editingFlujoCrud ? `/api/v1/seguridad/configuraciones-flujo-matricula/${Number(this.editFlujoId)}` : '/api/v1/seguridad/configuraciones-flujo-matricula';
                 const payload = { ...this.flujoCrudForm, estado: this.flujoCrudForm.estado || 'activo', metodo_pago_id: this.flujoCrudForm.metodo_pago_ids[0] || null, metodo_pago_ids: this.flujoCrudForm.metodo_pago_ids.map(v => Number(v)), origen: 'tecnico', concepto_pago_ids: this.flujoCrudForm.concepto_pago_ids.map(v => Number(v)) };
-                const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showFlujoCrudModal = false; await this.init(); }
                 else { this.flujoCrudError = data.mensaje || 'No se pudo guardar la configuración'; }
             } catch(e) { this.flujoCrudError = window.extractError(e, 'Error al guardar configuración'); } finally { this.savingFlujoCrud = false; }
@@ -1147,7 +1146,7 @@ function seguridad() {
                 const url = this.editingUser ? `/api/v1/seguridad/usuarios/${this.editUserId}` : '/api/v1/seguridad/usuarios';
                 const payload = { ...this.userForm };
                 if (this.editingUser && !payload.password) delete payload.password;
-                const { data } = await window.axios.post(url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') { this.showUserModal = false; window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Usuario guardado', type: 'success' } })); await this.init(); }
                 else { this.error = data.mensaje || 'Error'; }
             } catch(e) { this.error = window.extractError(e, 'Error'); } finally { this.saving = false; }
@@ -1163,8 +1162,7 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingModulo ? `/api/v1/seguridad/modulos/${this.editModuloId}` : '/api/v1/seguridad/modulos';
-                const method = 'post';
-                const { data } = await window.axios[method](url, this.moduloForm, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.api.actualizar(url, this.moduloForm, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showModuloModal = false; await this.init(); }
             } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: window.extractError(e, 'Error al guardar módulo'), type: 'error' } })); } finally { this.savingModulo = false; }
         },
@@ -1182,9 +1180,8 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingOpcion ? `/api/v1/seguridad/opciones/${this.editOpcionId}` : '/api/v1/seguridad/opciones';
-                const method = 'post';
                 const payload = { modulo_id: this.opcionForm.modulo_id, codigo: this.opcionForm.codigo, nombre: this.opcionForm.nombre, ruta: this.opcionForm.ruta, orden: this.opcionForm.orden };
-                const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showOpcionModal = false; await this.init(); }
             } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: window.extractError(e, 'Error al guardar opción'), type: 'error' } })); } finally { this.savingOpcion = false; }
         },
@@ -1222,9 +1219,8 @@ function seguridad() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editingPermiso ? `/api/v1/seguridad/permisos/${this.editPermisoId}` : '/api/v1/seguridad/permisos';
-                const method = 'post';
                 const payload = { ...this.permisoForm };
-                const { data } = await window.axios[method](url, payload, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.showPermisoModal = false;
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: this.editingPermiso ? 'Permiso actualizado' : 'Permiso creado', type: 'success' } }));

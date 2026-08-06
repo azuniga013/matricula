@@ -54,6 +54,7 @@ Las pruebas fuerzan SQLite en memoria, `RefreshDatabase`, cola síncrona y corre
 ## Rutas y compatibilidad
 
 - SmarterASP/IIS puede bloquear `PUT`, `PATCH` y `DELETE`. Para `update`, registrar `Route::match(['PUT', 'PATCH', 'POST'], ...)`; para `destroy`, `Route::match(['DELETE', 'POST'], ...)`. No añadir `Route::put` ni `Route::delete` explícitas.
+- Regla obligatoria de interfaz: toda actualización de catálogos, matrículas, pagos, recibos y procesos administrativos debe usar `window.api.actualizar(url, payload, config)`, que envía `POST`. Nunca usar `axios.put` ni `axios.patch` en Blade/JS. La protección global de `resources/js/app.js` también convierte accidentalmente esos verbos en `POST` para `/api/v1`.
 - Mantener las APIs en JSON con `resultado`, `codigo`, `mensaje` y, en errores, `codigo_error`/`errores` cuando aplique.
 - Las migraciones son la fuente de verdad del esquema. Añadir modelo, relaciones, seeder y pruebas junto con una tabla nueva; no modificar datos históricos destructivamente.
 

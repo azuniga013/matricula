@@ -353,7 +353,7 @@ function ofertas() {
             try {
                 const token = localStorage.getItem('auth_token');
                 const url = this.editing ? `/api/v1/ofertas/academicas/${this.editId}` : '/api/v1/ofertas/academicas';
-                const { data } = await window.axios.post(url, this.form, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.api.actualizar(url, this.form, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.showModal = false;
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Oferta guardada', type: 'success' } }));

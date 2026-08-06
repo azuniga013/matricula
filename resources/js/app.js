@@ -37,6 +37,20 @@ window.axios.interceptors.response.use(
     }
 );
 
+// IIS/SmarterASP puede bloquear PUT y PATCH antes de que Laravel procese la
+// solicitud. Las actualizaciones internas siempre se envían como POST.
+// Esta salvaguarda protege pantallas nuevas que accidentalmente usen esos verbos.
+window.axios.interceptors.request.use(config => {
+    const method = (config.method || 'get').toLowerCase();
+    const url = String(config.url || '');
+
+    if ((method === 'put' || method === 'patch') && /(?:^|\/)api\/v1\//.test(url)) {
+        config.method = 'post';
+    }
+
+    return config;
+});
+
 const api = {
     token: localStorage.getItem('auth-token'),
     user: null,
@@ -78,6 +92,11 @@ const api = {
             await window.axios.post('/api/v1/logout');
         } catch (e) { /* ignore */ }
         this.clearToken();
+    },
+
+    /** Actualización compatible con IIS/SmarterASP; no usar PUT ni PATCH en vistas Blade. */
+    actualizar(url, payload = {}, config = {}) {
+        return window.axios.post(url, payload, config);
     },
 
     async fetchUser() {

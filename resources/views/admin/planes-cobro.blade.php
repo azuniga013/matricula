@@ -255,8 +255,6 @@ function planesCobro() {
                 const url = this.editing
                     ? `/api/v1/catalogos-academicos/planes-cobro/${this.editId}`
                     : '/api/v1/catalogos-academicos/planes-cobro';
-                const method = 'post';
-
                 const payload = {
                     codigo: this.form.codigo,
                     nombre: this.form.nombre,
@@ -271,7 +269,7 @@ function planesCobro() {
                     })),
                 };
 
-                const { data } = await window.axios[method](url, payload, {
+                const { data } = await window.api.actualizar(url, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
