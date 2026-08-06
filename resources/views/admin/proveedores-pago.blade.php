@@ -8,6 +8,7 @@
             <p class="text-sm text-gray-500">Administración de procesadores de pago en línea</p>
         </div>
     </div>
+    <div x-show="error" x-text="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
 
     <template x-if="loading">
         <div class="flex items-center justify-center py-20"><div class="animate-spin rounded-full h-8 w-8 border-2 border-brand-500/20 border-t-brand-500"></div></div>
@@ -32,8 +33,8 @@
                     <div class="p-5 space-y-3">
                         <template x-for="cfg in p.configuraciones" :key="cfg.id">
                             <div class="flex items-center justify-between py-1.5">
-                                <span class="text-sm text-gray-600 font-medium" x-text="cfg.llave"></span>
-                                <span class="text-sm text-gray-800" x-text="cfg.valor_enmascarado || cfg.valor"></span>
+                                <span class="text-sm text-gray-600 font-medium" x-text="cfg.clave"></span>
+                                <span class="text-sm text-gray-800" x-text="cfg.valor_enmascarado || 'No configurado'"></span>
                             </div>
                         </template>
                         <template x-if="(!p.configuraciones || p.configuraciones.length === 0)">
@@ -60,8 +61,8 @@
                 <div class="space-y-4">
                     <template x-for="(cfg, idx) in configForm" :key="idx">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="cfg.llave"></label>
-                            <input x-model="cfg.valor" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :placeholder="cfg.llave">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="cfg.clave"></label>
+                            <input x-model="cfg.valor" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" :placeholder="cfg.clave">
                         </div>
                     </template>
                 </div>
@@ -81,21 +82,25 @@
 <script>
 function proveedoresView() {
     return {
-        loading: true, proveedores: [], selectedProveedor: null, configForm: [], guardando: false, modalError: '',
-        token() { return localStorage.getItem('token'); },
+        loading: true, proveedores: [], selectedProveedor: null, configForm: [], guardando: false, modalError: '', error: '',
+        token() { return localStorage.getItem('auth-token') || localStorage.getItem('auth_token'); },
         async init() {
+            this.error = '';
             const t = this.token();
             if (!t) { window.location.href = '/login'; return; }
             try {
                 const { data } = await window.axios.get('/api/v1/proveedores-pago', { headers: { Authorization: `Bearer ${t}` } });
                 if (data.resultado === 'A') this.proveedores = data.data;
-            } catch(e) { if (e.response?.status === 401) window.location.href = '/login'; }
+        } catch(e) {
+            if (e.response?.status === 403) this.error = window.extractError(e, 'No tiene permiso para consultar proveedores de pago');
+            else this.error = window.extractError(e, 'No se pudieron cargar los proveedores de pago');
+        }
             finally { this.loading = false; }
         },
         editarConfig(p) {
             this.selectedProveedor = p;
             this.configForm = (p.configuraciones || []).map(c => ({
-                id: c.id, llave: c.llave, valor: '',
+                id: c.id, clave: c.clave, valor: '',
             }));
             this.modalError = '';
         },
@@ -104,7 +109,7 @@ function proveedoresView() {
             const t = this.token();
             try {
                 const { data } = await window.axios.post(`/api/v1/proveedores-pago/${this.selectedProveedor.id}/configuracion`,
-                    { configuraciones: this.configForm },
+                    { config: Object.fromEntries(this.configForm.map(c => [c.clave, c.valor])) },
                     { headers: { Authorization: `Bearer ${t}` } });
                 if (data.resultado === 'A') {
                     this.selectedProveedor = null;

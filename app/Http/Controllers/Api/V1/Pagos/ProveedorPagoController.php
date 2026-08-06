@@ -7,6 +7,7 @@ use App\Models\ConfiguracionProveedorPago;
 use App\Models\ProveedorPago;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ProveedorPagoController extends Controller
 {
@@ -26,7 +27,8 @@ class ProveedorPagoController extends Controller
 
     public function index(): JsonResponse
     {
-        $proveedores = ProveedorPago::with('configuraciones')->orderBy('nombre')->get();
+        $proveedores = ProveedorPago::with('configuraciones')->orderBy('nombre')->get()
+            ->map(fn (ProveedorPago $proveedor) => $this->presentarProveedor($proveedor));
 
         return response()->json([
             'resultado' => 'A',
@@ -44,7 +46,7 @@ class ProveedorPagoController extends Controller
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => 'OK',
-            'data' => $proveedor,
+            'data' => $this->presentarProveedor($proveedor),
         ]);
     }
 
@@ -101,20 +103,24 @@ class ProveedorPagoController extends Controller
     {
         $proveedor = ProveedorPago::findOrFail($id);
 
+        $recibidos = $request->validate([
+            'config' => 'required|array',
+            'config.*' => 'nullable|string',
+        ])['config'];
         $reglas = $this->validacionesConfig[$proveedor->codigo] ?? [];
-        $reglas['config'] = 'required|array';
+        $existentes = $proveedor->configuraciones()->pluck('valor', 'clave')->all();
+        $configuracionFinal = [];
 
-        $datos = $request->validate($reglas);
-        $configs = $datos['config'];
-
-        foreach ($configs as $clave => $valor) {
-            if (isset($this->validacionesConfig[$proveedor->codigo][$clave])) {
-                continue;
-            }
-            unset($configs[$clave]);
+        foreach ($reglas as $clave => $regla) {
+            $valorRecibido = array_key_exists($clave, $recibidos) ? trim((string) $recibidos[$clave]) : null;
+            $configuracionFinal[$clave] = $valorRecibido !== '' && $valorRecibido !== null
+                ? $valorRecibido
+                : ($existentes[$clave] ?? null);
         }
 
-        foreach ($configs as $clave => $valor) {
+        Validator::make($configuracionFinal, $reglas)->validate();
+
+        foreach ($configuracionFinal as $clave => $valor) {
             ConfiguracionProveedorPago::updateOrCreate(
                 ['proveedor_pago_id' => $proveedor->id, 'clave' => $clave],
                 ['valor' => (string) $valor]
@@ -127,7 +133,36 @@ class ProveedorPagoController extends Controller
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => 'Configuración guardada',
-            'data' => $proveedor,
+            'data' => $this->presentarProveedor($proveedor),
         ]);
+    }
+
+    private function presentarProveedor(ProveedorPago $proveedor): array
+    {
+        return [
+            'id' => $proveedor->id,
+            'codigo' => $proveedor->codigo,
+            'nombre' => $proveedor->nombre,
+            'descripcion' => $proveedor->descripcion,
+            'activo' => $proveedor->activo,
+            'configuraciones' => $proveedor->configuraciones->map(fn (ConfiguracionProveedorPago $configuracion) => [
+                'id' => $configuracion->id,
+                'clave' => $configuracion->clave,
+                'valor_enmascarado' => $this->enmascararValor($configuracion->clave, $configuracion->valor),
+            ])->values(),
+        ];
+    }
+
+    private function enmascararValor(string $clave, ?string $valor): ?string
+    {
+        if ($valor === null || $valor === '') {
+            return null;
+        }
+
+        if ($clave === 'modo') {
+            return $valor;
+        }
+
+        return str_repeat('•', max(4, min(12, strlen($valor))));
     }
 }
