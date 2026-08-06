@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Academico;
 use App\Http\Controllers\Controller;
 use App\Models\{Calificacion, HistorialAcademico, Matricula, OfertaAcademica, NivelAcademico};
 use App\Services\{ServicioNomenclatura, ServicioBitacora};
+use App\Helpers\RespuestaError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,9 @@ class CalificacionController extends Controller
         if ($request->filled('estado')) {
             $query->where('calificaciones.estado', $request->estado);
         }
+        if ($request->user()->docente_id) {
+            $query->whereHas('ofertaAcademica', fn ($q) => $q->where('docente_id', $request->user()->docente_id));
+        }
 
         $calificaciones = $query->orderByDesc('calificaciones.id')->paginate($request->get('per_page', 25));
         $calificaciones->getCollection()->transform(function (Calificacion $calificacion) {
@@ -65,8 +69,12 @@ class CalificacionController extends Controller
             'calificaciones.*.observaciones' => 'nullable|string|max:500',
         ]);
 
-        $resultado = DB::transaction(function () use ($request) {
-            $oferta = OfertaAcademica::findOrFail($request->oferta_academica_id);
+        $oferta = OfertaAcademica::findOrFail($request->oferta_academica_id);
+        if (!$this->puedeGestionarOferta($request, $oferta)) {
+            return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
+        }
+
+        $resultado = DB::transaction(function () use ($request, $oferta) {
             $docenteId = $oferta->docente_id;
             $creadas = [];
 
@@ -121,7 +129,7 @@ class CalificacionController extends Controller
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $calificacion = Calificacion::with([
             'estudiante:id,codigo,nombre,apellido',
@@ -129,6 +137,9 @@ class CalificacionController extends Controller
             'docente:id,codigo,nombre,apellido',
             'matricula:id,codigo,estado',
         ])->findOrFail($id);
+        if (!$this->puedeGestionarOferta($request, $calificacion->ofertaAcademica)) {
+            return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
+        }
 
         return response()->json([
             'resultado' => 'A',
@@ -146,7 +157,10 @@ class CalificacionController extends Controller
             'observaciones' => 'nullable|string|max:500',
         ]);
 
-        $calificacion = Calificacion::findOrFail($id);
+        $calificacion = Calificacion::with('ofertaAcademica')->findOrFail($id);
+        if (!$this->puedeGestionarOferta($request, $calificacion->ofertaAcademica)) {
+            return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
+        }
 
         $calificacion->update([
             'nota_final' => $request->nota_final ?? $calificacion->nota_final,
@@ -213,5 +227,10 @@ class CalificacionController extends Controller
                 'observaciones' => $calificacion->observaciones,
             ]);
         }
+    }
+
+    private function puedeGestionarOferta(Request $request, ?OfertaAcademica $oferta): bool
+    {
+        return !$request->user()->docente_id || ($oferta && (int) $oferta->docente_id === (int) $request->user()->docente_id);
     }
 }
