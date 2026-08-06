@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Aula, Calificacion, DepartamentoAcademico, Docente, Estudiante, Horario, Modalidad, Modulo, NivelAcademico, OpcionModulo, OfertaAcademica, Permiso, PeriodoAcademico, PlanCobro, PlanEstudio, Rol, Sucursal, User, VersionPlanEstudio};
+use App\Models\{AlcanceUsuario, Aula, Calificacion, DepartamentoAcademico, Docente, Estudiante, Horario, Modalidad, Modulo, NivelAcademico, OpcionModulo, OfertaAcademica, Permiso, PeriodoAcademico, PlanCobro, PlanEstudio, Rol, Sucursal, User, VersionPlanEstudio};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -31,7 +31,9 @@ class CalificacionTest extends TestCase
         $this->crearPermisosBase();
 
         $rol = Rol::create(['codigo' => 'TEST_ADMIN', 'nombre' => 'Test Admin', 'estado' => 'activo']);
-        $permisos = Permiso::where('codigo', 'like', 'calificaciones.%')->get();
+        $permisos = Permiso::where('codigo', 'like', 'calificaciones.%')
+            ->orWhere('codigo', 'asistencias.consultar')
+            ->get();
         $rol->permisos()->attach($permisos->pluck('id')->toArray(), ['estado' => 'activo']);
 
         $this->admin = User::create([
@@ -170,6 +172,16 @@ class CalificacionTest extends TestCase
                 'estado' => 'activo',
             ]);
         }
+
+        $moduloAsistencias = Modulo::create(['codigo' => 'asistencias', 'nombre' => 'Asistencias', 'estado' => 'activo', 'orden' => 9]);
+        $opcionAsistencias = OpcionModulo::create(['modulo_id' => $moduloAsistencias->id, 'codigo' => 'asistencias.lista', 'nombre' => 'Pasar lista', 'estado' => 'activo']);
+        Permiso::create([
+            'opcion_modulo_id' => $opcionAsistencias->id,
+            'codigo' => 'asistencias.consultar',
+            'nombre' => 'Consultar',
+            'accion' => 'consultar',
+            'estado' => 'activo',
+        ]);
     }
 
     private function headers(): array
@@ -221,6 +233,22 @@ class CalificacionTest extends TestCase
             'estado' => 'aprobado',
         ]);
         $this->assertDatabaseCount('certificados_electronicos', 1);
+    }
+
+    public function test_ofertas_disponibles_asistencias_carga_el_regimen_desde_el_nivel(): void
+    {
+        AlcanceUsuario::create([
+            'usuario_id' => $this->admin->id,
+            'tipo' => 'global',
+            'estado' => 'activo',
+        ]);
+
+        $response = $this->getJson('/api/v1/asistencias/ofertas-disponibles?periodo_academico_id=' . $this->periodo->id, $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.0.id', $this->oferta->id)
+            ->assertJsonPath('data.0.nivel_academico.regimen_academico.nombre', 'Intensivo');
     }
 
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void

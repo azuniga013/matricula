@@ -20,8 +20,8 @@ class AsistenciaController extends Controller
         $query = OfertaAcademica::with([
             'sucursal:id,codigo,nombre',
             'periodoAcademico:id,codigo,nombre',
-            'nivelAcademico:id,codigo,nombre',
-            'regimenAcademico:id,codigo,nombre',
+            'nivelAcademico:id,codigo,nombre,regimen_academico_id',
+            'nivelAcademico.regimenAcademico:id,codigo,nombre',
             'modalidad:id,codigo,nombre',
             'horario:id,codigo,nombre,hora_inicio,hora_fin',
             'docente:id,codigo,nombre,apellido',
