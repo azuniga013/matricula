@@ -11,6 +11,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [online, setOnline] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [databaseReady, setDatabaseReady] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [items, setItems] = useState([]);
@@ -24,6 +25,7 @@ export default function App() {
   useEffect(() => {
     initDatabase();
     setItems(cachedOffers());
+    setDatabaseReady(true);
     NetInfo.fetch().then((state) => setOnline(Boolean(state.isConnected)));
     const unsubscribe = NetInfo.addEventListener((state) => setOnline(Boolean(state.isConnected)));
     currentUser().then((profile) => {
@@ -33,7 +35,7 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  const pendingCount = useMemo(() => pending().length, [items, selected, attendance, gradeRows, syncing]);
+  const pendingCount = useMemo(() => databaseReady ? pending().length : 0, [databaseReady, items, selected, attendance, gradeRows, syncing]);
 
   async function refresh() {
     if (!online) return Alert.alert('Sin conexión', 'Se muestran los datos descargados anteriormente.');
