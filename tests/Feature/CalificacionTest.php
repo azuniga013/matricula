@@ -251,6 +251,19 @@ class CalificacionTest extends TestCase
             ->assertJsonPath('data.0.nivel_academico.regimen_academico.nombre', 'Intensivo');
     }
 
+    public function test_estudiantes_por_oferta_incluye_identificador_para_calificaciones_moviles(): void
+    {
+        AlcanceUsuario::create([
+            'usuario_id' => $this->admin->id,
+            'tipo' => 'global',
+            'estado' => 'activo',
+        ]);
+
+        $this->getJson('/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=' . $this->oferta->id, $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.0.estudiante_id', $this->estudiante->id);
+    }
+
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
     {
         $otroEstudiante = Estudiante::factory()->create([

@@ -87,6 +87,7 @@ class AsistenciaController extends Controller
             ->map(function ($m) {
                 return [
                     'matricula_id' => $m->id,
+                    'estudiante_id' => $m->estudiante_id,
                     'codigo' => $m->estudiante->codigo,
                     'nombre' => $m->estudiante->nombre,
                     'apellido' => $m->estudiante->apellido,

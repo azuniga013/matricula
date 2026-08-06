@@ -62,6 +62,7 @@ son usuarios administrativos y usan Sanctum.
    sesión. Los datos académicos pueden conservarse cifrados o eliminarse al
    cerrar sesión según la política institucional; para la primera versión se
    eliminan al cerrar sesión explícitamente.
+6. Tambien que puedan guardar su Huella digital
 
 ### Permisos mínimos
 
@@ -304,3 +305,23 @@ No distribuir ampliamente hasta que se cumpla todo:
 - Versión, hash del APK y responsable de distribución registrados.
 - Capacitación breve para docentes: sincronizar antes y después de clase,
   revisar pendientes y resolver conflictos.
+
+## 15. Trazabilidad obligatoria de cambios
+
+Este documento es la fuente de verdad de la APK docente. Todo cambio que
+afecte la aplicación móvil, sus APIs, seguridad, permisos, sincronización,
+datos locales, compilación o distribución debe actualizar esta guía en el
+mismo commit. Cada entrada debe indicar fecha, cambio, archivos o endpoints
+afectados, validación realizada y cualquier limitación pendiente.
+
+### Registro de implementación
+
+| Fecha | Cambio | Validación / estado |
+|---|---|---|
+| 2026-08-05 | Se creó `mobile-docentes/` como proyecto Expo Android interno, con `app.json` y perfil EAS `internal` para APK. | Pendiente completar instalación de dependencias y ejecutar build Android. |
+| 2026-08-05 | Se implementó la base móvil: login administrativo de docente, SecureStore para token, SQLite para ofertas/alumnos/notas y cola offline para asistencia y calificaciones. | Revisión estática pendiente de dependencias Expo; no existe todavía APK firmada. |
+| 2026-08-05 | `GET /asistencias/estudiantes-por-oferta` ahora entrega `estudiante_id`, requerido para enviar notas desde la APK. | Debe cubrirse con prueba de contrato al finalizar la API móvil. |
+| 2026-08-05 | Calificaciones limita listado, consulta, registro y actualización a las ofertas del docente autenticado. | `CalificacionTest` pasó antes del scaffolding móvil. |
+| 2026-08-05 | Se excluyeron del control de versiones los artefactos móviles generados: `node_modules`, `.expo`, `android`, `ios`, `dist` y `.gradle`. | Se conservan código fuente, configuración EAS y `package-lock.json` cuando la instalación finalice. |
+| 2026-08-05 | Se instalaron dependencias Expo y se ejecutó `npx expo export --platform android`. | Bundle Android generado correctamente; `dist/` queda ignorado. Aún falta build EAS y firma para obtener el APK instalable. |
+| 2026-08-05 | Se agregó prueba de contrato para `estudiante_id` en alumnos por oferta, consumido por el registro de notas móvil. | `CalificacionTest`: 12 pruebas y 30 aserciones correctas. |
