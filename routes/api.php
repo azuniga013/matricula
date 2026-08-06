@@ -104,6 +104,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::get('/mi-nivel', [PortalEstudianteController::class, 'miNivel']);
     Route::get('/mis-calificaciones', [EstudianteAuthController::class, 'misCalificaciones']);
     Route::get('/mis-certificados', [PortalEstudianteController::class, 'misCertificados']);
+    Route::post('/certificados/electronicos', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'emitir']);
     Route::get('/whatsapp', [PortalEstudianteController::class, 'whatsapp']);
         Route::get('/enlaces-pago', [PortalEstudianteController::class, 'enlacesPago']);
 
@@ -480,10 +481,8 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
     });
 
     Route::prefix('estudiantes/certificados')->group(function () {
-        Route::post('/electronicos', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'emitir'])
-            ->middleware('auth.estudiante');
         Route::post('/electronicos/admin', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'emitirAdmin'])
-            ->middleware(['auth:sanctum', 'permission:estudiantes.modificar']);
+            ->middleware(['auth:sanctum', 'permission:calificaciones.modificar']);
         Route::get('/estudiante/{estudianteId}', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'listarPorEstudiante'])
             ->middleware(['auth:sanctum', 'permission:estudiantes.consultar']);
     });

@@ -87,7 +87,7 @@
             {{-- Tabs de la ficha --}}
             <div class="border-b border-gray-200 px-6">
                 <nav class="flex space-x-1 overflow-x-auto">
-                    <template x-for="t in [{id:'datos',label:'Datos'},{id:'matriculas',label:'Matrículas'},{id:'pagos',label:'Pagos'},{id:'recibos',label:'Recibos'},{id:'calificaciones',label:'Calificaciones'}]" :key="t.id">
+                    <template x-for="t in [{id:'datos',label:'Datos'},{id:'matriculas',label:'Matrículas'},{id:'pagos',label:'Pagos'},{id:'recibos',label:'Recibos'},{id:'calificaciones',label:'Historial académico'}]" :key="t.id">
                         <button @click="fichaTab = t.id" :class="fichaTab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap py-3 px-3 border-b-2 text-sm font-medium" x-text="t.label"></button>
                     </template>
                 </nav>
@@ -213,7 +213,7 @@
                                         <td class="text-center font-semibold" :class="Number(c.nota_final) >= 80 ? 'text-green-600' : 'text-red-600'" x-text="c.nota_final ?? '-'"></td>
                                         <td class="text-center" x-text="c.faltas ?? 0"></td>
                                         <td><span :class="{'badge-success': c.estado === 'aprobado', 'badge-danger': c.estado === 'reprobado', 'badge-info': c.estado === 'matriculado'}" class="badge" x-text="c.estado"></span></td>
-                                        <td class="text-right"><button x-show="c.aprobada && api.hasPermission('estudiantes.modificar')" @click="emitirCertificadoAdmin(c)" class="btn btn-ghost btn-sm text-brand-600">Emitir PDF</button></td>
+                                        <td class="text-right"><button x-show="c.aprobada && api.hasPermission('calificaciones.modificar')" @click="emitirCertificadoAdmin(c)" class="btn btn-ghost btn-sm text-brand-600" title="Genera el certificado del nivel aprobado">Generar certificado</button></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -446,6 +446,9 @@ function estudiantes() {
                 }, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     window.open(data.data?.pdf_url || `/certificados/${data.data.token_validacion}/pdf`, '_blank');
+                    const certificado = { ...data.data, nivel: data.data?.nivel?.nombre || '-' };
+                    this.fichaCertificados = [certificado, ...this.fichaCertificados.filter(item => item.codigo !== certificado.codigo)];
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Certificado generado', type: 'success' } }));
                 }
             } catch(e) {
                 alert(window.extractError ? window.extractError(e, 'No se pudo emitir el certificado') : 'No se pudo emitir el certificado');

@@ -134,8 +134,8 @@
                                     }" class="badge" x-text="e.estado_registro"></span>
                                 </td>
                                 <td class="text-center">
-                                    <button x-show="esAprobado(e) && api.hasPermission('estudiantes.modificar') && e.calificacion_id"
-                                        @click="emitirCertificado(e)" class="btn btn-ghost btn-sm text-brand-600">Emitir PDF</button>
+                                    <button x-show="esAprobado(e) && api.hasPermission('calificaciones.modificar') && e.calificacion_id"
+                                        @click="emitirCertificado(e)" class="btn btn-ghost btn-sm text-brand-600" title="Genera el historial académico si falta y emite el certificado">Generar certificado</button>
                                 </td>
                             </tr>
                         </template>
@@ -258,6 +258,7 @@ function calificaciones() {
                 }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') {
                     window.open(data.data?.pdf_url || `/certificados/${data.data.token_validacion}/pdf`, '_blank');
+                    this.toast('Historial académico y certificado generados', 'success');
                 }
             } catch (error) {
                 this.toast(window.extractError(error, 'No se pudo emitir el certificado'), 'error');

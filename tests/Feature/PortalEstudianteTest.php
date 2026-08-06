@@ -6,7 +6,7 @@ use App\Models\{
     Aula, AccesoEstudiante, ConceptoPago, CuentaBancaria, DepartamentoAcademico,
     Docente, Estudiante, Horario, MetodoPago, Modalidad, NivelAcademico,
     OfertaAcademica, PeriodoAcademico, PlanCobro, PlanEstudio,
-    Sucursal, VersionPlanEstudio
+    Sucursal, VersionPlanEstudio, HistorialAcademico
 };
 use App\Models\DetallePlanCobro;
 use App\Models\Matricula;
@@ -493,5 +493,39 @@ class PortalEstudianteTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
+    }
+
+    public function test_estudiante_puede_generar_certificado_desde_su_historial_aprobado(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders())->assertCreated();
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $historial = HistorialAcademico::create([
+            'codigo' => 'HIS-PORTAL-001',
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $matricula->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nivel_academico_id' => $this->oferta->nivel_academico_id,
+            'periodo_academico_id' => $this->oferta->periodo_academico_id,
+            'estado' => 'aprobado',
+            'nota_final' => 90,
+            'faltas' => 0,
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/certificados/electronicos', [
+            'historial_academico_id' => $historial->id,
+        ], $this->studentHeaders());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonStructure(['data' => ['codigo', 'pdf_url', 'vista_url']]);
+
+        $this->assertDatabaseHas('certificados_electronicos', [
+            'historial_academico_id' => $historial->id,
+            'estudiante_id' => $this->estudiante->id,
+            'estado' => 'emitido',
+        ]);
     }
 }

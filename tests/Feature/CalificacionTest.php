@@ -196,6 +196,33 @@ class CalificacionTest extends TestCase
             ->assertJsonPath('data.0.faltas', 2);
     }
 
+    public function test_docente_con_permiso_calificaciones_puede_generar_certificado_desde_la_calificacion(): void
+    {
+        $this->postJson('/api/v1/calificaciones/registrar', [
+            'oferta_academica_id' => $this->oferta->id,
+            'calificaciones' => [[
+                'estudiante_id' => $this->estudiante->id,
+                'nota_final' => 85,
+                'faltas' => 0,
+            ]],
+        ], $this->headers())->assertOk();
+
+        $calificacion = Calificacion::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+
+        $this->postJson('/api/v1/estudiantes/certificados/electronicos/admin', [
+            'calificacion_id' => $calificacion->id,
+        ], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.nota_final', '85.00');
+
+        $this->assertDatabaseHas('historial_academico', [
+            'matricula_id' => $calificacion->matricula_id,
+            'estado' => 'aprobado',
+        ]);
+        $this->assertDatabaseCount('certificados_electronicos', 1);
+    }
+
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
     {
         $otroEstudiante = Estudiante::factory()->create([

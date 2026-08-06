@@ -66,7 +66,7 @@
                                         <td class="px-4 py-3 text-right">
                                             <button x-show="c.estado === 'aprobado'" @click="emitirCertificado(c)" :disabled="emitiendoId === c.id" class="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
                                                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 5.25-4.5 9.75-9 9.75S3 17.25 3 12 7.5 2.25 12 2.25 21 6.75 21 12Z" /></svg>
-                                                    <span x-text="emitiendoId === c.id ? 'Generando...' : 'Certificado'"></span>
+                                                    <span x-text="emitiendoId === c.id ? 'Generando...' : 'Generar certificado'"></span>
                                             </button>
                                         </td>
                                     </tr>

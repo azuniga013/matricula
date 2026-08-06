@@ -156,8 +156,8 @@ class CertificadoElectronicoController extends Controller
             $historial = HistorialAcademico::with(['nivelAcademico', 'estudiante'])
                 ->where('estudiante_id', $calificacion->estudiante_id)
                 ->where('matricula_id', $calificacion->matricula_id)
-                ->where('nivel_academico_id', $calificacion->ofertaAcademico?->nivel_academico_id)
-                ->where('periodo_academico_id', $calificacion->ofertaAcademico?->periodo_academico_id)
+                ->where('nivel_academico_id', $calificacion->ofertaAcademica?->nivel_academico_id)
+                ->where('periodo_academico_id', $calificacion->ofertaAcademica?->periodo_academico_id)
                 ->first();
             if (!$historial && $calificacion->matricula && $calificacion->ofertaAcademica) {
                 $calificacion->loadMissing(['ofertaAcademica.periodoAcademico', 'ofertaAcademica.modalidad']);
