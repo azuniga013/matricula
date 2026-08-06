@@ -35,7 +35,7 @@
         {{-- Filters --}}
         <div class="card mb-6">
             <div class="card-body">
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div><label class="label">Período</label><select x-model="filtro.periodo" @change="load()" class="input"><option value="">Todos</option><template x-for="p in periodos" :key="p.id"><option :value="p.id" x-text="p.nombre"></option></template></select></div>
                     <div><label class="label">Sucursal</label><select x-model="filtro.sucursal" @change="load()" class="input"><option value="">Todas</option><template x-for="s in sucursales" :key="s.id"><option :value="s.id" x-text="s.nombre"></option></template></select></div>
                     <div><label class="label">Estado</label><select x-model="filtro.estado" @change="load()" class="input"><option value="">Todos</option><option value="iniciada">Iniciada</option><option value="reservada">Reservada</option><option value="en_revision">En Revisión</option><option value="matriculado">Matriculado</option><option value="rechazado">Rechazado</option><option value="cancelado">Cancelado</option></select></div>
@@ -107,9 +107,30 @@
                     </div>
                     <div>
                         <label class="label">Período</label>
-                        <select x-model="filtroGestion.periodo" @change="cargarMatriculasPagadas(); loadGestiones()" class="input">
+                        <select x-model="filtroGestion.periodo" @change="onFiltroGestionAcademicoChange('periodo')" class="input">
                             <option value="">Seleccionar...</option>
                             <template x-for="p in periodos" :key="p.id"><option :value="p.id" x-text="p.nombre"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Plan de estudio</label>
+                        <select x-model="filtroGestion.plan" @change="onFiltroGestionAcademicoChange('plan')" class="input">
+                            <option value="">Todos los planes</option>
+                            <template x-for="p in planesGestionDisponibles" :key="p.id"><option :value="p.id" x-text="p.codigo + ' · ' + p.nombre"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Nivel</label>
+                        <select x-model="filtroGestion.nivel" @change="onFiltroGestionAcademicoChange('nivel')" class="input" :disabled="!filtroGestion.plan">
+                            <option value="">Todos los niveles</option>
+                            <template x-for="n in nivelesGestionDisponibles" :key="n.id"><option :value="n.id" x-text="n.codigo + ' · ' + n.nombre"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Grupo / Oferta</label>
+                        <select x-model="filtroGestion.oferta" @change="cargarMatriculasPagadas(); loadGestiones()" class="input" :disabled="!filtroGestion.nivel">
+                            <option value="">Todos los grupos</option>
+                            <template x-for="o in ofertasGestionDisponibles" :key="o.id"><option :value="o.id" x-text="o.codigo + ' · ' + (o.horario?.nombre || '')"></option></template>
                         </select>
                     </div>
                     <div class="flex items-end">
@@ -583,7 +604,8 @@ function matriculas() {
 
         // Gestiones
         gestiones: [], tiposGestion: [], loadingGestiones: false,
-        filtroGestion: { tipo: '', estado: '', periodo: '' },
+        filtroGestion: { tipo: '', estado: '', periodo: '', plan: '', nivel: '', oferta: '' },
+        ofertasGestion: [],
         showModalGestion: false, showModalRechazo: false, showModalDetalle: false,
         savingGestion: false, errorGestion: '', matriculaPreseleccionada: false,
         formGestion: { matricula_id: '', tipo_gestion_matricula_id: '', oferta_academica_destino_id: '', motivo: '' },
@@ -604,6 +626,38 @@ function matriculas() {
         get tipoGestionCambioModalidad() {
             const tipo = this.tiposGestion.find(t => t.id == this.formGestion.tipo_gestion_matricula_id);
             return tipo?.codigo === 'CTR';
+        },
+
+        get planesGestionDisponibles() {
+            const ids = new Set(this.ofertasGestion.map(o => o.nivel_academico?.version_plan_estudio?.plan_estudio_id).filter(Boolean));
+            return this.planesEstudio.filter(plan => ids.has(plan.id));
+        },
+
+        get nivelesGestionDisponibles() {
+            return this.ofertasGestion
+                .filter(o => String(o.nivel_academico?.version_plan_estudio?.plan_estudio_id) === String(this.filtroGestion.plan))
+                .map(o => o.nivel_academico)
+                .filter((n, index, levels) => n && levels.findIndex(item => item.id === n.id) === index);
+        },
+
+        get ofertasGestionDisponibles() {
+            return this.ofertasGestion.filter(o => String(o.nivel_academico_id) === String(this.filtroGestion.nivel));
+        },
+
+        async onFiltroGestionAcademicoChange(origen) {
+            if (origen === 'periodo') { this.filtroGestion.plan = ''; this.filtroGestion.nivel = ''; this.filtroGestion.oferta = ''; await this.cargarOfertasGestion(); }
+            if (origen === 'plan') { this.filtroGestion.nivel = ''; this.filtroGestion.oferta = ''; }
+            if (origen === 'nivel') this.filtroGestion.oferta = '';
+            await this.cargarMatriculasPagadas();
+            await this.loadGestiones();
+        },
+
+        async cargarOfertasGestion() {
+            if (!this.filtroGestion.periodo) { this.ofertasGestion = []; return; }
+            try {
+                const { data } = await window.axios.get(`/api/v1/ofertas/academicas?periodo_academico_id=${this.filtroGestion.periodo}&per_page=200`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.ofertasGestion = data.data?.data || data.data || [];
+            } catch (e) { this.ofertasGestion = []; }
         },
 
         async tipoGestionSeleccionado() {
@@ -903,8 +957,10 @@ function matriculas() {
         async cargarMatriculasPagadas() {
             if (!this.estudianteGestion || !this.filtroGestion.periodo) return;
             try {
+                let filtrosAcademicos = '';
+                if (this.filtroGestion.oferta) filtrosAcademicos += `&oferta_academica_id=${this.filtroGestion.oferta}`;
                 const { data } = await window.axios.get(
-                    `/api/v1/matriculas?estudiante_id=${this.estudianteGestion.id}&periodo_academico_id=${this.filtroGestion.periodo}&estado=matriculado&per_page=50`,
+                    `/api/v1/matriculas?estudiante_id=${this.estudianteGestion.id}&periodo_academico_id=${this.filtroGestion.periodo}&estado=matriculado&per_page=50${filtrosAcademicos}`,
                     { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } }
                 );
                 this.matriculasPagadas = data.data?.data || data.data || [];
@@ -916,7 +972,8 @@ function matriculas() {
             this.matriculasPagadas = [];
             this.busquedaEstudianteCodigo = '';
             this.resultadosBusquedaEstudiante = [];
-            this.filtroGestion.periodo = '';
+            this.filtroGestion = { tipo: '', estado: '', periodo: '', plan: '', nivel: '', oferta: '' };
+            this.ofertasGestion = [];
         },
 
         async loadGestiones() {
@@ -925,6 +982,9 @@ function matriculas() {
                 let url = '/api/v1/gestiones-matricula?per_page=50&';
                 if (this.estudianteGestion) url += `estudiante_id=${this.estudianteGestion.id}&`;
                 if (this.filtroGestion.periodo) url += `periodo_academico_id=${this.filtroGestion.periodo}&`;
+                if (this.filtroGestion.plan) url += `plan_estudio_id=${this.filtroGestion.plan}&`;
+                if (this.filtroGestion.nivel) url += `nivel_academico_id=${this.filtroGestion.nivel}&`;
+                if (this.filtroGestion.oferta) url += `oferta_academica_id=${this.filtroGestion.oferta}&`;
                 if (this.filtroGestion.tipo) url += `tipo_gestion_matricula_id=${this.filtroGestion.tipo}&`;
                 if (this.filtroGestion.estado) url += `estado=${this.filtroGestion.estado}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });

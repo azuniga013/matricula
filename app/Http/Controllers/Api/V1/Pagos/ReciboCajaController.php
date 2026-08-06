@@ -16,6 +16,10 @@ class ReciboCajaController extends Controller
         $request->validate([
             'sucursal_id' => 'nullable|exists:sucursales,id',
             'estudiante_id' => 'nullable|exists:estudiantes,id',
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
+            'nivel_academico_id' => 'nullable|exists:niveles_academicos,id',
+            'oferta_academica_id' => 'nullable|exists:ofertas_academicas,id',
             'estado' => 'nullable|in:emitido,anulado,reversado',
             'fecha_desde' => 'nullable|date',
             'fecha_hasta' => 'nullable|date|after_or_equal:fecha_desde',
@@ -36,6 +40,18 @@ class ReciboCajaController extends Controller
         }
         if ($request->filled('estudiante_id')) {
             $query->where('recibos_caja.estudiante_id', $request->estudiante_id);
+        }
+        if ($request->filled('periodo_academico_id')) {
+            $query->whereHas('pago.matricula.ofertaAcademica', fn ($q) => $q->where('periodo_academico_id', $request->periodo_academico_id));
+        }
+        if ($request->filled('plan_estudio_id')) {
+            $query->whereHas('pago.matricula.ofertaAcademica.nivelAcademico.versionPlanEstudio', fn ($q) => $q->where('plan_estudio_id', $request->plan_estudio_id));
+        }
+        if ($request->filled('nivel_academico_id')) {
+            $query->whereHas('pago.matricula.ofertaAcademica', fn ($q) => $q->where('nivel_academico_id', $request->nivel_academico_id));
+        }
+        if ($request->filled('oferta_academica_id')) {
+            $query->whereHas('pago.matricula', fn ($q) => $q->where('oferta_academica_id', $request->oferta_academica_id));
         }
         if ($request->filled('estado')) {
             $query->where('recibos_caja.estado', $request->estado);

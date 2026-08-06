@@ -24,12 +24,12 @@ tarea; los documentos fechados, `docs/avance.md` y el historial de
 
 | ID | Estado | Tarea | Evidencia o siguiente paso |
 |---|---|---|---|
-| `P-001` | `por_validar` | Completar el filtro académico reutilizable en gestiones de matrícula, recibos, cierres de caja, inventario y ficha/consultas de estudiante. | Auditar cada pantalla y confirmar si ya aplica `período -> nivel -> horario/grupo`. |
+| `P-001` | `por_validar` | Completar el filtro académico reutilizable en gestiones de matrícula, recibos, cierres de caja, inventario y ficha/consultas de estudiante. | Gestiones de matrícula y Recibos de Caja aplican `período -> plan -> nivel -> grupo/oferta` en interfaz y API. Inventario y cierres de caja no dependen de oferta; la ficha conserva el historial completo. Verificado con `PagoTest`, `MatriculaTest`, caché Blade y build; falta aceptación visual. |
 | `P-002` | `pendiente` | Completar pruebas automatizadas de matrícula, pagos, asistencia, calificaciones, monitor de cupos, reportes y flujos de matrícula. | Añadir casos de éxito, denegación RBAC, alcance y transiciones de estado. |
 | `P-003` | `por_validar` | Cerrar la cobertura RBAC por entidad y alcance. | Verificar estudiantes, matrículas, pagos, recibos, caja, calificaciones, inventario y reportes con sucursal, docente, propietario y alumno. |
 | `P-004` | `por_validar` | Revisar seguridad de sesiones administrativas. | Confirmar revocación al inactivar/cambiar contraseña, bloqueo, protección del último superadministrador y auditoría detallada. |
 | `P-005` | `pendiente` | Registrar aceptación funcional de monitor de cupos, PDF y Excel en escritorio y móvil. | Ejecutar `docs/PRUEBAS_ACEPTACION_RESPONSIVE.md` y adjuntar resultado o incidencia. |
-| `P-006` | `bloqueado` | Validar despliegue en producción. | Requiere ejecutar el despliegue FTPS y comprobar `/up`, API autenticada, catálogos, recibos, PDF y Excel. |
+| `P-006` | `completado` | Validar despliegue en producción. | Despliegue por `git push mojahost main` completado; validación funcional en producción confirmada por el usuario el 2026-08-05. |
 
 ### Pendientes funcionales
 

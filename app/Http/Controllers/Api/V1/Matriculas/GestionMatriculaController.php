@@ -15,6 +15,10 @@ class GestionMatriculaController extends Controller
         $request->validate([
             'matricula_id' => 'nullable|exists:matriculas,id',
             'estudiante_id' => 'nullable|exists:estudiantes,id',
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
+            'nivel_academico_id' => 'nullable|exists:niveles_academicos,id',
+            'oferta_academica_id' => 'nullable|exists:ofertas_academicas,id',
             'tipo_gestion_matricula_id' => 'nullable|exists:tipos_gestion_matricula,id',
             'estado' => 'nullable|in:pendiente,aprobado,rechazado,ejecutado',
             'page' => 'nullable|integer|min:1',
@@ -33,6 +37,18 @@ class GestionMatriculaController extends Controller
         }
         if ($request->filled('estudiante_id')) {
             $query->whereHas('matricula', fn($q) => $q->where('estudiante_id', $request->estudiante_id));
+        }
+        if ($request->filled('periodo_academico_id')) {
+            $query->whereHas('matricula.ofertaAcademica', fn($q) => $q->where('periodo_academico_id', $request->periodo_academico_id));
+        }
+        if ($request->filled('plan_estudio_id')) {
+            $query->whereHas('matricula.ofertaAcademica.nivelAcademico.versionPlanEstudio', fn($q) => $q->where('plan_estudio_id', $request->plan_estudio_id));
+        }
+        if ($request->filled('nivel_academico_id')) {
+            $query->whereHas('matricula.ofertaAcademica', fn($q) => $q->where('nivel_academico_id', $request->nivel_academico_id));
+        }
+        if ($request->filled('oferta_academica_id')) {
+            $query->whereHas('matricula', fn($q) => $q->where('oferta_academica_id', $request->oferta_academica_id));
         }
         if ($request->filled('tipo_gestion_matricula_id')) {
             $query->where('gestiones_matricula.tipo_gestion_matricula_id', $request->tipo_gestion_matricula_id);

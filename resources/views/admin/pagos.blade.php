@@ -224,7 +224,7 @@
                 {{-- Filtros recibos --}}
                 <div class="card mb-4">
                     <div class="card-body">
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-7 gap-4">
                             <div><label class="label">Desde</label><input x-model="filtroRecibos.fecha_desde" type="date" @change="loadRecibos()" class="input"></div>
                             <div><label class="label">Hasta</label><input x-model="filtroRecibos.fecha_hasta" type="date" @change="loadRecibos()" class="input"></div>
                             <div>
@@ -236,6 +236,10 @@
                                     <option value="anulado">Anulado</option>
                                 </select>
                             </div>
+                            <div><label class="label">Período</label><select x-model="filtroRecibos.periodo" @change="onFiltroRecibosAcademico('periodo')" class="input"><option value="">Todos</option><template x-for="p in periodosAcademicos" :key="p.id"><option :value="p.id" x-text="p.codigo + ' · ' + p.nombre"></option></template></select></div>
+                            <div><label class="label">Plan</label><select x-model="filtroRecibos.plan" @change="onFiltroRecibosAcademico('plan')" class="input"><option value="">Todos</option><template x-for="p in planesEstudio" :key="p.id"><option :value="p.id" x-text="p.codigo + ' · ' + p.nombre"></option></template></select></div>
+                            <div><label class="label">Nivel</label><select x-model="filtroRecibos.nivel" @change="onFiltroRecibosAcademico('nivel')" class="input" :disabled="!filtroRecibos.plan"><option value="">Todos</option><template x-for="n in nivelesRecibos" :key="n.id"><option :value="n.id" x-text="n.codigo + ' · ' + n.nombre"></option></template></select></div>
+                            <div><label class="label">Grupo</label><select x-model="filtroRecibos.oferta" @change="loadRecibos()" class="input" :disabled="!filtroRecibos.nivel"><option value="">Todos</option><template x-for="o in ofertasRecibosNivel" :key="o.id"><option :value="o.id" x-text="o.codigo + ' · ' + (o.horario?.nombre || '')"></option></template></select></div>
                             <div class="flex items-end"><button @click="loadRecibos()" class="btn btn-outline w-full">Actualizar</button></div>
                         </div>
                     </div>
@@ -816,7 +820,8 @@ function pagos() {
         debugPagos: { filtroActivo: 'N/D', ultimoConteo: 'N/D', respuestas: {} },
         form: { estudiante_id: '', concepto_pago_id: '', metodo_pago_id: '', cuenta_bancaria_id: '', monto: 0, fecha_proceso: '', referencia_externa: '', observaciones: '', inventario_libro_id: '', cantidad_libro: 1, solicitar_link: false },
         busquedaEstudiante: '', resultadosEstudiantes: [], obligacionesPendientes: [], obligacionesSeleccionadas: [],
-        filtroRecibos: { fecha_desde: '', fecha_hasta: '', estado: '' },
+        filtroRecibos: { fecha_desde: '', fecha_hasta: '', estado: '', periodo: '', plan: '', nivel: '', oferta: '' },
+        periodosAcademicos: [], planesEstudio: [], ofertasRecibos: [],
         showComprobante: false, showRechazo: false, showRecibo: false, showAnulacion: false,
         showDetalle: false, detallePago: null,
         pagoSeleccionado: null, pagoAprobar: null, reciboSeleccionado: null,
@@ -832,12 +837,14 @@ function pagos() {
         async init() {
             const token = localStorage.getItem('auth_token');
             const h = { headers: { Authorization: `Bearer ${token}` } };
-            const [f, c, m, lb, cb] = await Promise.allSettled([
+            const [f, c, m, lb, cb, pa, pe] = await Promise.allSettled([
                 window.axios.get('/api/v1/seguridad/configuraciones-flujo-matricula', h),
                 window.axios.get('/api/v1/catalogos-academicos/conceptos-pago', h),
                 window.axios.get('/api/v1/catalogos-academicos/metodos-pago', h),
                 window.axios.get('/api/v1/inventario/libros?per_page=200', h),
                 window.axios.get('/api/v1/cuentas-bancarias', { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } }).catch(() => ({ data: { data: [] } })),
+                window.axios.get('/api/v1/catalogos-academicos/periodos-academicos', h),
+                window.axios.get('/api/v1/catalogos-academicos/planes-estudio', h),
             ]);
             const flujos = f.status === 'fulfilled' ? (f.value.data.data?.data || f.value.data.data || []) : [];
             this.flujo = flujos.find(c => c.origen === 'portal_administrativo' && c.estado === 'activo') || this.flujo;
@@ -845,6 +852,8 @@ function pagos() {
             this.metodos = m.status === 'fulfilled' ? (m.value.data.data?.data || m.value.data.data || []) : [];
             this.libros = lb.status === 'fulfilled' ? (lb.value.data.data?.data || lb.value.data.data || []) : [];
             this.cuentasBancarias = cb.status === 'fulfilled' ? (cb.value.data.data || []) : [];
+            this.periodosAcademicos = pa.status === 'fulfilled' ? (pa.value.data.data?.data || pa.value.data.data || []) : [];
+            this.planesEstudio = pe.status === 'fulfilled' ? (pe.value.data.data?.data || pe.value.data.data || []) : [];
             await this.load();
             this.pollingInterval = setInterval(() => this.load(), 30000);
         },
@@ -1028,6 +1037,10 @@ function pagos() {
                 if (this.filtroRecibos.fecha_desde) url += `fecha_desde=${this.filtroRecibos.fecha_desde}&`;
                 if (this.filtroRecibos.fecha_hasta) url += `fecha_hasta=${this.filtroRecibos.fecha_hasta}&`;
                 if (this.filtroRecibos.estado) url += `estado=${this.filtroRecibos.estado}&`;
+                if (this.filtroRecibos.periodo) url += `periodo_academico_id=${this.filtroRecibos.periodo}&`;
+                if (this.filtroRecibos.plan) url += `plan_estudio_id=${this.filtroRecibos.plan}&`;
+                if (this.filtroRecibos.nivel) url += `nivel_academico_id=${this.filtroRecibos.nivel}&`;
+                if (this.filtroRecibos.oferta) url += `oferta_academica_id=${this.filtroRecibos.oferta}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 const payload = data.data || {};
                 const emitir = this.filtroRecibos.estado || '';
@@ -1036,6 +1049,34 @@ function pagos() {
                 else if (emitir === 'anulado') this.recibos = payload.anulados || [];
                 else this.recibos = [...(payload.emitidos || []), ...(payload.anulados || []), ...(payload.reversados || [])];
             } catch(e) { this.recibos = []; }
+        },
+
+        get nivelesRecibos() {
+            return this.ofertasRecibos.filter(o => String(o.nivel_academico?.version_plan_estudio?.plan_estudio_id) === String(this.filtroRecibos.plan))
+                .map(o => o.nivel_academico)
+                .filter((n, index, levels) => n && levels.findIndex(item => item.id === n.id) === index);
+        },
+
+        get ofertasRecibosNivel() {
+            return this.ofertasRecibos.filter(o => String(o.nivel_academico_id) === String(this.filtroRecibos.nivel));
+        },
+
+        async onFiltroRecibosAcademico(origen) {
+            if (origen === 'periodo') {
+                this.filtroRecibos.plan = ''; this.filtroRecibos.nivel = ''; this.filtroRecibos.oferta = '';
+                await this.cargarOfertasRecibos();
+            }
+            if (origen === 'plan') { this.filtroRecibos.nivel = ''; this.filtroRecibos.oferta = ''; }
+            if (origen === 'nivel') this.filtroRecibos.oferta = '';
+            await this.loadRecibos();
+        },
+
+        async cargarOfertasRecibos() {
+            if (!this.filtroRecibos.periodo) { this.ofertasRecibos = []; return; }
+            try {
+                const { data } = await window.axios.get(`/api/v1/ofertas/academicas?periodo_academico_id=${this.filtroRecibos.periodo}&per_page=200`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.ofertasRecibos = data.data?.data || data.data || [];
+            } catch (e) { this.ofertasRecibos = []; }
         },
 
         async buscarEstudiantes() {
