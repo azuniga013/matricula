@@ -221,7 +221,7 @@ class OfertaAcademicaTest extends TestCase
             'estado' => 'abierto',
         ]));
 
-        $response = $this->putJson("/api/v1/ofertas/academicas/{$oferta->id}", [
+        $response = $this->postJson("/api/v1/ofertas/academicas/{$oferta->id}", [
             'cupo_maximo' => 20,
         ], $this->headers());
 

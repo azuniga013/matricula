@@ -459,7 +459,7 @@ function estudiantes() {
             this.saving = true; this.error = '';
             try {
                 const url = this.editing ? `/api/v1/estudiantes/${this.editId}` : '/api/v1/estudiantes';
-                const { data } = await window.axios[this.editing ? 'put' : 'post'](url, this.form, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const { data } = await window.axios.post(url, this.form, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') { this.showModal = false; window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Estudiante guardado', type: 'success' } })); await this.loadEstudiantes(); }
                 else { this.error = data.mensaje || 'Error'; }
             } catch(e) { this.error = window.extractError(e, 'Error de validación'); this.fieldErrors = e.response?.data?.errores || {}; } finally { this.saving = false; }

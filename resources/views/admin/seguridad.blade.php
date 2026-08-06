@@ -1147,7 +1147,7 @@ function seguridad() {
                 const url = this.editingUser ? `/api/v1/seguridad/usuarios/${this.editUserId}` : '/api/v1/seguridad/usuarios';
                 const payload = { ...this.userForm };
                 if (this.editingUser && !payload.password) delete payload.password;
-                const { data } = await window.axios[this.editingUser ? 'put' : 'post'](url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const { data } = await window.axios.post(url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') { this.showUserModal = false; window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Usuario guardado', type: 'success' } })); await this.init(); }
                 else { this.error = data.mensaje || 'Error'; }
             } catch(e) { this.error = window.extractError(e, 'Error'); } finally { this.saving = false; }

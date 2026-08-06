@@ -389,7 +389,7 @@ function inventario() {
             this.savingLibro = true; this.errorLibro = '';
             try {
                 const url = this.editandoLibro ? `/api/v1/inventario/libros/${this.editLibroId}` : '/api/v1/inventario/libros';
-                const { data } = await window.axios[this.editandoLibro ? 'put' : 'post'](url, this.formLibro, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                const { data } = await window.axios.post(url, this.formLibro, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') {
                     this.showModalLibro = false;
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Libro guardado', type: 'success' } }));
