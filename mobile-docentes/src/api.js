@@ -44,7 +44,10 @@ export async function logout() {
 }
 
 export async function currentUser() { return request('/me'); }
-export async function offers() { return request('/asistencias/ofertas-disponibles'); }
+export async function offers(periodId = null) {
+  const query = periodId ? `?periodo_academico_id=${encodeURIComponent(periodId)}` : '';
+  return request(`/asistencias/ofertas-disponibles${query}`);
+}
 export async function students(offerId) { return request(`/asistencias/estudiantes-por-oferta?oferta_academica_id=${offerId}`); }
 
 export async function grades(offerId) {
