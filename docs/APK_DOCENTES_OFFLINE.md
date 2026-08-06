@@ -40,7 +40,7 @@ ofertas ni administración de usuarios.
 | Datos locales | SQLite mediante `expo-sqlite`; no usar solo AsyncStorage para datos académicos. |
 | Secretos | Token de sesión en `expo-secure-store`; nunca en SQLite, logs ni archivos exportados. |
 | API | Laravel `/api/v1`, JSON y token Sanctum administrativo existente. |
-| Distribución | APK firmado para instalación directa interna. |
+| Distribución | APK firmado para instalación directa interna; publicación administrada y URL pública de descarga. |
 | Fuente de verdad | Laravel y la base de datos central. SQLite es una réplica de trabajo temporal. |
 | Sincronización | Descarga incremental y cola de operaciones idempotentes. |
 
@@ -202,6 +202,10 @@ en curso.
 La APK no muestra IDs internos. Debe mostrar código funcional de oferta,
 estudiante, nivel, período y horario.
 
+### Avisos de asistencia a familias (fase futura)
+
+Las faltas y tardanzas podrán generar avisos por correo y WhatsApp únicamente después de que el servidor confirme la operación. La APK nunca envía mensajes directamente ni al guardar localmente. El diseño de contactos consentidos, cola idempotente, canales autorizados y reglas de reintento está en `docs/NOTIFICACIONES_ASISTENCIA_FAMILIAS.md`; será obligatorio respetarlo al implementar sincronización móvil y notificaciones.
+
 ## 9. Seguridad y auditoría
 
 - Usar HTTPS obligatorio; rechazar URLs `http` en builds de producción.
@@ -266,6 +270,29 @@ PayPal, Stripe, base de datos o llaves privadas dentro de la APK.
 La primera liberación debe ser una versión de prueba interna, no una versión
 de producción masiva.
 
+## 11.1 Publicación y descarga oficial
+
+El archivo firmado se conserva en `storage/app/apk-docentes/`, fuera de la
+raíz pública. No se debe copiar manualmente a `public/` ni enviar enlaces a
+archivos de desarrollo. La publicación se realiza desde **Panel Administrativo
+→ APK Docentes** (`/admin/apk-docentes`), con los permisos RBAC
+`distribucion_apk.consultar`, `.crear` y `.modificar`.
+
+Al registrar una versión se almacena: versión visible, `versionCode`, tamaño,
+hash SHA-256, notas, usuario que la cargó y usuario/fecha de publicación. Solo
+una versión puede estar publicada; al publicar otra, la anterior deja de ser
+la descarga activa pero se conserva para trazabilidad.
+
+La URL sin autenticación para docentes es:
+
+`https://matricula.cursossanvicente.com/apk/docentes`
+
+Esa pantalla no entrega un listado histórico ni archivos internos: muestra la
+versión activa, hash, tamaño, notas y el botón de descarga. La descarga se
+sirve mediante `/apk/docentes/descargar` y únicamente cuando existe una versión
+marcada como publicada. Antes de que exista el primer APK firmado, la URL
+indica que aún no hay una versión disponible.
+
 ## 12. Plan de ejecución
 
 | Fase | Entregable | Criterio de salida |
@@ -326,3 +353,5 @@ afectados, validación realizada y cualquier limitación pendiente.
 | 2026-08-05 | Se instalaron dependencias Expo y se ejecutó `npx expo export --platform android`. | Bundle Android generado correctamente; `dist/` queda ignorado. Aún falta build EAS y firma para obtener el APK instalable. |
 | 2026-08-05 | Se agregó prueba de contrato para `estudiante_id` en alumnos por oferta, consumido por el registro de notas móvil. | `CalificacionTest`: 12 pruebas y 30 aserciones correctas. |
 | 2026-08-05 | Se generalizó el ignore de dependencias Node con `**/node_modules/`. | Todo subproyecto actual o futuro queda protegido contra versionar dependencias instaladas. |
+| 2026-08-05 | Se añadió publicación controlada de APK: tabla, almacenamiento privado, panel administrativo, permisos RBAC y URL pública `/apk/docentes`. | `DistribucionApkDocenteTest` cubre ausencia de APK, publicación y denegación RBAC; pendiente ejecutar migración, firmar y cargar la primera APK real. |
+| 2026-08-05 | Se documentó la futura notificación de faltas y tardanzas a responsables por correo y WhatsApp. | No hay envíos activos; la APK solo notificará al backend tras una sincronización confirmada e idempotente. |

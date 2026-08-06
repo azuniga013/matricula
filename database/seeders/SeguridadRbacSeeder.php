@@ -44,6 +44,7 @@ class SeguridadRbacSeeder extends Seeder
                   ->orWhere('codigo', 'like', 'reportes.%')
                   ->orWhere('codigo', 'like', 'inventario.%')
                   ->orWhere('codigo', 'like', 'configuracion.%')
+                  ->orWhere('codigo', 'like', 'distribucion_apk.%')
                   ->orWhere('codigo', 'like', 'seguridad.parametros.%');
             })->get();
             foreach ($permisosAdmin as $permiso) {

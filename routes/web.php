@@ -22,7 +22,11 @@ Route::get('/admin/caja', fn () => view('admin.caja', ['title' => 'Caja']))->nam
 Route::get('/admin/reportes', fn () => view('admin.reportes', ['title' => 'Reportes']))->name('admin.reportes');
 Route::get('/admin/seguridad', fn () => view('admin.seguridad', ['title' => 'Seguridad']))->name('admin.seguridad');
 Route::get('/admin/proveedores-pago', fn () => view('admin.proveedores-pago', ['title' => 'Proveedores de Pago']))->name('admin.proveedores-pago');
+Route::get('/admin/apk-docentes', fn () => view('admin.apk-docentes', ['title' => 'APK Docentes']))->name('admin.apk-docentes');
 Route::get('/admin/parametros-globales', fn () => view('admin.parametros-globales', ['title' => 'Parámetros Globales']))->name('admin.parametros-globales');
+
+Route::get('/apk/docentes', [App\Http\Controllers\ApkDocentePublicoController::class, 'index'])->name('apk-docentes.publico');
+Route::get('/apk/docentes/descargar', [App\Http\Controllers\ApkDocentePublicoController::class, 'descargar'])->name('apk-docentes.descargar');
 
 Route::get('/admin/recibos/{id}/imprimir', [App\Http\Controllers\Api\V1\Pagos\ReciboCajaController::class, 'imprimir']);
 

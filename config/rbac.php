@@ -161,6 +161,15 @@ return [
             'acciones' => ['consultar', 'modificar'],
         ],
 
+        'distribucion_apk' => [
+            'nombre' => 'Distribución APK',
+            'orden' => 13,
+            'opciones' => [
+                'distribucion_apk.docentes' => ['nombre' => 'APK Docentes', 'ruta' => '/configuracion/apk-docentes'],
+            ],
+            'acciones' => ['consultar', 'crear', 'modificar'],
+        ],
+
         'flujos_matricula' => [
             'nombre' => 'Flujos de Matrícula',
             'orden' => 12,

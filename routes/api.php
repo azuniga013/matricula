@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\V1\Seguridad\SesionController;
 use App\Http\Controllers\Api\V1\Seguridad\ConfiguracionFlujoMatriculaController;
 use App\Http\Controllers\Api\V1\Seguridad\ParametroGlobalController;
 use App\Http\Controllers\Api\V1\Seguridad\UsuarioController;
+use App\Http\Controllers\Api\V1\Seguridad\PublicacionApkDocenteController;
 use App\Http\Controllers\Api\V1\Inventario\LibroController;
 use App\Http\Controllers\Api\V1\Inventario\InventarioLibroController;
 use Illuminate\Support\Facades\Route;
@@ -427,6 +428,12 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
 
         Route::post('/{id}/configuracion', [ProveedorPagoController::class, 'guardarConfiguracion'])
             ->middleware('permission:configuracion.pagos.modificar');
+    });
+
+    Route::prefix('distribucion-apk/docentes')->group(function () {
+        Route::get('/', [PublicacionApkDocenteController::class, 'index'])->middleware('permission:distribucion_apk.consultar');
+        Route::post('/', [PublicacionApkDocenteController::class, 'store'])->middleware('permission:distribucion_apk.crear');
+        Route::post('/{publicacionApkDocente}/publicar', [PublicacionApkDocenteController::class, 'publicar'])->middleware('permission:distribucion_apk.modificar');
     });
 
     Route::prefix('caja')->group(function () {
