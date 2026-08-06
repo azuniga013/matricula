@@ -15,6 +15,7 @@ env.smarter
 /.zed
 /auth.json
 /node_modules
+**/node_modules/
 /mobile-docentes/node_modules
 /mobile-docentes/.expo
 /mobile-docentes/android

@@ -325,3 +325,4 @@ afectados, validación realizada y cualquier limitación pendiente.
 | 2026-08-05 | Se excluyeron del control de versiones los artefactos móviles generados: `node_modules`, `.expo`, `android`, `ios`, `dist` y `.gradle`. | Se conservan código fuente, configuración EAS y `package-lock.json` cuando la instalación finalice. |
 | 2026-08-05 | Se instalaron dependencias Expo y se ejecutó `npx expo export --platform android`. | Bundle Android generado correctamente; `dist/` queda ignorado. Aún falta build EAS y firma para obtener el APK instalable. |
 | 2026-08-05 | Se agregó prueba de contrato para `estudiante_id` en alumnos por oferta, consumido por el registro de notas móvil. | `CalificacionTest`: 12 pruebas y 30 aserciones correctas. |
+| 2026-08-05 | Se generalizó el ignore de dependencias Node con `**/node_modules/`. | Todo subproyecto actual o futuro queda protegido contra versionar dependencias instaladas. |
