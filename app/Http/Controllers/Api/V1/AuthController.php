@@ -87,6 +87,7 @@ class AuthController extends Controller
                     'id' => $usuario->id,
                     'nombre' => $usuario->name,
                     'email' => $usuario->email,
+                    'docente_id' => $usuario->docente_id,
                     'roles' => $usuario->roles()->activos()->get()->map(fn ($r) => [
                         'codigo' => $r->codigo,
                         'nombre' => $r->nombre,
@@ -145,6 +146,7 @@ class AuthController extends Controller
                 'id' => $usuario->id,
                 'nombre' => $usuario->name,
                 'email' => $usuario->email,
+                'docente_id' => $usuario->docente_id,
                 'telefono' => $usuario->telefono,
                 'roles' => $usuario->roles()->activos()->get()->map(fn ($r) => [
                     'codigo' => $r->codigo,
