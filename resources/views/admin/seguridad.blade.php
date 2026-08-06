@@ -584,7 +584,10 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2"><label class="label">Nombre</label><input x-model="userForm.name" type="text" required class="input"></div>
                     <div><label class="label">Email</label><input x-model="userForm.email" type="email" required class="input"></div>
-                    <div><label class="label">Contraseña</label><input x-model="userForm.password" type="password" :required="!editingUser" class="input" :placeholder="editingUser ? 'Dejar vacío para no cambiar' : ''"></div>
+                    <div><label class="label">Contraseña</label><input x-model="userForm.password" type="password" :required="!editingUser" minlength="8" class="input" :placeholder="editingUser ? 'Usar restablecer contraseña para cambiarla' : 'Mínimo 8 caracteres'"></div>
+                    <div><label class="label">Confirmar contraseña</label><input x-model="userForm.password_confirmation" type="password" :required="!editingUser" minlength="8" class="input"></div>
+                    <div class="col-span-2"><label class="label">Docente vinculado</label><select x-model="userForm.docente_id" class="input"><option value="">Usuario administrativo sin vínculo docente</option><template x-for="d in docentesDisponiblesParaUsuario()" :key="d.id"><option :value="d.id" x-text="d.codigo + ' · ' + d.nombre + ' ' + d.apellido"></option></template></select><p class="mt-1 text-xs text-gray-500">Primero cree la ficha del docente en Catálogos. Un docente solo puede tener una cuenta.</p></div>
+                    <div class="col-span-2"><label class="label">Roles *</label><div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-gray-200 p-3 max-h-40 overflow-y-auto"><template x-for="rol in roles" :key="rol.id"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" :value="rol.codigo" x-model="userForm.roles" class="rounded border-gray-300 text-brand-600"><span x-text="rol.nombre + ' (' + rol.codigo + ')'"></span></label></template><p x-show="roles.length === 0" class="text-sm text-amber-700">No hay roles disponibles o no tiene permiso para consultarlos.</p></div></div>
                     <div><label class="label">Estado</label><select x-model="userForm.estado" class="input"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
                 </div>
                 <div x-show="error" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3"><p class="text-sm text-red-600" x-text="error"></p></div>
@@ -829,7 +832,7 @@
 function seguridad() {
     return {
         loading: true, tab: 'usuarios', error: '',
-        usuarios: [], roles: [], permisosPorModulo: {}, bitacora: [],
+        usuarios: [], roles: [], docentes: [], permisosPorModulo: {}, bitacora: [],
         flujosMatricula: [],
         conceptosPago: [], metodosPago: [],
         cargandoBitacora: false,
@@ -840,7 +843,7 @@ function seguridad() {
 
         /* User modal */
         showUserModal: false, editingUser: false, saving: false, editUserId: null,
-        userForm: { name: '', email: '', password: '', estado: 'activo' },
+        userForm: { name: '', email: '', password: '', password_confirmation: '', docente_id: '', roles: [], estado: 'activo' },
 
         /* Módulos / Opciones */
         modulos: [],
@@ -891,8 +894,14 @@ function seguridad() {
             const h = { headers: { Authorization: `Bearer ${token}` } };
             try {
                 if (this.tab === 'usuarios') {
-                    const { data } = await window.axios.get('/api/v1/seguridad/usuarios', h);
-                    this.usuarios = data.data?.data || data.data || [];
+                    const [usuariosRes, rolesRes, docentesRes] = await Promise.all([
+                        window.axios.get('/api/v1/seguridad/usuarios', h),
+                        window.axios.get('/api/v1/seguridad/roles', h),
+                        window.axios.get('/api/v1/catalogos-academicos/docentes', h),
+                    ]);
+                    this.usuarios = usuariosRes.data.data?.data || usuariosRes.data.data || [];
+                    this.roles = rolesRes.data.data?.data || rolesRes.data.data || [];
+                    this.docentes = docentesRes.data.data?.data || docentesRes.data.data || [];
                 } else if (this.tab === 'roles') {
                     const { data } = await window.axios.get('/api/v1/seguridad/roles', h);
                     this.roles = data.data?.data || data.data || [];
@@ -1136,18 +1145,26 @@ function seguridad() {
         },
 
         /* ---------- Users ---------- */
-        openUserModal() { this.editingUser = false; this.editUserId = null; this.error = ''; this.userForm = { name: '', email: '', password: '', estado: 'activo' }; this.showUserModal = true; },
+        openUserModal() { this.editingUser = false; this.editUserId = null; this.error = ''; this.userForm = { name: '', email: '', password: '', password_confirmation: '', docente_id: '', roles: [], estado: 'activo' }; this.showUserModal = true; },
 
-        editUser(u) { this.editingUser = true; this.editUserId = u.id; this.error = ''; this.userForm = { name: u.name, email: u.email, password: '', estado: u.estado }; this.showUserModal = true; },
+        editUser(u) { this.editingUser = true; this.editUserId = u.id; this.error = ''; this.userForm = { name: u.name, email: u.email, password: '', password_confirmation: '', docente_id: u.docente_id || '', roles: (u.roles || []).map(r => r.codigo), estado: u.estado }; this.showUserModal = true; },
+
+        docentesDisponiblesParaUsuario() {
+            return this.docentes.filter(d => !this.usuarios.some(u => Number(u.docente_id) === Number(d.id) && u.id !== this.editUserId));
+        },
 
         async saveUser() {
             this.saving = true; this.error = '';
             try {
                 const url = this.editingUser ? `/api/v1/seguridad/usuarios/${this.editUserId}` : '/api/v1/seguridad/usuarios';
                 const payload = { ...this.userForm };
-                if (this.editingUser && !payload.password) delete payload.password;
+                if (this.editingUser) { delete payload.password; delete payload.password_confirmation; }
                 const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
-                if (data.resultado === 'A') { this.showUserModal = false; window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Usuario guardado', type: 'success' } })); await this.init(); }
+                if (data.resultado === 'A') {
+                    const usuarioId = this.editingUser ? this.editUserId : data.data.id;
+                    if (this.editingUser) await window.axios.post(`/api/v1/seguridad/usuarios/${usuarioId}/roles`, { roles: payload.roles }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                    this.showUserModal = false; window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Usuario y roles guardados', type: 'success' } })); await this.init();
+                }
                 else { this.error = data.mensaje || 'Error'; }
             } catch(e) { this.error = window.extractError(e, 'Error'); } finally { this.saving = false; }
         },

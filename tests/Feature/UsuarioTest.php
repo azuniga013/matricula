@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Modulo;
+use App\Models\Docente;
 use App\Models\OpcionModulo;
 use App\Models\Permiso;
 use App\Models\Rol;
@@ -63,6 +64,10 @@ class UsuarioTest extends TestCase
     public function test_crear_usuario(): void
     {
         Rol::create(['codigo' => 'DOCENTE', 'nombre' => 'Docente', 'estado' => 'activo']);
+        $docente = Docente::create([
+            'codigo' => 'DOC-TEST', 'nombre' => 'Juan', 'apellido' => 'Pérez',
+            'correo' => 'juan.docente@test.com', 'estado' => 'activo',
+        ]);
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/v1/seguridad/usuarios', [
@@ -71,6 +76,7 @@ class UsuarioTest extends TestCase
                 'password' => 'password123',
                 'password_confirmation' => 'password123',
                 'roles' => ['DOCENTE'],
+                'docente_id' => $docente->id,
             ]);
 
         $response->assertCreated()
@@ -79,7 +85,8 @@ class UsuarioTest extends TestCase
                 'mensaje' => 'Usuario creado exitosamente',
             ]);
 
-        $this->assertDatabaseHas('users', ['email' => 'juan@test.com']);
+        $this->assertDatabaseHas('users', ['email' => 'juan@test.com', 'docente_id' => $docente->id]);
+        $this->assertDatabaseHas('usuario_roles', ['usuario_id' => User::where('email', 'juan@test.com')->value('id'), 'rol_id' => Rol::where('codigo', 'DOCENTE')->value('id'), 'estado' => 'activo']);
     }
 
     public function test_inactivar_usuario_revoca_tokens(): void

@@ -20,7 +20,7 @@ class UsuarioController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $usuarios = User::with(['roles', 'sucursales'])
+        $usuarios = User::with(['roles', 'sucursales', 'docente'])
             ->withCount(['roles' => fn ($q) => $q->where('usuario_roles.estado', 'activo')])
             ->when($request->busqueda, function ($q, $busqueda) {
                 $q->where(function ($query) use ($busqueda) {
@@ -46,6 +46,7 @@ class UsuarioController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'telefono' => 'nullable|string|max:30',
+            'docente_id' => 'nullable|exists:docentes,id|unique:users,docente_id',
             'sucursal_id' => 'nullable|exists:sucursales,id',
             'roles' => 'required|array|min:1',
             'roles.*' => 'exists:roles,codigo',
@@ -59,6 +60,7 @@ class UsuarioController extends Controller
                 'email' => $datos['email'],
                 'password' => Hash::make($datos['password']),
                 'telefono' => $datos['telefono'] ?? null,
+                'docente_id' => $datos['docente_id'] ?? null,
                 'sucursal_id' => $datos['sucursal_id'] ?? null,
                 'estado' => 'activo',
                 'creado_por' => $request->user()->id,
@@ -91,7 +93,7 @@ class UsuarioController extends Controller
             }
         });
 
-        $usuario->load(['roles', 'sucursales']);
+        $usuario->load(['roles', 'sucursales', 'docente']);
 
         return response()->json([
             'resultado' => 'A',
@@ -119,6 +121,7 @@ class UsuarioController extends Controller
             'name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:users,email,' . $usuario->id,
             'telefono' => 'nullable|string|max:30',
+            'docente_id' => 'nullable|exists:docentes,id|unique:users,docente_id,' . $usuario->id,
             'estado' => 'sometimes|string|in:activo,inactivo',
             'debe_cambiar_contrasena' => 'sometimes|boolean',
         ]);
@@ -133,7 +136,7 @@ class UsuarioController extends Controller
             $this->cachePermisos->invalidarPermisos($usuario->id);
         }
 
-        $usuario->load(['roles', 'sucursales']);
+        $usuario->load(['roles', 'sucursales', 'docente']);
 
         return response()->json([
             'resultado' => 'A',
