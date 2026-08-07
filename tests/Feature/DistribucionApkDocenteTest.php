@@ -63,4 +63,30 @@ class DistribucionApkDocenteTest extends TestCase
         $this->getJson('/api/v1/distribucion-apk/docentes', ['Authorization' => "Bearer {$token}"])
             ->assertForbidden();
     }
+
+    public function test_admin_registra_apk_desde_archivo_colocado_en_servidor(): void
+    {
+        Storage::disk('local')->put('apk-docentes/docentes-colocado.apk', 'paquete apk de prueba');
+
+        $this->post('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.2.0', 'version_code' => 7, 'desde_servidor' => '1',
+            'notas_version' => 'Registrada sin upload HTTP', 'publicar' => true,
+        ], ['Authorization' => "Bearer {$this->token}"])
+            ->assertCreated()->assertJsonPath('data.publicado', true)->assertJsonPath('data.nombre_archivo', 'docentes-colocado.apk');
+
+        $this->assertDatabaseHas('publicaciones_apk_docentes', ['version_code' => 7, 'nombre_archivo' => 'docentes-colocado.apk', 'sha256' => hash('sha256', 'paquete apk de prueba')]);
+        Storage::disk('local')->assertExists('apk-docentes/docentes-colocado.apk');
+    }
+
+    public function test_no_registra_desde_servidor_si_no_hay_apk_colocado(): void
+    {
+        Storage::disk('local')->deleteDirectory('apk-docentes');
+
+        $this->postJson('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.3.0', 'version_code' => 8, 'desde_servidor' => '1',
+        ], ['Authorization' => "Bearer {$this->token}"])
+            ->assertUnprocessable()->assertJsonPath('codigo_error', '422_VALIDACION');
+
+        $this->assertDatabaseMissing('publicaciones_apk_docentes', ['version_code' => 8]);
+    }
 }

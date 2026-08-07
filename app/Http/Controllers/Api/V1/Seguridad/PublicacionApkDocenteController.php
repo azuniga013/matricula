@@ -26,10 +26,11 @@ class PublicacionApkDocenteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all() + $request->allFiles(), [
             'version' => ['required', 'string', 'max:40'],
             'version_code' => ['required', 'integer', 'min:1', 'unique:publicaciones_apk_docentes,version_code'],
-            'archivo' => ['required', 'file', 'extensions:apk', 'max:102400'],
+            'archivo' => ['required_unless:desde_servidor,true', 'file', 'extensions:apk', 'max:102400'],
+            'desde_servidor' => ['nullable', 'boolean'],
             'notas_version' => ['nullable', 'string', 'max:4000'],
             'publicar' => ['nullable', 'boolean'],
         ]);
@@ -38,14 +39,34 @@ class PublicacionApkDocenteController extends Controller
         }
 
         $datos = $validator->validated();
-        $archivo = $datos['archivo'];
-        $hash = hash_file('sha256', $archivo->getRealPath());
-        $nombre = 'docentes-v'.$datos['version_code'].'-'.substr($hash, 0, 12).'.apk';
+        $desdeServidor = $request->boolean('desde_servidor');
+
+        if ($desdeServidor) {
+            $archivos = $this->apkEnServidor();
+            if ($archivos->isEmpty()) {
+                return RespuestaError::validacion(
+                    ['archivo_servidor' => ['No se encontró ningún APK en storage/app/apk-docentes/. Colóquelo por FTP y vuelva a intentar.']],
+                    'No hay un APK disponible en el servidor para registrar'
+                )->response($request);
+            }
+
+            $archivo = $archivos->first();
+            $rutaAbsoluta = Storage::disk('local')->path($archivo);
+            $hash = hash_file('sha256', $rutaAbsoluta);
+            $tamano = Storage::disk('local')->size($archivo);
+            $nombre = basename($archivo);
+        } else {
+            $archivoSubido = $datos['archivo'];
+            $hash = hash_file('sha256', $archivoSubido->getRealPath());
+            $tamano = $archivoSubido->getSize();
+            $nombre = 'CursosSanVicente-Docentes-v'.$datos['version_code'].'-'.substr($hash, 0, 12).'.apk';
+            Storage::disk('local')->putFileAs('apk-docentes', $archivoSubido, $nombre);
+        }
+
         $ruta = 'apk-docentes/'.$nombre;
-        Storage::disk('local')->putFileAs('apk-docentes', $archivo, $nombre);
 
         try {
-            $publicacion = DB::transaction(function () use ($datos, $request, $hash, $nombre, $ruta, $archivo) {
+            $publicacion = DB::transaction(function () use ($datos, $request, $hash, $nombre, $ruta, $tamano) {
                 $publicar = (bool) ($datos['publicar'] ?? false);
                 if ($publicar) {
                     PublicacionApkDocente::where('publicado', true)->update(['publicado' => false]);
@@ -53,7 +74,7 @@ class PublicacionApkDocenteController extends Controller
 
                 return PublicacionApkDocente::create([
                     'version' => $datos['version'], 'version_code' => $datos['version_code'],
-                    'nombre_archivo' => $nombre, 'ruta_archivo' => $ruta, 'tamano_bytes' => $archivo->getSize(),
+                    'nombre_archivo' => $nombre, 'ruta_archivo' => $ruta, 'tamano_bytes' => $tamano,
                     'sha256' => $hash, 'notas_version' => $datos['notas_version'] ?? null,
                     'publicado' => $publicar, 'publicado_en' => $publicar ? now() : null,
                     'creado_por' => $request->user()->id, 'publicado_por' => $publicar ? $request->user()->id : null,
@@ -66,6 +87,14 @@ class PublicacionApkDocenteController extends Controller
 
         app(ServicioBitacora::class)->registrarOperacionPermitida($request->user()->id, 'crear_apk_docente', 'distribucion_apk', $request->ip(), $request->userAgent(), $publicacion->id, null, $publicacion->only(['version', 'version_code', 'sha256', 'publicado']));
         return response()->json(['resultado' => 'A', 'codigo' => 201, 'mensaje' => 'APK registrada correctamente', 'data' => $publicacion], 201);
+    }
+
+    private function apkEnServidor(): \Illuminate\Support\Collection
+    {
+        return collect(Storage::disk('local')->files('apk-docentes'))
+            ->filter(fn (string $ruta) => str_ends_with($ruta, '.apk'))
+            ->sortByDesc(fn (string $ruta) => Storage::disk('local')->lastModified($ruta))
+            ->values();
     }
 
     public function publicar(Request $request, PublicacionApkDocente $publicacionApkDocente): JsonResponse
