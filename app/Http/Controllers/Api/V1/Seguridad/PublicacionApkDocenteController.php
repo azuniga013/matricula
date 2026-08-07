@@ -32,19 +32,29 @@ class PublicacionApkDocenteController extends Controller
         $disco = Storage::disk('local');
         $carpeta = 'apk-docentes';
 
-        return [
-            'raiz_disco' => $disco->path(''),
-            'carpeta_absoluta' => $disco->path($carpeta),
-            'carpeta_existe' => $disco->directoryExists($carpeta),
-            'archivos' => collect($disco->files($carpeta, true))
-                ->map(fn (string $ruta) => [
-                    'ruta' => $ruta,
-                    'tamano' => $disco->size($ruta),
-                    'modificado' => date('Y-m-d H:i:s', $disco->lastModified($ruta)),
-                ])
-                ->sortByDesc('modificado')
-                ->values(),
-        ];
+        try {
+            return [
+                'raiz_disco' => $disco->path(''),
+                'carpeta_absoluta' => $disco->path($carpeta),
+                'carpeta_existe' => $disco->directoryExists($carpeta),
+                'archivos' => collect($disco->files($carpeta, true))
+                    ->map(fn (string $ruta) => [
+                        'ruta' => $ruta,
+                        'tamano' => $disco->size($ruta),
+                        'modificado' => date('Y-m-d H:i:s', $disco->lastModified($ruta)),
+                    ])
+                    ->sortByDesc('modificado')
+                    ->values(),
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ruta_absoluta' => $disco->path($carpeta),
+                'carpeta_existe' => null,
+                'archivos' => [],
+                'error' => get_class($e).': '.$e->getMessage(),
+            ];
+        }
     }
 
     public function store(Request $request): JsonResponse

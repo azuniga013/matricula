@@ -70,6 +70,18 @@ class DistribucionApkDocenteTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_index_entrega_ruta_y_diagnostico_del_storage(): void
+    {
+        Storage::disk('local')->makeDirectory('apk-docentes');
+        Storage::disk('local')->put('apk-docentes/mi-prueba.apk', 'x');
+
+        $this->getJson('/api/v1/distribucion-apk/docentes', ['Authorization' => "Bearer {$this->token}"])
+            ->assertOk()
+            ->assertJsonPath('diagnostico.carpeta_existe', true)
+            ->assertJsonPath('diagnostico.archivos.0.ruta', 'apk-docentes/mi-prueba.apk')
+            ->assertJsonStructure(['ruta_storage']);
+    }
+
     public function test_admin_registra_apk_desde_archivo_colocado_en_servidor(): void
     {
         Storage::disk('local')->put('apk-docentes/docentes-colocado.apk', 'paquete apk de prueba');
