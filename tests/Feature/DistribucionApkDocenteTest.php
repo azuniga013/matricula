@@ -55,6 +55,12 @@ class DistribucionApkDocenteTest extends TestCase
         $publicacion = PublicacionApkDocente::firstOrFail();
         Storage::disk('local')->assertExists($publicacion->ruta_archivo);
         $this->get('/apk/docentes')->assertOk()->assertSee('Versión 1.0.0')->assertSee('Descargar APK oficial');
+
+        $descarga = $this->get('/apk/docentes/descargar');
+        $descarga->assertOk();
+        $descarga->assertHeader('content-type', 'application/vnd.android.package-archive');
+        $rutaAbsoluta = Storage::disk('local')->path($publicacion->ruta_archivo);
+        $this->assertSame(file_get_contents($rutaAbsoluta), $descarga->streamedContent());
     }
 
     public function test_usuario_sin_permiso_no_consulta_publicaciones(): void

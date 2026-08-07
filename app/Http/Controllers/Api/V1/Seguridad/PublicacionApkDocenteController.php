@@ -8,6 +8,7 @@ use App\Models\PublicacionApkDocente;
 use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -45,7 +46,7 @@ class PublicacionApkDocenteController extends Controller
             $archivos = $this->apkEnServidor();
             if ($archivos->isEmpty()) {
                 return RespuestaError::validacion(
-                    ['archivo_servidor' => ['No se encontró ningún APK en storage/app/apk-docentes/. Colóquelo por FTP y vuelva a intentar.']],
+                    ['archivo_servidor' => ['No se encontró ningún archivo .apk en '.$this->rutaApkServidor().'. Colóquelo allí por FTP/Plesk y vuelva a intentar.']],
                     'No hay un APK disponible en el servidor para registrar'
                 )->response($request);
             }
@@ -86,10 +87,18 @@ class PublicacionApkDocenteController extends Controller
         }
 
         app(ServicioBitacora::class)->registrarOperacionPermitida($request->user()->id, 'crear_apk_docente', 'distribucion_apk', $request->ip(), $request->userAgent(), $publicacion->id, null, $publicacion->only(['version', 'version_code', 'sha256', 'publicado']));
+
         return response()->json(['resultado' => 'A', 'codigo' => 201, 'mensaje' => 'APK registrada correctamente', 'data' => $publicacion], 201);
     }
 
-    private function apkEnServidor(): \Illuminate\Support\Collection
+    private function rutaApkServidor(): string
+    {
+        return $this->apkEnServidor()->isEmpty()
+            ? Storage::disk('local')->path('apk-docentes')
+            : Storage::disk('local')->path($this->apkEnServidor()->first());
+    }
+
+    private function apkEnServidor(): Collection
     {
         return collect(Storage::disk('local')->files('apk-docentes'))
             ->filter(fn (string $ruta) => str_ends_with($ruta, '.apk'))
@@ -106,6 +115,7 @@ class PublicacionApkDocenteController extends Controller
         });
 
         app(ServicioBitacora::class)->registrarOperacionPermitida($request->user()->id, 'publicar_apk_docente', 'distribucion_apk', $request->ip(), $request->userAgent(), $publicacionApkDocente->id, $antes, $publicacionApkDocente->fresh()->only(['publicado', 'publicado_en', 'publicado_por']));
+
         return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => 'APK publicada en la URL pública', 'data' => $publicacionApkDocente->fresh()]);
     }
 }
