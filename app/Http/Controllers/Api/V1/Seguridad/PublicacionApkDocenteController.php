@@ -67,8 +67,13 @@ class PublicacionApkDocenteController extends Controller
         if ($desdeServidor) {
             $archivos = $this->apkEnServidor();
             if ($archivos->isEmpty()) {
+                $encontrados = collect(Storage::disk('local')->files('apk-docentes', true))->map(fn (string $ruta) => basename($ruta));
+                $detalle = $encontrados->isEmpty()
+                    ? 'La carpeta '.Storage::disk('local')->path('apk-docentes').' está vacía o no existe en el servidor.'
+                    : 'Se encontraron: '.$encontrados->implode(', ').'. El archivo debe tener extensión .apk (se ignora mayúsculas).';
+
                 return RespuestaError::validacion(
-                    ['archivo_servidor' => ['No se encontró ningún archivo .apk en '.$this->rutaApkServidor().'. Colóquelo allí por FTP/Plesk y vuelva a intentar.']],
+                    ['archivo_servidor' => ['No se encontró ningún archivo .apk en '.Storage::disk('local')->path('apk-docentes').'. '.$detalle]],
                     'No hay un APK disponible en el servidor para registrar'
                 )->response($request);
             }
@@ -113,17 +118,10 @@ class PublicacionApkDocenteController extends Controller
         return response()->json(['resultado' => 'A', 'codigo' => 201, 'mensaje' => 'APK registrada correctamente', 'data' => $publicacion], 201);
     }
 
-    private function rutaApkServidor(): string
-    {
-        return $this->apkEnServidor()->isEmpty()
-            ? Storage::disk('local')->path('apk-docentes')
-            : Storage::disk('local')->path($this->apkEnServidor()->first());
-    }
-
     private function apkEnServidor(): Collection
     {
         return collect(Storage::disk('local')->files('apk-docentes'))
-            ->filter(fn (string $ruta) => str_ends_with($ruta, '.apk'))
+            ->filter(fn (string $ruta) => str_ends_with(strtolower($ruta), '.apk'))
             ->sortByDesc(fn (string $ruta) => Storage::disk('local')->lastModified($ruta))
             ->values();
     }
