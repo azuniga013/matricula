@@ -23,7 +23,28 @@ class PublicacionApkDocenteController extends Controller
                 ->latest('version_code')->get(),
             'url_publica' => route('apk-docentes.publico'),
             'ruta_storage' => Storage::disk('local')->path('apk-docentes'),
+            'diagnostico' => $this->diagnosticoStorage(),
         ]);
+    }
+
+    private function diagnosticoStorage(): array
+    {
+        $disco = Storage::disk('local');
+        $carpeta = 'apk-docentes';
+
+        return [
+            'raiz_disco' => $disco->path(''),
+            'carpeta_absoluta' => $disco->path($carpeta),
+            'carpeta_existe' => $disco->directoryExists($carpeta),
+            'archivos' => collect($disco->files($carpeta, true))
+                ->map(fn (string $ruta) => [
+                    'ruta' => $ruta,
+                    'tamano' => $disco->size($ruta),
+                    'modificado' => date('Y-m-d H:i:s', $disco->lastModified($ruta)),
+                ])
+                ->sortByDesc('modificado')
+                ->values(),
+        ];
     }
 
     public function store(Request $request): JsonResponse
