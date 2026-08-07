@@ -22,6 +22,7 @@ class PublicacionApkDocenteController extends Controller
             'data' => PublicacionApkDocente::query()->with(['creador:id,nombre', 'publicador:id,nombre'])
                 ->latest('version_code')->get(),
             'url_publica' => route('apk-docentes.publico'),
+            'ruta_storage' => Storage::disk('local')->path('apk-docentes'),
         ]);
     }
 
