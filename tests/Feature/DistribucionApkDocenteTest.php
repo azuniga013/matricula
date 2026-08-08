@@ -10,6 +10,7 @@ use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -35,6 +36,15 @@ class DistribucionApkDocenteTest extends TestCase
         $usuario = User::factory()->create(['estado' => 'activo']);
         $usuario->roles()->attach($rol->id, ['estado' => 'activo']);
         $this->token = $usuario->createToken('test')->plainTextToken;
+    }
+
+    protected function tearDown(): void
+    {
+        if (is_dir(storage_path('app/apk-docentes'))) {
+            File::deleteDirectory(storage_path('app/apk-docentes'), true);
+        }
+
+        parent::tearDown();
     }
 
     public function test_url_publica_no_muestra_descarga_si_no_hay_apk_publicada(): void
@@ -80,6 +90,23 @@ class DistribucionApkDocenteTest extends TestCase
             ->assertJsonPath('diagnostico.carpeta_existe', true)
             ->assertJsonPath('diagnostico.archivos.0.ruta', 'apk-docentes/mi-prueba.apk')
             ->assertJsonStructure(['ruta_storage']);
+    }
+
+    public function test_descarga_publica_sirve_apk_colocada_en_carpeta_vieja(): void
+    {
+        if (! is_dir(storage_path('app/apk-docentes'))) {
+            mkdir(storage_path('app/apk-docentes'), 0777, true);
+        }
+        file_put_contents(storage_path('app/apk-docentes/docentes-vieja.apk'), 'apk en carpeta vieja');
+
+        $this->post('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.9.0', 'version_code' => 9, 'desde_servidor' => '1', 'publicar' => true,
+        ], ['Authorization' => "Bearer {$this->token}"])
+            ->assertCreated()->assertJsonPath('data.nombre_archivo', 'docentes-vieja.apk');
+
+        $descarga = $this->get('/apk/docentes/descargar');
+        $descarga->assertOk()->assertHeader('content-type', 'application/vnd.android.package-archive');
+        $this->assertSame(file_get_contents(storage_path('app/apk-docentes/docentes-vieja.apk')), $descarga->streamedContent());
     }
 
     public function test_admin_registra_apk_desde_archivo_colocado_en_servidor(): void

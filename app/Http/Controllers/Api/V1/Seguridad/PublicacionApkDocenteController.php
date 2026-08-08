@@ -122,10 +122,11 @@ class PublicacionApkDocenteController extends Controller
             }
 
             $archivo = $archivos->first();
-            $rutaAbsoluta = Storage::disk('local')->path($archivo);
+            [$origen, $rutaOrigen] = str_starts_with($archivo, 'disk:') ? ['disk', substr($archivo, 5)] : ['file', substr($archivo, 5)];
+            $rutaAbsoluta = $origen === 'disk' ? Storage::disk('local')->path($rutaOrigen) : $rutaOrigen;
             $hash = hash_file('sha256', $rutaAbsoluta);
-            $tamano = Storage::disk('local')->size($archivo);
-            $nombre = basename($archivo);
+            $tamano = filesize($rutaAbsoluta);
+            $nombre = basename($rutaOrigen);
         } else {
             $archivoSubido = $datos['archivo'];
             $hash = hash_file('sha256', $archivoSubido->getRealPath());
@@ -163,9 +164,20 @@ class PublicacionApkDocenteController extends Controller
 
     private function apkEnServidor(): Collection
     {
-        return collect(Storage::disk('local')->files('apk-docentes'))
-            ->filter(fn (string $ruta) => str_ends_with(strtolower($ruta), '.apk'))
-            ->sortByDesc(fn (string $ruta) => Storage::disk('local')->lastModified($ruta))
+        $privada = collect(Storage::disk('local')->files('apk-docentes'))
+            ->map(fn (string $ruta) => 'disk:'.$ruta);
+
+        $carpetaVieja = storage_path('app/apk-docentes');
+        $vieja = collect(is_dir($carpetaVieja) ? File::files($carpetaVieja) : [])
+            ->map(fn (\SplFileInfo $f) => 'file:'.$f->getPathname());
+
+        return $privada->concat($vieja)
+            ->filter(fn (string $item) => str_ends_with(strtolower($item), '.apk'))
+            ->sortByDesc(function (string $item) {
+                $ruta = str_starts_with($item, 'disk:') ? Storage::disk('local')->path(substr($item, 5)) : substr($item, 5);
+
+                return is_file($ruta) ? filemtime($ruta) : 0;
+            })
             ->values();
     }
 
