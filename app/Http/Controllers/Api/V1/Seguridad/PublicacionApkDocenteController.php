@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -40,6 +41,26 @@ class PublicacionApkDocenteController extends Controller
     {
         $disco = Storage::disk('local');
         $carpeta = 'apk-docentes';
+        $carpetaVieja = storage_path('app/apk-docentes');
+
+        $listar = function (string $absoluta): array {
+            if (! is_dir($absoluta)) {
+                return ['ubicacion' => $absoluta, 'existe' => false, 'archivos' => []];
+            }
+
+            return [
+                'ubicacion' => $absoluta,
+                'existe' => true,
+                'archivos' => collect(File::allFiles($absoluta))
+                    ->map(fn (\SplFileInfo $f) => [
+                        'ruta' => $f->getPathname(),
+                        'tamano' => $f->getSize(),
+                        'modificado' => date('Y-m-d H:i:s', $f->getMTime()),
+                    ])
+                    ->sortByDesc('modificado')
+                    ->values(),
+            ];
+        };
 
         try {
             return [
@@ -54,6 +75,9 @@ class PublicacionApkDocenteController extends Controller
                     ])
                     ->sortByDesc('modificado')
                     ->values(),
+                'carpeta_objetivo' => $carpetaVieja,
+                'lista_objetiva' => $listar($disco->path($carpeta)),
+                'lista_vieja' => $listar($carpetaVieja),
                 'error' => null,
             ];
         } catch (\Throwable $e) {
