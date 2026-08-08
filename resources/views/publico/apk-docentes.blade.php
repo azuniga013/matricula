@@ -19,6 +19,12 @@
                     <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Disponible</span>
                 </div>
                 @if ($publicacion->notas_version)<p class="mt-4 whitespace-pre-line text-sm text-slate-700">{{ $publicacion->notas_version }}</p>@endif
+                @if ($qrDataUri)
+                    <div class="mt-5 flex flex-col items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <img src="{{ $qrDataUri }}" alt="Código QR de descarga de la APK" class="h-36 w-36 rounded-lg bg-white shadow-sm">
+                        <p class="text-xs font-medium text-slate-500">Escanea para descargar la APK en tu teléfono</p>
+                    </div>
+                @endif
                 <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="font-medium text-slate-500">Tamaño</dt><dd>{{ number_format($publicacion->tamano_bytes / 1048576, 2) }} MB</dd></div><div><dt class="font-medium text-slate-500">SHA-256</dt><dd class="break-all font-mono text-xs">{{ $publicacion->sha256 }}</dd></div></dl>
                 <a href="{{ route('apk-docentes.descargar') }}" class="mt-6 inline-flex rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700">Descargar APK oficial</a>
             </section>

@@ -3,6 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PublicacionApkDocente;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -13,7 +18,28 @@ class ApkDocentePublicoController extends Controller
 {
     public function index(): View
     {
-        return view('publico.apk-docentes', ['publicacion' => $this->publicacionActiva()]);
+        $publicacion = $this->publicacionActiva();
+
+        return view('publico.apk-docentes', [
+            'publicacion' => $publicacion,
+            'qrDataUri' => $publicacion ? $this->generarQrDataUri(route('apk-docentes.descargar')) : null,
+        ]);
+    }
+
+    private function generarQrDataUri(string $url): string
+    {
+        return 'data:image/png;base64,'.base64_encode(
+            Builder::create()
+                ->writer(new PngWriter)
+                ->data($url)
+                ->encoding(new Encoding('UTF-8'))
+                ->errorCorrectionLevel(ErrorCorrectionLevel::High)
+                ->size(220)
+                ->margin(0)
+                ->roundBlockSizeMode(RoundBlockSizeMode::Margin)
+                ->build()
+                ->getString()
+        );
     }
 
     public function descargar(): BinaryFileResponse|StreamedResponse|Response
