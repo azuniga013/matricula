@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\Modulo;
 use App\Models\Docente;
+use App\Models\Modulo;
 use App\Models\OpcionModulo;
 use App\Models\Permiso;
 use App\Models\Rol;
+use App\Models\SesionUsuario;
 use App\Models\User;
 use Tests\TestCase;
 
 class UsuarioTest extends TestCase
 {
     protected User $admin;
+
     protected string $token;
 
     protected function setUp(): void
@@ -54,11 +56,24 @@ class UsuarioTest extends TestCase
             ]);
         }
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        SesionUsuario::create([
+            'usuario_id' => $this->admin->id,
+            'token_hash' => hash('sha256', 'abc'),
+            'ip' => '127.0.0.1',
+            'vencimiento' => now()->addMinutes(30),
+            'ultimo_acceso' => now()->subMinutes(5),
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->getJson('/api/v1/seguridad/usuarios');
 
         $response->assertOk()
             ->assertJson(['resultado' => 'A']);
+
+        $usuarios = $response->json('data.data');
+        $adminEnLista = collect($usuarios)->firstWhere('id', $this->admin->id);
+        $this->assertNotNull($adminEnLista['ultimo_acceso'] ?? null);
+        $this->assertNull(collect($usuarios)->firstWhere('email', 'user0@test.com')['ultimo_acceso'] ?? null);
     }
 
     public function test_crear_usuario(): void
@@ -69,7 +84,7 @@ class UsuarioTest extends TestCase
             'correo' => 'juan.docente@test.com', 'estado' => 'activo',
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->postJson('/api/v1/seguridad/usuarios', [
                 'name' => 'Juan Pérez',
                 'email' => 'juan@test.com',
@@ -99,7 +114,7 @@ class UsuarioTest extends TestCase
         ]);
         $usuario->createToken('test-token');
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->putJson("/api/v1/seguridad/usuarios/{$usuario->id}", [
                 'estado' => 'inactivo',
             ]);

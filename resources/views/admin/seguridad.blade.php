@@ -39,7 +39,7 @@
                                         <td class="font-medium" x-text="u.name"></td>
                                         <td class="text-gray-500" x-text="u.email"></td>
                                         <td><span :class="u.estado === 'activo' ? 'badge-success' : 'badge-danger'" class="badge" x-text="u.estado"></span></td>
-                                        <td class="text-gray-500 text-xs" x-text="u.ultimo_acceso || '-'"></td>
+                                        <td class="text-gray-500 text-xs" x-text="formatearFecha(u.ultimo_acceso)"></td>
                                         <td class="text-right"><button x-show="api.hasPermission('seguridad.usuarios.modificar')" @click="editUser(u)" class="btn btn-ghost btn-sm">Editar</button></td>
                                     </tr>
                                 </template>
@@ -1284,7 +1284,23 @@ function seguridad() {
 
             try {
                 const token = localStorage.getItem('auth_token');
-                const { data } = await window.axios.get(`/api/v1/seguridad/roles/${r.id}/permisos`, { headers: { Authorization: `Bearer ${token}` } });
+                const h = { headers: { Authorization: `Bearer ${token}` } };
+                const [catalogoRes, rolRes] = await Promise.all([
+                    window.axios.get('/api/v1/seguridad/permisos', h),
+                    window.axios.get(`/api/v1/seguridad/roles/${r.id}/permisos`, h),
+                ]);
+
+                const catalogo = catalogoRes.data.data?.data || catalogoRes.data.data || [];
+                const group = {};
+                catalogo.forEach(p => {
+                    const mod = p.opcion_modulo?.modulo?.codigo || 'General';
+                    if (!group[mod]) group[mod] = [];
+                    group[mod].push(p);
+                });
+                this.permisosPorModulo = group;
+                this.todosPermisos = group;
+
+                const data = rolRes.data;
                 if (data.resultado === 'A') {
                     const items = data.data?.permisos || data.data || [];
                     this.permisosRol = items.map(p => p.codigo || p);

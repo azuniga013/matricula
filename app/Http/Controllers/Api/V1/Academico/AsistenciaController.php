@@ -171,7 +171,7 @@ class AsistenciaController extends Controller
             'matricula.estudiante:id,codigo,nombre,apellido',
         ])
             ->where('oferta_academica_id', $request->oferta_academica_id)
-            ->where('fecha', $request->fecha)
+            ->whereDate('fecha', $request->fecha)
             ->get()
             ->map(function ($a) {
                 return [

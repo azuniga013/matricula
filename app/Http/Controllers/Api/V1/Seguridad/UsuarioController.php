@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api\V1\Seguridad;
 
 use App\Http\Controllers\Controller;
+use App\Models\Rol;
+use App\Models\SesionUsuario;
+use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\UsuarioRol;
 use App\Models\UsuarioSucursal;
@@ -22,6 +25,10 @@ class UsuarioController extends Controller
     {
         $usuarios = User::with(['roles', 'sucursales', 'docente'])
             ->withCount(['roles' => fn ($q) => $q->where('usuario_roles.estado', 'activo')])
+            ->addSelect(['ultimo_acceso' => SesionUsuario::query()
+                ->selectRaw('MAX(ultimo_acceso)')
+                ->whereColumn('sesiones_usuario.usuario_id', 'users.id'),
+            ])
             ->when($request->busqueda, function ($q, $busqueda) {
                 $q->where(function ($query) use ($busqueda) {
                     $query->where('name', 'like', "%{$busqueda}%")
@@ -67,7 +74,7 @@ class UsuarioController extends Controller
             ]);
 
             foreach ($datos['roles'] as $codigoRol) {
-                $rol = \App\Models\Rol::where('codigo', $codigoRol)->first();
+                $rol = Rol::where('codigo', $codigoRol)->first();
                 if ($rol) {
                     UsuarioRol::create([
                         'usuario_id' => $usuario->id,
@@ -78,9 +85,9 @@ class UsuarioController extends Controller
                 }
             }
 
-            if (!empty($datos['sucursales'])) {
+            if (! empty($datos['sucursales'])) {
                 foreach ($datos['sucursales'] as $codigoSucursal) {
-                    $sucursal = \App\Models\Sucursal::where('codigo', $codigoSucursal)->first();
+                    $sucursal = Sucursal::where('codigo', $codigoSucursal)->first();
                     if ($sucursal) {
                         UsuarioSucursal::create([
                             'usuario_id' => $usuario->id,
@@ -119,9 +126,9 @@ class UsuarioController extends Controller
     {
         $datos = $request->validate([
             'name' => 'sometimes|string|max:100',
-            'email' => 'sometimes|email|unique:users,email,' . $usuario->id,
+            'email' => 'sometimes|email|unique:users,email,'.$usuario->id,
             'telefono' => 'nullable|string|max:30',
-            'docente_id' => 'nullable|exists:docentes,id|unique:users,docente_id,' . $usuario->id,
+            'docente_id' => 'nullable|exists:docentes,id|unique:users,docente_id,'.$usuario->id,
             'estado' => 'sometimes|string|in:activo,inactivo',
             'debe_cambiar_contrasena' => 'sometimes|boolean',
         ]);
@@ -157,7 +164,7 @@ class UsuarioController extends Controller
             $usuario->roles()->detach();
 
             foreach ($datos['roles'] as $codigoRol) {
-                $rol = \App\Models\Rol::where('codigo', $codigoRol)->first();
+                $rol = Rol::where('codigo', $codigoRol)->first();
                 if ($rol) {
                     UsuarioRol::create([
                         'usuario_id' => $usuario->id,
@@ -194,7 +201,7 @@ class UsuarioController extends Controller
             $usuario->sucursales()->detach();
 
             foreach ($datos['sucursales'] as $codigoSucursal) {
-                $sucursal = \App\Models\Sucursal::where('codigo', $codigoSucursal)->first();
+                $sucursal = Sucursal::where('codigo', $codigoSucursal)->first();
                 if ($sucursal) {
                     UsuarioSucursal::create([
                         'usuario_id' => $usuario->id,

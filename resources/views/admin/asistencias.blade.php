@@ -199,9 +199,27 @@ function asistencias() {
             if (!this.ofertaId) return;
             this.loading = true;
             try {
-                const { data } = await window.axios.get(`/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=${this.ofertaId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
-                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los estudiantes');
-                this.estudiantes = (data.data || []).map(e => ({ ...e, estado: 'presente', observacion: '' }));
+                const h = { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } };
+                const [listaRes, existentesRes] = await Promise.allSettled([
+                    window.axios.get(`/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=${this.ofertaId}`, h),
+                    this.fecha ? window.axios.get(`/api/v1/asistencias/por-oferta?oferta_academica_id=${this.ofertaId}&fecha=${this.fecha}`, h) : Promise.resolve({ data: { data: [] } }),
+                ]);
+
+                const listaData = listaRes.status === 'fulfilled' ? listaRes.value.data : null;
+                if (!listaData) throw new Error('No se pudo cargar el listado de estudiantes');
+                if (listaData.resultado !== 'A') throw new Error(listaData.mensaje || 'No fue posible cargar los estudiantes');
+
+                const estudiantes = (listaData.data || []).map(e => ({ ...e, estado: 'presente', observacion: '' }));
+                const existentes = (existentesRes.status === 'fulfilled' && existentesRes.value.data?.data) || [];
+                for (const ex of existentes) {
+                    const idx = estudiantes.findIndex(e => e.matricula_id === ex.matricula_id);
+                    if (idx >= 0) {
+                        estudiantes[idx].estado = ex.estado;
+                        estudiantes[idx].observacion = ex.observacion || '';
+                    }
+                }
+
+                this.estudiantes = estudiantes;
             } catch(e) {
                 this.estudiantes = [];
                 this.errorCarga = window.extractError(e, 'No fue posible cargar los estudiantes. Verifique sus permisos de asistencia.');

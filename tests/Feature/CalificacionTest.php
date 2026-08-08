@@ -335,6 +335,40 @@ class CalificacionTest extends TestCase
             ->assertJsonPath('data.registradas', 0);
     }
 
+    public function test_por_oferta_devuelve_asistencias_sincronizadas_de_la_fecha(): void
+    {
+        $matriculaId = \DB::table('matriculas')
+            ->where('estudiante_id', $this->estudiante->id)
+            ->where('oferta_academica_id', $this->oferta->id)
+            ->value('id');
+
+        AsistenciaEstudiante::create([
+            'matricula_id' => $matriculaId,
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-08-05',
+            'estado' => 'justificada',
+            'cuenta_como_falta' => false,
+            'observacion' => 'Constancia médica',
+            'registrado_por' => $this->admin->id,
+        ]);
+
+        $matriculaId = \DB::table('matriculas')
+            ->where('estudiante_id', $this->estudiante->id)
+            ->where('oferta_academica_id', $this->oferta->id)
+            ->value('id');
+
+        $this->assertDatabaseCount('asistencias_estudiante', 1);
+
+        $response = $this->getJson('/api/v1/asistencias/por-oferta?oferta_academica_id='.$this->oferta->id.'&fecha=2026-08-05', $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.estado', 'justificada')
+            ->assertJsonPath('data.0.matricula_id', $matriculaId)
+            ->assertJsonPath('data.0.observacion', 'Constancia médica');
+    }
+
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
     {
         $otroEstudiante = Estudiante::factory()->create([
