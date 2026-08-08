@@ -219,29 +219,40 @@ function calificaciones() {
             this.loading = true;
             const h = { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } };
             try {
-                const [mRes, cRes] = await Promise.allSettled([
+                const [mRes, cRes, fRes] = await Promise.allSettled([
                     window.axios.get(`/api/v1/matriculas?oferta_academica_id=${this.filtros.oferta_academica_id}&estado=matriculado&per_page=100`, h),
                     window.axios.get(`/api/v1/calificaciones?oferta_academica_id=${this.filtros.oferta_academica_id}&per_page=100`, h),
+                    window.axios.get(`/api/v1/asistencias/faltas-por-oferta?oferta_academica_id=${this.filtros.oferta_academica_id}`, h),
                 ]);
-                const mats = mRes.status === 'fulfilled' ? (mRes.value.data.data?.data || mRes.value.data.data || []) : [];
+
+                const mData = mRes.status === 'fulfilled' ? mRes.value.data : null;
+                if (!mData || mData.resultado !== 'A') throw new Error(mData?.mensaje || 'No fue posible cargar los estudiantes');
+
+                const mats = mData.data?.data || mData.data || [];
                 const cals = cRes.status === 'fulfilled' ? (cRes.value.data.data?.data || cRes.value.data.data || []) : [];
+                const faltas = fRes.status === 'fulfilled' ? (fRes.value.data?.data || fRes.value.data || []) : [];
+
                 const mapaCals = new Map(cals.map(c => [c.estudiante_id, c]));
+                const mapaFaltas = new Map(faltas.map(f => [f.estudiante_id, f.faltas]));
 
                 this.estudiantes = mats.map(m => {
                     const cal = mapaCals.get(m.estudiante_id);
+                    const faltasAsistencia = mapaFaltas.has(m.estudiante_id) ? mapaFaltas.get(m.estudiante_id) : (cal?.faltas ?? 0);
                     return {
                         estudiante_id: m.estudiante_id,
                         codigo: m.estudiante?.codigo || '-',
                         nombre: `${m.estudiante?.nombre || ''} ${m.estudiante?.apellido || ''}`.trim(),
                         nota_final: cal?.nota_final ?? null,
-                        faltas: cal?.faltas ?? 0,
+                        faltas: faltasAsistencia ?? 0,
                         calificacion_id: cal?.id || null,
                         estado_registro: cal?.estado || 'pendiente',
                     };
                 }).sort((a, b) => a.nombre.localeCompare(b.nombre));
             } catch(e) {
-                this.toast('Error al cargar estudiantes', 'error');
-            } finally { this.loading = false; }
+                this.estudiantes = [];
+                this.toast(window.extractError(e, 'No se pudieron cargar los estudiantes'), 'error');
+            }
+            finally { this.loading = false; }
         },
 
         esAprobado(e) {

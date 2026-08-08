@@ -9,6 +9,7 @@ use App\Models\OfertaAcademica;
 use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AsistenciaController extends Controller
@@ -191,6 +192,63 @@ class AsistenciaController extends Controller
             'codigo' => 0,
             'mensaje' => 'OK',
             'data' => $asistencias,
+        ]);
+    }
+
+    public function faltasPorOferta(Request $request): JsonResponse
+    {
+        $request->validate([
+            'oferta_academica_id' => 'required|exists:ofertas_academicas,id',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+        ]);
+
+        $user = $request->user();
+        $oferta = OfertaAcademica::with('periodoAcademico')->findOrFail($request->oferta_academica_id);
+
+        if ($user->docente_id && $oferta->docente_id !== $user->docente_id) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 403,
+                'mensaje' => 'No tienes asignada esta oferta académica',
+            ], 403);
+        }
+
+        $fechaInicio = $request->filled('fecha_inicio') ? $request->fecha_inicio : optional($oferta->periodoAcademico)?->fecha_inicio;
+        $fechaFin = $request->filled('fecha_fin') ? $request->fecha_fin : optional($oferta->periodoAcademico)?->fecha_fin;
+
+        $fechaInicio = $fechaInicio ? Carbon::parse($fechaInicio)->format('Y-m-d') : null;
+        $fechaFin = $fechaFin ? Carbon::parse($fechaFin)->format('Y-m-d') : null;
+
+        $faltas = Matricula::query()
+            ->where('matriculas.oferta_academica_id', $request->oferta_academica_id)
+            ->where('matriculas.estado', 'matriculado')
+            ->leftJoin('asistencias_estudiante', function ($j) use ($fechaInicio, $fechaFin) {
+                $j->on('asistencias_estudiante.matricula_id', '=', 'matriculas.id')
+                    ->when($fechaInicio, fn ($q, $fi) => $q->whereDate('asistencias_estudiante.fecha', '>=', $fi))
+                    ->when($fechaFin, fn ($q, $ff) => $q->whereDate('asistencias_estudiante.fecha', '<=', $ff))
+                    ->where('asistencias_estudiante.cuenta_como_falta', true);
+            })
+            ->select(
+                'matriculas.id as matricula_id',
+                'matriculas.estudiante_id',
+                DB::raw('COUNT(asistencias_estudiante.id) as faltas')
+            )
+            ->groupBy('matriculas.id', 'matriculas.estudiante_id')
+            ->get()
+            ->map(fn ($r) => [
+                'matricula_id' => $r->matricula_id,
+                'estudiante_id' => $r->estudiante_id,
+                'faltas' => (int) $r->faltas,
+            ]);
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => 'OK',
+            'data' => $faltas,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin,
         ]);
     }
 

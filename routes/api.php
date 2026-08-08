@@ -508,6 +508,9 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         Route::get('/por-oferta', [AsistenciaController::class, 'porOferta'])
             ->middleware('permission:asistencias.consultar');
 
+        Route::get('/faltas-por-oferta', [AsistenciaController::class, 'faltasPorOferta'])
+            ->middleware('permission:asistencias.consultar');
+
         Route::get('/resumen-faltas', [AsistenciaController::class, 'resumenFaltas'])
             ->middleware('permission:asistencias.consultar');
     });

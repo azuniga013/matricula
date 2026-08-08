@@ -345,28 +345,70 @@ class CalificacionTest extends TestCase
         AsistenciaEstudiante::create([
             'matricula_id' => $matriculaId,
             'oferta_academica_id' => $this->oferta->id,
-            'fecha' => '2026-08-05',
-            'estado' => 'justificada',
-            'cuenta_como_falta' => false,
-            'observacion' => 'Constancia médica',
+            'fecha' => '2026-03-10',
+            'estado' => 'falta',
+            'cuenta_como_falta' => true,
+            'observacion' => null,
             'registrado_por' => $this->admin->id,
         ]);
 
+        $response = $this->getJson('/api/v1/asistencias/por-oferta?oferta_academica_id='.$this->oferta->id.'&fecha=2026-03-10', $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.estado', 'falta')
+            ->assertJsonPath('data.0.matricula_id', $matriculaId);
+    }
+
+    public function test_faltas_por_oferta_agrupa_faltas_del_periodo(): void
+    {
         $matriculaId = \DB::table('matriculas')
             ->where('estudiante_id', $this->estudiante->id)
             ->where('oferta_academica_id', $this->oferta->id)
             ->value('id');
 
-        $this->assertDatabaseCount('asistencias_estudiante', 1);
+        // Dentro del rango del período (2026-01-15 .. 2026-06-30) y cuenta_como_falta
+        AsistenciaEstudiante::create([
+            'matricula_id' => $matriculaId,
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-03-10',
+            'estado' => 'falta',
+            'cuenta_como_falta' => true,
+            'observacion' => null,
+            'registrado_por' => $this->admin->id,
+        ]);
+        // Fuera del rango del período -> no cuenta
+        AsistenciaEstudiante::create([
+            'matricula_id' => $matriculaId,
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-07-10',
+            'estado' => 'falta',
+            'cuenta_como_falta' => true,
+            'observacion' => null,
+            'registrado_por' => $this->admin->id,
+        ]);
+        // Dentro del rango pero no cuenta como falta -> no suma
+        AsistenciaEstudiante::create([
+            'matricula_id' => $matriculaId,
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-04-02',
+            'estado' => 'justificada',
+            'cuenta_como_falta' => false,
+            'observacion' => null,
+            'registrado_por' => $this->admin->id,
+        ]);
 
-        $response = $this->getJson('/api/v1/asistencias/por-oferta?oferta_academica_id='.$this->oferta->id.'&fecha=2026-08-05', $this->headers());
+        $response = $this->getJson('/api/v1/asistencias/faltas-por-oferta?oferta_academica_id='.$this->oferta->id, $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.estado', 'justificada')
+            ->assertJsonPath('data.0.estudiante_id', $this->estudiante->id)
             ->assertJsonPath('data.0.matricula_id', $matriculaId)
-            ->assertJsonPath('data.0.observacion', 'Constancia médica');
+            ->assertJsonPath('data.0.faltas', 1)
+            ->assertJsonPath('fecha_inicio', '2026-01-15')
+            ->assertJsonPath('fecha_fin', '2026-06-30');
     }
 
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
