@@ -17,14 +17,23 @@ class PublicacionApkDocenteController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json([
-            'resultado' => 'A', 'codigo' => 0, 'mensaje' => 'OK',
-            'data' => PublicacionApkDocente::query()->with(['creador:id,nombre', 'publicador:id,nombre'])
-                ->latest('version_code')->get(),
-            'url_publica' => route('apk-docentes.publico'),
-            'ruta_storage' => Storage::disk('local')->path('apk-docentes'),
-            'diagnostico' => $this->diagnosticoStorage(),
-        ]);
+        try {
+            return response()->json([
+                'resultado' => 'A', 'codigo' => 0, 'mensaje' => 'OK',
+                'data' => PublicacionApkDocente::query()->with(['creador:id,nombre', 'publicador:id,nombre'])
+                    ->latest('version_code')->get(),
+                'url_publica' => route('apk-docentes.publico'),
+                'ruta_storage' => Storage::disk('local')->path('apk-docentes'),
+                'diagnostico' => $this->diagnosticoStorage(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'resultado' => 'R', 'codigo' => 500, 'mensaje' => 'Error al consultar publicaciones',
+                'error_diagnostico' => get_class($e).': '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine(),
+            ], 500);
+        }
     }
 
     private function diagnosticoStorage(): array
