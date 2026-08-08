@@ -43,6 +43,22 @@ export async function logout() {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
+const CREDENTIALS_KEY = 'docente_auth_credentials';
+
+export async function hasToken() { return Boolean(await SecureStore.getItemAsync(TOKEN_KEY)); }
+
+export async function saveBiometricCredentials(email, password) {
+  await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify({ email, password }));
+}
+export async function loadBiometricCredentials() {
+  const raw = await SecureStore.getItemAsync(CREDENTIALS_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (_) { return null; }
+}
+export async function clearBiometricCredentials() {
+  await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
+}
+
 export async function currentUser() { return request('/me'); }
 export async function offers(periodId = null) {
   const query = periodId ? `?periodo_academico_id=${encodeURIComponent(periodId)}` : '';

@@ -11,8 +11,10 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "^11.4.1",
     "expo": "^54.0.0",
+    "expo-local-authentication": "~17.0.8",
     "expo-secure-store": "^15.0.0",
     "expo-sqlite": "^16.0.0",
     "react": "19.1.4",

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
-import { attendanceForOffer, currentUser, grades, login, logout, offers, saveAttendance, saveGrades, students } from './src/api';
+import { attendanceForOffer, clearBiometricCredentials, currentUser, grades, loadBiometricCredentials, login, logout, offers, saveAttendance, saveBiometricCredentials, saveGrades, students } from './src/api';
 import { cachedAttendance, cachedGrades, cachedOffers, cachedStudents, clearLocalData, initDatabase, markError, pending, queue, removePending, replaceAttendance, replaceGrades, replaceOffers, replaceStudents } from './src/database';
 
 const today = () => new Date().toISOString().slice(0, 10);
+const toDateInput = (value) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || ''); if (!m) return new Date(); return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])); };
+const fromDateInput = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}`.trim();
 const MODULES = [
   { id: 'ofertas', title: 'Ofertas Académicas', detail: 'Lista de estudiantes por oferta' },
@@ -28,6 +32,17 @@ export default function App() {
   const [attendance, setAttendance] = useState({});
   const [date, setDate] = useState(today());
   const [syncing, setSyncing] = useState(false);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioCredentials, setBioCredentials] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [hardware, enrolled] = await Promise.all([LocalAuthentication.hasHardwareAsync(), LocalAuthentication.isEnrolledAsync()]);
+      setBioAvailable(Boolean(hardware && enrolled));
+      setBioCredentials(Boolean(await loadBiometricCredentials()));
+    })().catch(() => {});
+  }, []);
 
   useEffect(() => {
     initDatabase();
@@ -122,6 +137,19 @@ export default function App() {
     }
   }
 
+  async function changeAttendanceDate(newDate) {
+    setDate(newDate);
+    if (!selected) return;
+    const priorAttendance = cachedAttendance(selected.id, newDate);
+    setAttendance(buildAttendanceState(studentsForOffer, priorAttendance));
+    if (!online) return;
+    try {
+      const freshAttendance = await attendanceForOffer(selected.id, newDate);
+      replaceAttendance(selected.id, newDate, freshAttendance);
+      setAttendance(buildAttendanceState(studentsForOffer, freshAttendance));
+    } catch (_) { /* conservar copia local */ }
+  }
+
   async function saveAttendanceLocally() {
     if (!studentsForOffer.length) return Alert.alert('Sin estudiantes', 'Esta oferta no tiene estudiantes matriculados para registrar.');
     const asistencias = studentsForOffer.map((student) => ({ matricula_id: student.matricula_id, estado: attendance[student.matricula_id]?.estado || 'presente', observacion: attendance[student.matricula_id]?.observacion || null }));
@@ -143,12 +171,27 @@ export default function App() {
     if (resultado.error) return Alert.alert('Calificaciones pendientes', `${resultado.error} Se conservan localmente para reintentar.`);
     Alert.alert('Calificaciones sincronizadas', `${resultado.procesadas} operación(es) guardada(s) en el servidor.`);
   }
-  async function submitLogin() { setLoading(true); try { const profile = await login(email.trim(), password); setUser(profile); await refresh(null); } catch (error) { Alert.alert('No se pudo iniciar sesión', error.message); } finally { setLoading(false); } }
-  async function closeSession() { await logout(); clearLocalData(); setUser(null); setModule(null); setSelected(null); setItems([]); }
+  async function submitLogin() { setLoading(true); try { const profile = await login(email.trim(), password); await saveBiometricCredentials(email.trim(), password); setBioCredentials(true); setUser(profile); await refresh(null); } catch (error) { Alert.alert('No se pudo iniciar sesión', error.message); } finally { setLoading(false); } }
+  async function bioLogin() {
+    if (!bioCredentials) return Alert.alert('Sin acceso biométrico', 'Inicie sesión una vez con su correo y contraseña para guardar el acceso.');
+    setBioLoading(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Verifique su identidad para entrar al Portal Docente', cancelLabel: 'Cancelar', disableDeviceFallback: false });
+      if (!result || !result.success) return;
+      const creds = await loadBiometricCredentials();
+      if (!creds) return;
+      const profile = await login(creds.email, creds.password);
+      setUser(profile);
+      await refresh(null);
+    } catch (error) {
+      Alert.alert('No se pudo entrar con huella', error.message || 'Inténtelo de nuevo.');
+    } finally { setBioLoading(false); }
+  }
+  async function closeSession() { await logout(); clearLocalData(); clearBiometricCredentials(); setBioCredentials(false); setUser(null); setModule(null); setSelected(null); setItems([]); }
 
   if (loading) return <Centered text="Preparando aplicación docente..." />;
-  if (!user) return <Login {...{ email, setEmail, password, setPassword, submit: submitLogin }} />;
-  if (selected) return <StudentList module={module} offer={selected} students={studentsForOffer} attendance={attendance} setAttendance={setAttendance} grades={gradeRows} setGrades={setGradeRows} date={date} setDate={setDate} online={online} saveAttendance={saveAttendanceLocally} saveGrades={saveGradesLocally} back={() => setSelected(null)} />;
+  if (!user) return <Login {...{ email, setEmail, password, setPassword, submit: submitLogin, bioAvailable, bioCredentials, bioLoading, bioLogin }} />;
+  if (selected) return <StudentList module={module} offer={selected} students={studentsForOffer} attendance={attendance} setAttendance={setAttendance} grades={gradeRows} setGrades={setGradeRows} date={date} setDate={setDate} online={online} saveAttendance={saveAttendanceLocally} saveGrades={saveGradesLocally} changeDate={changeAttendanceDate} back={() => setSelected(null)} />;
   if (!module) return <Menu user={user} online={online} pendingCount={pendingCount} modules={MODULES} open={setModule} sync={() => refresh(null)} syncing={syncing} logout={closeSession} />;
   return <OfferList module={MODULES.find((item) => item.id === module)} offers={visibleOffers} periods={periods} periodId={periodId} selectPeriod={(id) => { setPeriodId(id); if (online) refresh(id); }} open={openOffer} back={() => setModule(null)} sync={() => refresh(periodId)} syncing={syncing} />;
 }
@@ -172,16 +215,30 @@ const buildAttendanceState = (studentsRows, saved = []) => {
 };
 const estadoBadge = (value) => { const item = estadoInfo(value); return { label: item.label, badge: { backgroundColor: item.color + '1a', color: item.color, borderColor: item.color } }; };
 
-function StudentList({ module, offer, students, attendance, setAttendance, grades, setGrades, date, setDate, online, saveAttendance, saveGrades, back }) {
+function StudentList({ module, offer, students, attendance, setAttendance, grades, setGrades, date, setDate, online, saveAttendance, saveGrades, changeDate, back }) {
   const isAttendance = module === 'asistencia';
   const isGrades = module === 'calificaciones';
   const [marking, setMarking] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [refreshingDate, setRefreshingDate] = useState(false);
 
   if (isAttendance && marking) {
     return <MarkingStudent offer={offer} student={marking} attendance={attendance} setAttendance={setAttendance} back={() => setMarking(null)} />;
   }
 
-  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Ofertas" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{isAttendance ? 'Asistencia Diaria' : isGrades ? 'Calificaciones' : 'Estudiantes'}</Text><Text style={styles.sub}>{offer.codigo} · {offer.periodo_academico?.nombre}</Text></View></View><ScrollView contentContainerStyle={styles.list}>{isAttendance && <><Text style={styles.section}>Fecha</Text><TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" /></>}{students.length === 0 && <Text style={styles.muted}>No hay estudiantes descargados para esta oferta.</Text>}{students.map((student) => {
+  async function pickDate(event, picked) {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (!event || event.type === 'dismissed' || !picked) return;
+    const newDate = fromDateInput(picked);
+    if (newDate === date) return;
+    setDate(newDate);
+    if (changeDate) {
+      setRefreshingDate(true);
+      try { await changeDate(newDate); } finally { setRefreshingDate(false); }
+    }
+  }
+
+  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Ofertas" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{isAttendance ? 'Asistencia Diaria' : isGrades ? 'Calificaciones' : 'Estudiantes'}</Text><Text style={styles.sub}>{offer.codigo} · {offer.periodo_academico?.nombre}</Text></View></View><ScrollView contentContainerStyle={styles.list}>{isAttendance && <><Text style={styles.section}>Fecha</Text><View style={styles.dateRow}><TextInput style={[styles.input, styles.dateInput]} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCorrect={false} /><TouchableOpacity style={styles.calendarBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}><Text style={styles.calendarBtnText}>{refreshingDate ? '⏳' : '📅'}</Text></TouchableOpacity></View>{showDatePicker && <DateTimePicker value={toDateInput(date)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={pickDate} />}</>}{students.length === 0 && <Text style={styles.muted}>No hay estudiantes descargados para esta oferta.</Text>}{students.map((student) => {
     const id = student.estudiante_id || student.id;
     const row = grades[id] || {};
     if (isAttendance) {
@@ -200,6 +257,26 @@ function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
   const setEstado = (estado) => setAttendance({ ...attendance, [matriculaId]: { ...current, estado } });
   return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Volver" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{fullName(student)}</Text><Text style={styles.sub}>{student.codigo} · {offer.codigo}</Text></View></View><ScrollView contentContainerStyle={styles.list}><Text style={styles.section}>Marcar asistencia</Text>{ATT_STATES.map((state) => <TouchableOpacity key={state.value} style={[styles.flag, current.estado === state.value && { borderColor: state.color, backgroundColor: state.color + '14' }]} onPress={() => setEstado(state.value)}><View style={styles.studentRow}><View style={styles.studentRowGrow}><Text style={styles.flagLabel}>{state.label}</Text><Text style={styles.muted}>{state.note}</Text></View><View style={[styles.flagCircle, { borderColor: state.color }, current.estado === state.value && { backgroundColor: state.color }]}>{current.estado === state.value && <Text style={[styles.flagCheck, { color: '#fff' }]}>✓</Text>}</View></View></TouchableOpacity>)}<Text style={styles.muted}>Seleccione el estado y regrese para continuar. Luego presione Guardar y sincronizar al final de la lista.</Text><Button title="Guardar estado" onPress={() => { setEstado(current.estado); back(); }} /></ScrollView></SafeAreaView>;
 }
-function Login({ email, setEmail, password, setPassword, submit }) { return <SafeAreaView style={styles.center}><Text style={styles.title}>Cursos SVP · Docentes</Text><Text style={styles.muted}>Use su usuario administrativo vinculado como docente.</Text><TextInput style={styles.input} placeholder="Correo" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} /><TextInput style={styles.input} placeholder="Contraseña" secureTextEntry value={password} onChangeText={setPassword} /><Button title="Iniciar sesión" onPress={submit} /></SafeAreaView>; }
+function Login({ email, setEmail, password, setPassword, submit, bioAvailable, bioCredentials, bioLoading, bioLogin }) {
+  return <KeyboardAvoidingView style={styles.center} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={40}><ScrollView contentContainerStyle={styles.loginScroll} keyboardShouldPersistTaps="handled">
+    <View style={styles.loginCard}>
+      <View style={styles.logo}>{'\u{1F393}'}</View>
+      <Text style={styles.loginTitle}>Cursos SVP</Text>
+      <Text style={styles.loginSubtitle}>Portal Docente</Text>
+      <Text style={styles.muted}>Ingrese con su cuenta administrativa vinculada como docente.</Text>
+      {bioAvailable ? <View style={styles.sessionBox}><Text style={styles.muted}>{bioCredentials ? 'La huella o rostro está configurada. Entre con un toque.' : 'Inicie sesión una vez para activar el acceso por huella o rostro.'}</Text></View> : null}
+      <Text style={styles.fieldLabel}>Correo</Text>
+      <TextInput style={styles.input} placeholder="correo@dominio.com" placeholderTextColor="#94a3b8" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
+      <Text style={styles.fieldLabel}>Contraseña</Text>
+      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor="#94a3b8" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} returnKeyType="go" />
+      <TouchableOpacity style={[styles.primaryBtn, (!email || !password) && styles.primaryBtnDisabled]} onPress={submit} disabled={!email || password.length === 0} activeOpacity={0.85}>
+        <Text style={styles.primaryBtnText}>Iniciar sesión</Text>
+      </TouchableOpacity>
+      {bioAvailable && bioCredentials ? <TouchableOpacity style={styles.bioBtn} onPress={bioLogin} disabled={bioLoading} activeOpacity={0.85}>
+        <Text style={styles.bioBtnText}>{bioLoading ? 'Verificando huella…' : 'Entrar con huella o rostro'}</Text>
+      </TouchableOpacity> : null}
+    </View>
+  </ScrollView></KeyboardAvoidingView>;
+}
 function Centered({ text }) { return <View style={styles.center}><ActivityIndicator size="large" /><Text style={styles.muted}>{text}</Text></View>; }
-const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: '#f8fafc' }, center: { flex: 1, justifyContent: 'center', padding: 24, gap: 14 }, header: { padding: 18, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 12 }, headerGrow: { flex: 1 }, title: { fontSize: 21, fontWeight: '700', color: '#1e3a8a' }, sub: { fontSize: 12, color: '#64748b' }, list: { padding: 16, gap: 12 }, card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', gap: 8 }, menuCard: { backgroundColor: '#eff6ff', padding: 20, borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe', gap: 6 }, cardTitle: { fontWeight: '700', color: '#111827', fontSize: 16 }, muted: { color: '#64748b', marginTop: 6 }, input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 11, marginTop: 9 }, section: { fontSize: 16, fontWeight: '700', marginTop: 8, color: '#1f2937' }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, pill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14, backgroundColor: '#e2e8f0' }, pillOn: { backgroundColor: '#86efac' }, footer: { padding: 16 }, filters: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, chip: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#e2e8f0', borderRadius: 16 }, chipOn: { backgroundColor: '#93c5fd' }, studentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 }, studentRowGrow: { flex: 1 }, badge: { fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, overflow: 'hidden' }, flag: { backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 2, gap: 6 }, flagLabel: { fontWeight: '700', color: '#111827', fontSize: 17 }, flagCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }, flagCheck: { fontSize: 15, fontWeight: '800' } });
+const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: '#f8fafc' }, center: { flex: 1, justifyContent: 'center', padding: 24, gap: 14 }, header: { padding: 18, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 12 }, headerGrow: { flex: 1 }, title: { fontSize: 21, fontWeight: '700', color: '#1e3a8a' }, sub: { fontSize: 12, color: '#64748b' }, list: { padding: 16, gap: 12 }, card: { backgroundColor: '#fff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', gap: 8 }, menuCard: { backgroundColor: '#eff6ff', padding: 20, borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe', gap: 6 }, cardTitle: { fontWeight: '700', color: '#111827', fontSize: 16 }, muted: { color: '#64748b', marginTop: 6 }, input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 11, marginTop: 9 }, section: { fontSize: 16, fontWeight: '700', marginTop: 8, color: '#1f2937' }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, pill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 14, backgroundColor: '#e2e8f0' }, pillOn: { backgroundColor: '#86efac' }, footer: { padding: 16 }, filters: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, chip: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#e2e8f0', borderRadius: 16 }, chipOn: { backgroundColor: '#93c5fd' }, studentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 }, studentRowGrow: { flex: 1 }, badge: { fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, overflow: 'hidden' }, flag: { backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 2, gap: 6 }, flagLabel: { fontWeight: '700', color: '#111827', fontSize: 17 }, flagCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }, flagCheck: { fontSize: 15, fontWeight: '800' }, loginScroll: { flexGrow: 1, justifyContent: 'center', padding: 24 }, loginCard: { backgroundColor: '#fff', borderRadius: 20, padding: 24, maxWidth: 420, width: '100%', alignSelf: 'center', gap: 10, shadowColor: '#0f172a', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 6 }, logo: { width: 72, height: 72, borderRadius: 20, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', fontSize: 38 }, loginTitle: { fontSize: 26, fontWeight: '800', color: '#1e3a8a' }, loginSubtitle: { fontSize: 14, color: '#475569', marginTop: -6 }, fieldLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginTop: 6 }, primaryBtn: { backgroundColor: '#1e3a8a', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 14 }, primaryBtnDisabled: { backgroundColor: '#94a3b8' }, primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }, bioBtn: { backgroundColor: '#fef4cd', borderWidth: 1, borderColor: '#fbbf24', padding: 13, borderRadius: 12, alignItems: 'center', marginTop: 8 }, bioBtnText: { color: '#92400e', fontSize: 14, fontWeight: '700' }, sessionBox: { backgroundColor: '#eff6ff', borderRadius: 10, padding: 10, gap: 2, marginTop: 4 }, dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, dateInput: { flex: 1 }, calendarBtn: { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14 }, calendarBtnText: { fontSize: 20 } });
