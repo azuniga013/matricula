@@ -62,6 +62,10 @@ export async function saveAttendance(offerId, date, attendances) {
   });
 }
 
+export async function attendanceForOffer(offerId, date) {
+  return request(`/asistencias/por-oferta?oferta_academica_id=${offerId}&fecha=${encodeURIComponent(date)}`) || [];
+}
+
 export async function saveGrades(offerId, calificaciones) {
   return request('/calificaciones/registrar', {
     method: 'POST',

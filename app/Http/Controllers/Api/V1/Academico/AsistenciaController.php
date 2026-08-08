@@ -107,7 +107,7 @@ class AsistenciaController extends Controller
         $datos = $request->validate([
             'oferta_academica_id' => 'required|exists:ofertas_academicas,id',
             'fecha' => 'required|date',
-            'asistencias' => 'required|array|min:1',
+            'asistencias' => 'nullable|array',
             'asistencias.*.matricula_id' => 'required|exists:matriculas,id',
             'asistencias.*.estado' => 'required|in:presente,falta,justificada,tardanza',
             'asistencias.*.cuenta_como_falta' => 'nullable|boolean',
@@ -129,7 +129,8 @@ class AsistenciaController extends Controller
         return DB::transaction(function () use ($datos, $user) {
             $registradas = 0;
 
-            foreach ($datos['asistencias'] as $item) {
+            $asistencias = $datos['asistencias'] ?? [];
+            foreach ($asistencias as $item) {
                 $cuentaFalta = $item['cuenta_como_falta'] ?? (in_array($item['estado'], ['falta']));
 
                 AsistenciaEstudiante::updateOrCreate(

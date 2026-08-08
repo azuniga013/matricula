@@ -2,12 +2,12 @@
   "expo": {
     "name": "Cursos SVP Docentes",
     "slug": "cursos-svp-docentes",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.cursossanvicente.docentes",
-      "versionCode": 3
+      "versionCode": 4
     },
     "extra": {
       "apiUrl": "https://matricula.cursossanvicente.com/api/v1"

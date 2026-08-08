@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { currentUser, grades, login, logout, offers, saveAttendance, saveGrades, students } from './src/api';
-import { cachedGrades, cachedOffers, cachedStudents, clearLocalData, initDatabase, markError, pending, queue, removePending, replaceGrades, replaceOffers, replaceStudents } from './src/database';
+import { attendanceForOffer, currentUser, grades, login, logout, offers, saveAttendance, saveGrades, students } from './src/api';
+import { cachedAttendance, cachedGrades, cachedOffers, cachedStudents, clearLocalData, initDatabase, markError, pending, queue, removePending, replaceAttendance, replaceGrades, replaceOffers, replaceStudents } from './src/database';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}`.trim();
@@ -86,7 +86,14 @@ export default function App() {
         } catch (error) {
           markError(operation.uuid, error.message);
           errorSincronizacion = error.message || 'El servidor no pudo guardar la información.';
-          if ([401, 403, 422].includes(error.status)) break;
+          if (error.status === 401) {
+            await logout();
+            setUser(null); setModule(null); setSelected(null); setItems([]);
+            errorSincronizacion = 'La sesión expiró. Vuelva a iniciar sesión para continuar.';
+            break;
+          }
+          if (error.status === 422) { errorSincronizacion = "El servidor rechazó el guardado (respuesta local pendiente). Revisa la oferta; si no tiene estudiantes, descárgala con internet."; break; }
+          if (error.status === 403) break;
         }
       }
       await refresh();
@@ -102,19 +109,23 @@ export default function App() {
     const gradeData = cachedGrades(offerId);
     setStudentsForOffer(enrolled);
     setGradeRows(Object.fromEntries(gradeData.map((row) => [row.estudiante_id, { nota_final: row.nota_final ?? '', faltas: row.faltas ?? 0, observaciones: row.observaciones ?? '' }])));
-    setAttendance(Object.fromEntries(enrolled.map((row) => [row.matricula_id, { estado: 'presente', observacion: '' }])));
+    const priorAttendance = cachedAttendance(offerId, date);
+    setAttendance(buildAttendanceState(enrolled, priorAttendance));
     if (online) {
       try {
-        const [freshStudents, freshGrades] = await Promise.all([students(offerId), grades(offerId)]);
-        replaceStudents(offerId, freshStudents); replaceGrades(offerId, freshGrades);
+        const [freshStudents, freshGrades, freshAttendance] = await Promise.all([students(offerId), grades(offerId), attendanceForOffer(offerId, date)]);
+        replaceStudents(offerId, freshStudents); replaceGrades(offerId, freshGrades); replaceAttendance(offerId, date, freshAttendance);
         setStudentsForOffer(freshStudents);
         setGradeRows(Object.fromEntries(freshGrades.map((row) => [row.estudiante_id, { nota_final: row.nota_final ?? '', faltas: row.faltas ?? 0, observaciones: row.observaciones ?? '' }])));
+        setAttendance(buildAttendanceState(freshStudents, freshAttendance));
       } catch (_) { /* conservar copia offline */ }
     }
   }
 
   async function saveAttendanceLocally() {
+    if (!studentsForOffer.length) return Alert.alert('Sin estudiantes', 'Esta oferta no tiene estudiantes matriculados para registrar.');
     const asistencias = studentsForOffer.map((student) => ({ matricula_id: student.matricula_id, estado: attendance[student.matricula_id]?.estado || 'presente', observacion: attendance[student.matricula_id]?.observacion || null }));
+    replaceAttendance(selected.id, date, asistencias);
     queue('asistencia', selected.id, { fecha: date, asistencias });
     if (!online) return Alert.alert('Guardado local', 'La asistencia queda pendiente de sincronización hasta recuperar internet.');
     const resultado = await synchronizeQueue();
@@ -152,6 +163,13 @@ const ATT_STATES = [
   { value: 'tardanza', label: 'Tardanza', note: 'Llegó tarde', color: '#2563eb' },
 ];
 const estadoInfo = (value) => ATT_STATES.find((item) => item.value === value) || ATT_STATES[0];
+const buildAttendanceState = (studentsRows, saved = []) => {
+  const savedByMatricula = Object.fromEntries(saved.map((row) => [row.matricula_id, row]));
+  return Object.fromEntries(studentsRows.map((row) => {
+    const savedRow = savedByMatricula[row.matricula_id];
+    return [row.matricula_id, { estado: savedRow?.estado || 'presente', observacion: savedRow?.observacion || '' }];
+  }));
+};
 const estadoBadge = (value) => { const item = estadoInfo(value); return { label: item.label, badge: { backgroundColor: item.color + '1a', color: item.color, borderColor: item.color } }; };
 
 function StudentList({ module, offer, students, attendance, setAttendance, grades, setGrades, date, setDate, online, saveAttendance, saveGrades, back }) {

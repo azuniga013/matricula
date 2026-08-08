@@ -2,7 +2,27 @@
 
 namespace Tests\Feature;
 
-use App\Models\{AlcanceUsuario, Aula, Calificacion, DepartamentoAcademico, Docente, Estudiante, Horario, Modalidad, Modulo, NivelAcademico, OpcionModulo, OfertaAcademica, Permiso, PeriodoAcademico, PlanCobro, PlanEstudio, Rol, Sucursal, User, VersionPlanEstudio};
+use App\Models\AlcanceUsuario;
+use App\Models\AsistenciaEstudiante;
+use App\Models\Aula;
+use App\Models\Calificacion;
+use App\Models\DepartamentoAcademico;
+use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\Horario;
+use App\Models\Modalidad;
+use App\Models\Modulo;
+use App\Models\NivelAcademico;
+use App\Models\OfertaAcademica;
+use App\Models\OpcionModulo;
+use App\Models\PeriodoAcademico;
+use App\Models\Permiso;
+use App\Models\PlanCobro;
+use App\Models\PlanEstudio;
+use App\Models\Rol;
+use App\Models\Sucursal;
+use App\Models\User;
+use App\Models\VersionPlanEstudio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,17 +31,29 @@ class CalificacionTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $token;
+
     private Sucursal $sucursal;
+
     private PeriodoAcademico $periodo;
+
     private NivelAcademico $nivel;
+
     private Modalidad $regimen;
+
     private Modalidad $modalidad;
+
     private Horario $horario;
+
     private Docente $docente;
+
     private Aula $aula;
+
     private OfertaAcademica $oferta;
+
     private Estudiante $estudiante;
+
     private PlanCobro $planCobro;
 
     protected function setUp(): void
@@ -166,7 +198,7 @@ class CalificacionTest extends TestCase
         foreach (['consultar', 'crear', 'modificar', 'eliminar'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcion->id,
-                'codigo' => 'calificaciones.' . $accion,
+                'codigo' => 'calificaciones.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -178,7 +210,7 @@ class CalificacionTest extends TestCase
         foreach (['consultar', 'crear'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcionAsistencias->id,
-                'codigo' => 'asistencias.' . $accion,
+                'codigo' => 'asistencias.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -245,7 +277,7 @@ class CalificacionTest extends TestCase
             'estado' => 'activo',
         ]);
 
-        $response = $this->getJson('/api/v1/asistencias/ofertas-disponibles?periodo_academico_id=' . $this->periodo->id, $this->headers());
+        $response = $this->getJson('/api/v1/asistencias/ofertas-disponibles?periodo_academico_id='.$this->periodo->id, $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
@@ -261,7 +293,7 @@ class CalificacionTest extends TestCase
             'estado' => 'activo',
         ]);
 
-        $this->getJson('/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=' . $this->oferta->id, $this->headers())
+        $this->getJson('/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id='.$this->oferta->id, $this->headers())
             ->assertOk()
             ->assertJsonPath('data.0.estudiante_id', $this->estudiante->id);
     }
@@ -285,11 +317,22 @@ class CalificacionTest extends TestCase
             ->assertJsonPath('data.registradas', 1);
 
         $this->assertTrue(
-            \App\Models\AsistenciaEstudiante::where('matricula_id', $matriculaId)
+            AsistenciaEstudiante::where('matricula_id', $matriculaId)
                 ->where('estado', 'tardanza')
                 ->whereDate('fecha', '2026-08-05')
                 ->exists()
         );
+    }
+
+    public function test_registrar_asistencia_con_lista_vacia_no_falla(): void
+    {
+        $this->postJson('/api/v1/asistencias/registrar', [
+            'oferta_academica_id' => $this->oferta->id,
+            'fecha' => '2026-08-05',
+            'asistencias' => [],
+        ], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.registradas', 0);
     }
 
     public function test_registrar_calificaciones_estudiante_no_matriculado(): void
@@ -329,7 +372,7 @@ class CalificacionTest extends TestCase
             'estado' => 'registrado',
         ]);
 
-        $response = $this->getJson('/api/v1/calificaciones?oferta_academica_id=' . $this->oferta->id, $this->headers());
+        $response = $this->getJson('/api/v1/calificaciones?oferta_academica_id='.$this->oferta->id, $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
@@ -351,7 +394,7 @@ class CalificacionTest extends TestCase
             'estado' => 'registrado',
         ]);
 
-        $response = $this->getJson('/api/v1/calificaciones/' . $cal->id, $this->headers());
+        $response = $this->getJson('/api/v1/calificaciones/'.$cal->id, $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('data.nota_final', '90.00');
@@ -372,7 +415,7 @@ class CalificacionTest extends TestCase
             'estado' => 'registrado',
         ]);
 
-        $response = $this->putJson('/api/v1/calificaciones/' . $cal->id, [
+        $response = $this->putJson('/api/v1/calificaciones/'.$cal->id, [
             'nota_final' => 82.0,
             'faltas' => 2,
         ], $this->headers());
