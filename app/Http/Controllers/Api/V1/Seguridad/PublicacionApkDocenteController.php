@@ -20,7 +20,7 @@ class PublicacionApkDocenteController extends Controller
         try {
             return response()->json([
                 'resultado' => 'A', 'codigo' => 0, 'mensaje' => 'OK',
-                'data' => PublicacionApkDocente::query()->with(['creador:id,nombre', 'publicador:id,nombre'])
+                'data' => PublicacionApkDocente::query()->with(['creador:id,name', 'publicador:id,name'])
                     ->latest('version_code')->get(),
                 'url_publica' => route('apk-docentes.publico'),
                 'ruta_storage' => Storage::disk('local')->path('apk-docentes'),
