@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api\V1\Inventario;
 
+use App\Helpers\RespuestaError;
 use App\Http\Controllers\Controller;
 use App\Models\InventarioLibro;
-use App\Models\MovimientoInventarioLibro;
+use App\Models\Sucursal;
+use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Comun\ResultadoCasoUso;
+use App\Modules\Inventario\CasosUso\AjustarExistencia;
+use App\Modules\Inventario\CasosUso\RegistrarInventario;
+use App\Modules\Inventario\CasosUso\VenderLibro;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class InventarioLibroController extends Controller
 {
@@ -23,6 +29,7 @@ class InventarioLibroController extends Controller
             'libro:id,codigo,titulo,precio_venta',
             'sucursal:id,codigo,nombre',
         ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'inventario_libros');
 
         if ($request->filled('sucursal_id')) {
             $query->where('inventario_libros.sucursal_id', $request->sucursal_id);
@@ -44,8 +51,12 @@ class InventarioLibroController extends Controller
         ]);
     }
 
-    public function show(InventarioLibro $inventarioLibro): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        $inventarioLibro = InventarioLibro::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($inventarioLibro, $request->user(), 'inventario_libros');
+        $inventarioLibro = $inventarioLibro->findOrFail($id);
+
         $inventarioLibro->load([
             'libro:id,codigo,titulo,precio_venta',
             'sucursal:id,codigo,nombre',
@@ -71,44 +82,13 @@ class InventarioLibroController extends Controller
             'existencia_minima' => 'nullable|integer|min:0',
         ]);
 
-        $existe = InventarioLibro::where('libro_id', $datos['libro_id'])
-            ->where('sucursal_id', $datos['sucursal_id'])
-            ->exists();
+        $sucursal = Sucursal::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($sucursal, $request->user(), 'sucursales');
+        $sucursal->findOrFail((int) $datos['sucursal_id']);
 
-        if ($existe) {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'El libro ya tiene inventario registrado en esta sucursal',
-            ], 422);
-        }
+        $resultado = app(RegistrarInventario::class)->ejecutar($datos, ContextoUsuario::desdeRequest());
 
-        $datos['existencia_minima'] = $datos['existencia_minima'] ?? 0;
-        $datos['creado_por'] = $request->user()->id;
-
-        /** @var InventarioLibro $inventario */
-        $inventario = InventarioLibro::create($datos);
-
-        if ($inventario->existencia_actual > 0) {
-            MovimientoInventarioLibro::create([
-                'inventario_libro_id' => $inventario->id,
-                'tipo_movimiento' => 'entrada',
-                'cantidad' => $inventario->existencia_actual,
-                'existencia_antes' => 0,
-                'existencia_despues' => $inventario->existencia_actual,
-                'motivo' => 'Registro inicial de inventario',
-                'creado_por' => $request->user()->id,
-            ]);
-        }
-
-        $inventario->load('libro:id,codigo,titulo', 'sucursal:id,codigo,nombre');
-
-        return response()->json([
-            'resultado' => 'A',
-            'codigo' => 0,
-            'mensaje' => 'Inventario registrado exitosamente',
-            'data' => $inventario,
-        ], 201);
+        return $this->responder($resultado);
     }
 
     public function ajustar(Request $request): JsonResponse
@@ -119,46 +99,13 @@ class InventarioLibroController extends Controller
             'motivo' => 'required|string|max:500',
         ]);
 
-        return DB::transaction(function () use ($datos, $request) {
-            /** @var InventarioLibro $inventario */
-            $inventario = InventarioLibro::lockForUpdate()->findOrFail($datos['inventario_libro_id']);
+        $inventario = InventarioLibro::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($inventario, $request->user(), 'inventario_libros');
+        $inventario->findOrFail((int) $datos['inventario_libro_id']);
 
-            $nuevaExistencia = $inventario->existencia_actual + $datos['cantidad'];
+        $resultado = app(AjustarExistencia::class)->ejecutar($datos, ContextoUsuario::desdeRequest());
 
-            if ($nuevaExistencia < 0) {
-                return response()->json([
-                    'resultado' => 'R',
-                    'codigo' => 422,
-                    'mensaje' => 'La existencia no puede ser negativa',
-                ], 422);
-            }
-
-            $tipo = $datos['cantidad'] >= 0 ? 'entrada' : 'salida';
-
-            $inventario->update([
-                'existencia_actual' => $nuevaExistencia,
-                'actualizado_por' => $request->user()->id,
-            ]);
-
-            MovimientoInventarioLibro::create([
-                'inventario_libro_id' => $inventario->id,
-                'tipo_movimiento' => $tipo,
-                'cantidad' => abs($datos['cantidad']),
-                'existencia_antes' => $inventario->existencia_actual - $datos['cantidad'],
-                'existencia_despues' => $nuevaExistencia,
-                'motivo' => $datos['motivo'],
-                'creado_por' => $request->user()->id,
-            ]);
-
-            $inventario->load('libro:id,codigo,titulo', 'sucursal:id,codigo,nombre');
-
-            return response()->json([
-                'resultado' => 'A',
-                'codigo' => 0,
-                'mensaje' => $tipo === 'entrada' ? 'Entrada registrada' : 'Salida registrada',
-                'data' => $inventario,
-            ]);
-        });
+        return $this->responder($resultado);
     }
 
     public function vender(Request $request): JsonResponse
@@ -170,55 +117,13 @@ class InventarioLibroController extends Controller
             'pago_id' => 'nullable|exists:pagos,id',
         ]);
 
-        return DB::transaction(function () use ($datos, $request) {
-            /** @var InventarioLibro $inventario */
-            $inventario = InventarioLibro::lockForUpdate()->findOrFail($datos['inventario_libro_id']);
+        $inventario = InventarioLibro::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($inventario, $request->user(), 'inventario_libros');
+        $inventario->findOrFail((int) $datos['inventario_libro_id']);
 
-            if ($inventario->existencia_actual < $datos['cantidad']) {
-                return response()->json([
-                    'resultado' => 'R',
-                    'codigo' => 422,
-                    'mensaje' => 'No hay suficiente existencia. Disponible: ' . $inventario->existencia_actual,
-                ], 422);
-            }
+        $resultado = app(VenderLibro::class)->ejecutar($datos, ContextoUsuario::desdeRequest());
 
-            $nuevaExistencia = $inventario->existencia_actual - $datos['cantidad'];
-
-            $inventario->update([
-                'existencia_actual' => $nuevaExistencia,
-                'actualizado_por' => $request->user()->id,
-            ]);
-
-            $movData = [
-                'inventario_libro_id' => $inventario->id,
-                'tipo_movimiento' => 'salida',
-                'cantidad' => $datos['cantidad'],
-                'existencia_antes' => $inventario->existencia_actual + $datos['cantidad'],
-                'existencia_despues' => $nuevaExistencia,
-                'motivo' => $datos['motivo'] ?? 'Venta de libro',
-                'creado_por' => $request->user()->id,
-            ];
-
-            if (!empty($datos['pago_id'])) {
-                $movData['referencia_type'] = \App\Models\Pago::class;
-                $movData['referencia_id'] = $datos['pago_id'];
-            }
-
-            $movimiento = MovimientoInventarioLibro::create($movData);
-
-            $inventario->load('libro:id,codigo,titulo,precio_venta', 'sucursal:id,codigo,nombre');
-
-            return response()->json([
-                'resultado' => 'A',
-                'codigo' => 0,
-                'mensaje' => 'Venta registrada',
-                'data' => [
-                    'inventario' => $inventario,
-                    'movimiento' => $movimiento,
-                    'total_venta' => $inventario->libro->precio_venta * $datos['cantidad'],
-                ],
-            ]);
-        });
+        return $this->responder($resultado);
     }
 
     public function kardex(Request $request): JsonResponse
@@ -233,7 +138,9 @@ class InventarioLibroController extends Controller
             'movimientos' => function ($q) {
                 $q->orderByDesc('movimientos_inventario_libros.id');
             },
-        ])->findOrFail($request->inventario_libro_id);
+        ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($inventario, $request->user(), 'inventario_libros');
+        $inventario = $inventario->findOrFail((int) $request->input('inventario_libro_id'));
 
         return response()->json([
             'resultado' => 'A',
@@ -241,5 +148,23 @@ class InventarioLibroController extends Controller
             'mensaje' => 'OK',
             'data' => $inventario,
         ]);
+    }
+
+    private function responder(ResultadoCasoUso $resultado): JsonResponse
+    {
+        if (! $resultado->ok()) {
+            return RespuestaError::make(
+                $resultado->codigoError() ?? 'ERROR',
+                $resultado->codigo(),
+                $resultado->mensaje()
+            )->response(request());
+        }
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => $resultado->codigo(),
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['venta'] ?? $resultado->data()['inventario'] ?? $resultado->data() ?? null,
+        ], $resultado->codigo() === 201 ? 201 : 200);
     }
 }

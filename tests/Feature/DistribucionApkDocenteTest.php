@@ -123,6 +123,56 @@ class DistribucionApkDocenteTest extends TestCase
         Storage::disk('local')->assertExists('apk-docentes/docentes-colocado.apk');
     }
 
+    public function test_admin_registra_desde_servidor_tomando_el_apk_mas_reciente(): void
+    {
+        Storage::disk('local')->put('apk-docentes/docentes-antiguo.apk', 'apk antiguo');
+        Storage::disk('local')->put('apk-docentes/docentes-reciente.apk', 'apk reciente');
+
+        touch(Storage::disk('local')->path('apk-docentes/docentes-antiguo.apk'), now()->subMinutes(10)->timestamp);
+        touch(Storage::disk('local')->path('apk-docentes/docentes-reciente.apk'), now()->timestamp);
+
+        $this->post('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.3.1', 'version_code' => 31, 'desde_servidor' => '1', 'publicar' => true,
+        ], ['Authorization' => "Bearer {$this->token}"])
+            ->assertCreated()
+            ->assertJsonPath('data.nombre_archivo', 'docentes-reciente.apk');
+
+        $this->assertDatabaseHas('publicaciones_apk_docentes', [
+            'version_code' => 31,
+            'nombre_archivo' => 'docentes-reciente.apk',
+            'sha256' => hash('sha256', 'apk reciente'),
+        ]);
+    }
+
+    public function test_publicar_nueva_version_despublica_la_anterior_y_actualiza_url_publica(): void
+    {
+        $this->post('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.1.1', 'version_code' => 11,
+            'archivo' => UploadedFile::fake()->create('docentes-v011.apk', 32, 'application/vnd.android.package-archive'),
+            'publicar' => true,
+        ], ['Authorization' => "Bearer {$this->token}"])->assertCreated();
+
+        $this->post('/api/v1/distribucion-apk/docentes', [
+            'version' => '0.1.3', 'version_code' => 13,
+            'archivo' => UploadedFile::fake()->create('docentes-v013.apk', 32, 'application/vnd.android.package-archive'),
+            'publicar' => true,
+        ], ['Authorization' => "Bearer {$this->token}"])->assertCreated();
+
+        $this->assertDatabaseHas('publicaciones_apk_docentes', [
+            'version_code' => 11,
+            'publicado' => false,
+        ]);
+        $this->assertDatabaseHas('publicaciones_apk_docentes', [
+            'version_code' => 13,
+            'publicado' => true,
+        ]);
+
+        $this->get('/apk/docentes')
+            ->assertOk()
+            ->assertSee('Versión 0.1.3')
+            ->assertDontSee('Versión 0.1.1');
+    }
+
     public function test_no_registra_desde_servidor_si_no_hay_apk_colocado(): void
     {
         Storage::disk('local')->deleteDirectory('apk-docentes');

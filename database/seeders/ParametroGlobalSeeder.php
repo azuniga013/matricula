@@ -31,6 +31,13 @@ class ParametroGlobalSeeder extends Seeder
 
             // Reportes
             ['grupo' => '01', 'codigo' => 'REPORTE_PIE_PAGINA', 'nombre' => 'Pie de página de reportes', 'valor' => 'Documento generado por el sistema de Cursos San Vicente de Paúl', 'tipo' => 'texto', 'descripcion' => 'Texto que aparece al pie de los reportes PDF'],
+
+            // Notificaciones de asistencia
+            ['grupo' => 'notificaciones_asistencia', 'codigo' => 'EMAIL_HABILITADO', 'nombre' => 'Email habilitado', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Permite el envío de notificaciones de asistencia por correo institucional'],
+            ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_HABILITADO', 'nombre' => 'WhatsApp habilitado', 'valor' => 'false', 'tipo' => 'booleano', 'descripcion' => 'Permite el procesamiento del canal WhatsApp para asistencia'],
+            ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_DRIVER', 'nombre' => 'Driver WhatsApp', 'valor' => 'deshabilitado', 'tipo' => 'seleccion', 'opciones' => ['deshabilitado', 'stub', 'meta_cloud_api'], 'descripcion' => 'Driver configurado para el canal WhatsApp de asistencia'],
+            ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_REMITENTE', 'nombre' => 'Remitente WhatsApp', 'valor' => '', 'tipo' => 'texto', 'descripcion' => 'Identificador o número remitente del proveedor oficial de WhatsApp'],
+            ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_PLANTILLA', 'nombre' => 'Plantilla WhatsApp', 'valor' => 'asistencia_basica', 'tipo' => 'texto', 'descripcion' => 'Plantilla oficial aprobada para enviar faltas o tardanzas por WhatsApp'],
         ];
 
         foreach ($parametros as $p) {

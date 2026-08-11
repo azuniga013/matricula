@@ -13,6 +13,7 @@ class Estudiante extends Model
     use HasFactory;
 
     protected $table = 'estudiantes';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -70,6 +71,11 @@ class Estudiante extends Model
         return $this->hasMany(Pago::class, 'estudiante_id');
     }
 
+    public function contactosResponsable(): HasMany
+    {
+        return $this->hasMany(ContactoResponsableEstudiante::class, 'estudiante_id');
+    }
+
     public function recibos(): HasMany
     {
         return $this->hasMany(ReciboCaja::class, 'estudiante_id');
@@ -97,7 +103,7 @@ class Estudiante extends Model
 
     public function getCorreoEnmascaradoAttribute(): ?string
     {
-        if (!$this->correo) {
+        if (! $this->correo) {
             return null;
         }
         $parts = explode('@', $this->correo);
@@ -105,20 +111,22 @@ class Estudiante extends Model
         $dominio = $parts[1] ?? '';
         $len = strlen($local);
         if ($len <= 2) {
-            return str_repeat('*', $len) . '@' . $dominio;
+            return str_repeat('*', $len).'@'.$dominio;
         }
-        return substr($local, 0, 2) . str_repeat('*', $len - 2) . '@' . $dominio;
+
+        return substr($local, 0, 2).str_repeat('*', $len - 2).'@'.$dominio;
     }
 
     public function getTelefonoEnmascaradoAttribute(): ?string
     {
-        if (!$this->telefono) {
+        if (! $this->telefono) {
             return null;
         }
         $len = strlen($this->telefono);
         if ($len <= 4) {
             return str_repeat('*', $len);
         }
-        return str_repeat('*', $len - 4) . substr($this->telefono, -4);
+
+        return str_repeat('*', $len - 4).substr($this->telefono, -4);
     }
 }

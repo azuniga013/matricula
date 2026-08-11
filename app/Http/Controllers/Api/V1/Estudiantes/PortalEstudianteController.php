@@ -2,30 +2,40 @@
 
 namespace App\Http\Controllers\Api\V1\Estudiantes;
 
+use App\Helpers\RespuestaError;
+use App\Http\Controllers\Concerns\ValidaConflictoHorario;
+use App\Http\Controllers\Concerns\ValidaPrerrequisitos;
 use App\Http\Controllers\Controller;
-use App\Models\EnlacePago;
+use App\Models\AplicacionPago;
 use App\Models\Calificacion;
 use App\Models\CertificadoElectronico;
-use App\Models\Matricula;
+use App\Models\ComprobantePago;
+use App\Models\ConceptoPago;
+use App\Models\CuentaBancaria;
+use App\Models\EnlacePago;
 use App\Models\HistorialAcademico;
+use App\Models\Matricula;
+use App\Models\MetodoPago;
 use App\Models\ObligacionPagoEstudiante;
 use App\Models\OfertaAcademica;
 use App\Models\Pago;
-use App\Models\AplicacionPago;
-use App\Models\ConceptoPago;
-use App\Models\CuentaBancaria;
-use App\Services\ServicioNomenclatura;
-use App\Services\ResolutorFlujoMatricula;
+use App\Models\PeriodoAcademico;
 use App\Services\DetectorPagoDuplicado;
+use App\Services\Pagos\ValidadorReglasPago;
+use App\Services\ResolutorFlujoMatricula;
+use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class PortalEstudianteController extends Controller
 {
-    use \App\Http\Controllers\Concerns\ValidaConflictoHorario;
-    use \App\Http\Controllers\Concerns\ValidaPrerrequisitos;
+    use ValidaConflictoHorario;
+    use ValidaPrerrequisitos;
+
     public function misOfertas(Request $request): JsonResponse
     {
         $estudiante = $request->attributes->get('estudiante');
@@ -33,9 +43,9 @@ class PortalEstudianteController extends Controller
             'plan_estudio_id' => 'nullable|exists:planes_estudio,id',
         ]);
 
-        $periodoActivo = \App\Models\PeriodoAcademico::abierto()->orderByDesc('fecha_inicio')->first();
+        $periodoActivo = PeriodoAcademico::abierto()->orderByDesc('fecha_inicio')->first();
 
-        if (!$periodoActivo) {
+        if (! $periodoActivo) {
             return response()->json([
                 'resultado' => 'A',
                 'codigo' => 0,
@@ -47,7 +57,7 @@ class PortalEstudianteController extends Controller
             ]);
         }
 
-        $nivelesAprobados = \App\Models\HistorialAcademico::where('estudiante_id', $estudiante->id)
+        $nivelesAprobados = HistorialAcademico::where('estudiante_id', $estudiante->id)
             ->where('estado', 'aprobado')
             ->pluck('nivel_academico_id')
             ->unique()
@@ -122,9 +132,9 @@ class PortalEstudianteController extends Controller
                 'plan_estudio_nombre' => $o->nivelAcademico->versionPlanEstudio?->planEstudio?->nombre,
                 'regimen' => $o->nivelAcademico->regimenAcademico->nombre ?? null,
                 'modalidad' => $o->modalidad->nombre,
-                'horario' => $o->horario ? $o->horario->hora_inicio . ' - ' . $o->horario->hora_fin : null,
+                'horario' => $o->horario ? $o->horario->hora_inicio.' - '.$o->horario->hora_fin : null,
                 'horario_detalle' => $o->horario?->nombre,
-                'docente' => $o->docente ? trim($o->docente->nombre . ' ' . $o->docente->apellido) : null,
+                'docente' => $o->docente ? trim($o->docente->nombre.' '.$o->docente->apellido) : null,
                 'cupos_disponibles' => $o->cupos_disponibles,
                 'monto_total' => $o->planCobro ? $o->planCobro->detalles->sum('monto') : null,
                 'periodo' => $o->periodoAcademico->nombre ?? null,
@@ -136,7 +146,7 @@ class PortalEstudianteController extends Controller
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
-                'mensaje' => 'OK',
+            'mensaje' => 'OK',
             'data' => [
                 'periodo_actual' => $periodoActivo ? [
                     'id' => $periodoActivo->id,
@@ -161,8 +171,8 @@ class PortalEstudianteController extends Controller
 
         $oferta = OfertaAcademica::with(['periodoAcademico', 'nivelAcademico.versionPlanEstudio'])->findOrFail($datos['oferta_academica_id']);
 
-        if (!empty($datos['plan_estudio_id']) && (int) $datos['plan_estudio_id'] !== (int) $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id) {
-            return \App\Helpers\RespuestaError::make('422_OFERTA_NO_PERTENECE_PLAN', 422, 'La oferta seleccionada no pertenece al plan de estudio indicado')
+        if (! empty($datos['plan_estudio_id']) && (int) $datos['plan_estudio_id'] !== (int) $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id) {
+            return RespuestaError::make('422_OFERTA_NO_PERTENECE_PLAN', 422, 'La oferta seleccionada no pertenece al plan de estudio indicado')
                 ->response($request);
         }
 
@@ -172,33 +182,33 @@ class PortalEstudianteController extends Controller
             ->whereHas('ofertaAcademica.nivelAcademico.versionPlanEstudio', fn ($version) => $version->where('plan_estudio_id', '!=', $planOfertaId))
             ->exists();
         if ($tieneOtroPlanActivo) {
-            return \App\Helpers\RespuestaError::make('422_PLAN_ACTIVO_DISTINTO', 422, 'Ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.')
+            return RespuestaError::make('422_PLAN_ACTIVO_DISTINTO', 422, 'Ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.')
                 ->response($request);
         }
 
         if ($oferta->sucursal_id !== $estudiante->sucursal_id) {
-            return \App\Helpers\RespuestaError::make('422_OFERTA_NO_PERTENECE_SUCURSAL', 422, 'La oferta no pertenece a su sucursal')
+            return RespuestaError::make('422_OFERTA_NO_PERTENECE_SUCURSAL', 422, 'La oferta no pertenece a su sucursal')
                 ->response($request);
         }
 
         if ($oferta->estado !== 'abierto') {
-            return \App\Helpers\RespuestaError::make('422_OFERTA_NO_ABIERTA', 422, 'La oferta no está abierta para matrícula')
+            return RespuestaError::make('422_OFERTA_NO_ABIERTA', 422, 'La oferta no está abierta para matrícula')
                 ->response($request);
         }
 
-        if (!$oferta->periodoAcademico?->estaAbierto()) {
-            return \App\Helpers\RespuestaError::make('422_PERIODO_NO_ABIERTO', 422, 'El período académico no está abierto para matrícula')
+        if (! $oferta->periodoAcademico?->estaAbierto()) {
+            return RespuestaError::make('422_PERIODO_NO_ABIERTO', 422, 'El período académico no está abierto para matrícula')
                 ->response($request);
         }
 
         if ($oferta->cupos_disponibles <= 0) {
-            return \App\Helpers\RespuestaError::make('422_SIN_CUPO', 422, 'No hay cupos disponibles en esta oferta')
+            return RespuestaError::make('422_SIN_CUPO', 422, 'No hay cupos disponibles en esta oferta')
                 ->response($request);
         }
 
         $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', $oferta->planCobro?->detalles?->first()?->concepto_pago_id, null);
         if (empty($configFlujo['habilita_reserva_cupo'])) {
-            return \App\Helpers\RespuestaError::make('422_FLUJO_MATRICULA_DESHABILITADO', 422, 'La reserva de cupo está deshabilitada para este proceso')
+            return RespuestaError::make('422_FLUJO_MATRICULA_DESHABILITADO', 422, 'La reserva de cupo está deshabilitada para este proceso')
                 ->response($request);
         }
 
@@ -206,12 +216,12 @@ class PortalEstudianteController extends Controller
             ->whereIn('estado', ['reservada', 'en_revision', 'matriculado'])
             ->whereHas('ofertaAcademica', function ($q) use ($oferta) {
                 $q->where('periodo_academico_id', $oferta->periodo_academico_id)
-                  ->where('nivel_academico_id', $oferta->nivel_academico_id);
+                    ->where('nivel_academico_id', $oferta->nivel_academico_id);
             })
             ->exists();
 
         if ($yaMatriculadoEnPeriodo) {
-            return \App\Helpers\RespuestaError::make('422_MATRICULA_DUPLICADA_PERIODO', 422, 'Ya tiene ese nivel matriculado en el mismo período')
+            return RespuestaError::make('422_MATRICULA_DUPLICADA_PERIODO', 422, 'Ya tiene ese nivel matriculado en el mismo período')
                 ->response($request);
         }
 
@@ -220,30 +230,30 @@ class PortalEstudianteController extends Controller
             ->first();
 
         if ($matriculaExistente && in_array($matriculaExistente->estado, ['reservada', 'en_revision', 'matriculado'])) {
-            return \App\Helpers\RespuestaError::make('422_MATRICULA_DUPLICADA', 422, 'Ya tiene una matrícula activa en esta oferta')
+            return RespuestaError::make('422_MATRICULA_DUPLICADA', 422, 'Ya tiene una matrícula activa en esta oferta')
                 ->response($request);
         }
 
         $prerrequisitos = $this->validarPrerrequisitos($estudiante->id, $oferta->id);
         if ($prerrequisitos) {
-            return \App\Helpers\RespuestaError::make('422_PRERREQUISITOS_NO_CUMPLIDOS', 422, $prerrequisitos)
+            return RespuestaError::make('422_PRERREQUISITOS_NO_CUMPLIDOS', 422, $prerrequisitos)
                 ->response($request);
         }
 
         $conflicto = $this->validarConflictoHorario($estudiante->id, $oferta->id);
         if ($conflicto) {
-            return \App\Helpers\RespuestaError::make('422_CONFLICTO_HORARIO', 422, $conflicto)
+            return RespuestaError::make('422_CONFLICTO_HORARIO', 422, $conflicto)
                 ->response($request);
         }
 
-        $matriculaResultado = \Illuminate\Support\Facades\DB::transaction(function () use ($estudiante, $oferta, $matriculaExistente) {
+        $matriculaResultado = DB::transaction(function () use ($estudiante, $oferta, $matriculaExistente) {
             if ($matriculaExistente && in_array($matriculaExistente->estado, ['cancelado', 'rechazado'])) {
                 $matriculaExistente = Matricula::lockForUpdate()->find($matriculaExistente->id);
                 $tienePagos = $matriculaExistente->obligaciones()
                     ->whereHas('aplicaciones')
                     ->exists();
 
-                if (!$tienePagos) {
+                if (! $tienePagos) {
                     $matriculaExistente->obligaciones()->delete();
                     $matriculaExistente->update([
                         'estado' => 'reservada',
@@ -252,7 +262,7 @@ class PortalEstudianteController extends Controller
                     $matricula = $matriculaExistente;
                 } else {
                     $codigo = app(ServicioNomenclatura::class)->generarCodigo(
-                        entidad: 'matriculas_' . date('Y'),
+                        entidad: 'matriculas_'.date('Y'),
                         formato: 'MAT-{ANIO}-{SECUENCIA:8}',
                         longitudSecuencia: 8,
                         anio: date('Y'),
@@ -268,7 +278,7 @@ class PortalEstudianteController extends Controller
                 }
             } else {
                 $codigo = app(ServicioNomenclatura::class)->generarCodigo(
-                    entidad: 'matriculas_' . date('Y'),
+                    entidad: 'matriculas_'.date('Y'),
                     formato: 'MAT-{ANIO}-{SECUENCIA:8}',
                     longitudSecuencia: 8,
                     anio: date('Y'),
@@ -339,12 +349,12 @@ class PortalEstudianteController extends Controller
                 'fecha_confirmacion' => $m->fecha_confirmacion?->format('d/m/Y'),
                 'nivel' => $m->ofertaAcademica->nivelAcademico->nombre ?? null,
                 'horario' => $m->ofertaAcademica->horario
-                    ? $m->ofertaAcademica->horario->hora_inicio . ' - ' . $m->ofertaAcademica->horario->hora_fin
+                    ? $m->ofertaAcademica->horario->hora_inicio.' - '.$m->ofertaAcademica->horario->hora_fin
                     : null,
                 'regimen' => $m->ofertaAcademica->nivelAcademico->regimenAcademico->nombre ?? null,
                 'modalidad' => $m->ofertaAcademica->modalidad->nombre ?? null,
                 'docente' => $m->ofertaAcademica->docente
-                    ? trim($m->ofertaAcademica->docente->nombre . ' ' . $m->ofertaAcademica->docente->apellido)
+                    ? trim($m->ofertaAcademica->docente->nombre.' '.$m->ofertaAcademica->docente->apellido)
                     : null,
             ]);
 
@@ -371,9 +381,9 @@ class PortalEstudianteController extends Controller
             'obligacion_ids.*' => 'integer|exists:obligaciones_pago_estudiante,id',
         ]);
 
-        $metodo = \App\Models\MetodoPago::findOrFail($datos['metodo_pago_id']);
+        $metodo = MetodoPago::findOrFail($datos['metodo_pago_id']);
         $validacion = $this->validarReferenciaFechaMetodo($datos, $metodo->id);
-        if (!$validacion['ok']) {
+        if (! $validacion['ok']) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -395,7 +405,7 @@ class PortalEstudianteController extends Controller
             ], 422);
         }
 
-        if (!in_array($matricula->estado, ['reservada', 'matriculado'])) {
+        if (! in_array($matricula->estado, ['reservada', 'matriculado'])) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -405,7 +415,7 @@ class PortalEstudianteController extends Controller
 
         $obligacionesQuery = $matricula->obligaciones()->where('estado', 'pendiente');
 
-        if (!empty($datos['obligacion_ids'])) {
+        if (! empty($datos['obligacion_ids'])) {
             $matConceptoId = ConceptoPago::where('codigo', 'MAT')->value('id');
             $tieneMatPendiente = $matricula->obligaciones()
                 ->where('estado', 'pendiente')
@@ -418,7 +428,7 @@ class PortalEstudianteController extends Controller
                     ->where('concepto_pago_id', $matConceptoId)
                     ->exists();
 
-                if (!$matIncluida) {
+                if (! $matIncluida) {
                     return response()->json([
                         'resultado' => 'R',
                         'codigo' => 422,
@@ -447,7 +457,7 @@ class PortalEstudianteController extends Controller
         $obligacionIds = $obligaciones->pluck('id')->toArray();
 
         $estadosSolicitudActiva = ['solicita_link', 'esperando_respuesta', 'en_revision'];
-        $yaSolicitado = \App\Models\AplicacionPago::whereIn('obligacion_pago_estudiante_id', $obligacionIds)
+        $yaSolicitado = AplicacionPago::whereIn('obligacion_pago_estudiante_id', $obligacionIds)
             ->whereHas('pago', function ($q) use ($estudiante, $estadosSolicitudActiva) {
                 $q->where('estudiante_id', $estudiante->id)
                     ->whereIn('estado', $estadosSolicitudActiva);
@@ -462,17 +472,29 @@ class PortalEstudianteController extends Controller
             ], 422);
         }
 
-        $montoTotal = $obligaciones->sum(fn($o) => $o->saldoPendiente());
+        $montoTotal = $obligaciones->sum(fn ($o) => $o->saldoPendiente());
         $primerConcepto = $obligaciones->first()->conceptoPago;
 
         $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', $primerConcepto->id, $metodo->id);
 
         $referenciaLimpia = $validacion['referencia'];
         $fechaProcesoCarbon = $validacion['fecha_carbon'];
+        $validadorReglas = app(ValidadorReglasPago::class);
+        $solicitaLink = $validadorReglas->debeSolicitarLink(! empty($datos['solicitar_link']), $metodo);
 
-        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $metodo, $cuentaBancaria, $configFlujo, $referenciaLimpia, $fechaProcesoCarbon) {
+        $errorLink = $validadorReglas->validarSolicitudLink($configFlujo, $metodo, $solicitaLink);
+        if ($errorLink) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => $errorLink['codigo_error'],
+                'mensaje' => $errorLink['mensaje'],
+            ], 422);
+        }
+
+        $resultado = DB::transaction(function () use ($estudiante, $matricula, $datos, $montoTotal, $primerConcepto, $obligacionIds, $obligaciones, $cuentaBancaria, $solicitaLink, $referenciaLimpia, $fechaProcesoCarbon) {
             $codigoPago = app(ServicioNomenclatura::class)->generarCodigo(
-                entidad: 'pagos_' . date('Y'),
+                entidad: 'pagos_'.date('Y'),
                 formato: 'PAG-{ANIO}-{SECUENCIA:6}',
                 longitudSecuencia: 6,
                 anio: date('Y'),
@@ -487,10 +509,11 @@ class PortalEstudianteController extends Controller
                 'cuenta_bancaria_id' => $cuentaBancaria?->id,
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $montoTotal,
-                'estado' => (!empty($datos['solicitar_link']) || $metodo->permite_link_pago || $metodo->codigo === 'LNK') ? 'solicita_link' : 'pendiente',
+                'estado' => $solicitaLink ? 'solicita_link' : 'pendiente',
                 'referencia_externa' => $referenciaLimpia ?? ($datos['referencia'] ?? null),
+                'fecha_proceso' => $fechaProcesoCarbon,
                 'fecha_deposito' => $fechaProcesoCarbon,
-                'creado_en' => now(),
+                'creado_en' => $fechaProcesoCarbon,
             ]);
 
             $obligacionesMap = $obligaciones->keyBy('id');
@@ -512,13 +535,13 @@ class PortalEstudianteController extends Controller
         $duplicado = app(DetectorPagoDuplicado::class)->aplicar(
             $resultado,
             $resultado->referencia_externa,
-            $resultado->fecha_deposito ? \Illuminate\Support\Carbon::instance($resultado->fecha_deposito) : null
+            $resultado->fecha_deposito ? Carbon::instance($resultado->fecha_deposito) : null
         );
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
-            'mensaje' => (!empty($datos['solicitar_link']) || $metodo->permite_link_pago) ? 'Solicitud de link enviada a contabilidad.' : 'Pago registrado. Ahora puede subir su comprobante.',
+            'mensaje' => $solicitaLink ? 'Solicitud de link enviada a contabilidad.' : 'Pago registrado. Ahora puede subir su comprobante.',
             'data' => [
                 'pago_id' => $resultado->id,
                 'codigo' => $resultado->codigo,
@@ -555,7 +578,7 @@ class PortalEstudianteController extends Controller
             ], 422);
         }
 
-        if (!in_array($pago->estado, ['pendiente', 'rechazado'])) {
+        if (! in_array($pago->estado, ['pendiente', 'rechazado'])) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -563,9 +586,9 @@ class PortalEstudianteController extends Controller
             ], 422);
         }
 
-        $metodo = \App\Models\MetodoPago::findOrFail($datos['metodo_pago_id']);
+        $metodo = MetodoPago::findOrFail($datos['metodo_pago_id']);
         $validacion = $this->validarReferenciaFechaMetodo($datos, $metodo->id);
-        if (!$validacion['ok']) {
+        if (! $validacion['ok']) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -587,16 +610,16 @@ class PortalEstudianteController extends Controller
         if (empty($configFlujo['habilita_carga_comprobante'])) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'La carga de comprobante está deshabilitada para este proceso'], 422);
         }
-        if (!empty($configFlujo['requiere_comprobante']) && !$metodo->permite_link_pago && !$request->hasFile('comprobante')) {
+        if (! empty($configFlujo['requiere_comprobante']) && ! $metodo->permite_link_pago && ! $request->hasFile('comprobante')) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'Este proceso requiere comprobante'], 422);
         }
 
         if ($request->hasFile('comprobante')) {
             $archivo = $request->file('comprobante');
-            $nombreArchivo = time() . '_' . Str::random(10) . '.' . $archivo->getClientOriginalExtension();
+            $nombreArchivo = time().'_'.Str::random(10).'.'.$archivo->getClientOriginalExtension();
             $ruta = $archivo->storeAs('comprobantes', $nombreArchivo, 'public');
 
-            \App\Models\ComprobantePago::create([
+            ComprobantePago::create([
                 'pago_id' => $pago->id,
                 'nombre_archivo' => $archivo->getClientOriginalName(),
                 'ruta_archivo' => $ruta,
@@ -628,7 +651,7 @@ class PortalEstudianteController extends Controller
         app(DetectorPagoDuplicado::class)->aplicar(
             $pago->fresh(),
             $pago->fresh()->referencia_externa,
-            $pago->fresh()->fecha_deposito ? \Illuminate\Support\Carbon::instance($pago->fresh()->fecha_deposito) : null
+            $pago->fresh()->fecha_deposito ? Carbon::instance($pago->fresh()->fecha_deposito) : null
         );
 
         if ($pago->matricula_id) {
@@ -674,7 +697,7 @@ class PortalEstudianteController extends Controller
                 'matricula_nivel' => $p->matricula?->ofertaAcademica?->nivelAcademico?->nombre,
                 'obligaciones_total' => $p->aplicaciones->sum(fn ($a) => $a->monto_aplicado),
                 'obligaciones_seleccionadas' => $p->aplicaciones->pluck('obligacion_pago_estudiante_id')->values()->all(),
-                'fecha' => $p->creado_en?->format('d/m/Y H:i'),
+                'fecha' => $p->fecha_proceso?->format('d/m/Y H:i'),
                 'motivo_rechazo' => $p->motivo_rechazo,
                 'link_pago_url' => $p->link_pago_url,
                 'link_pago_estado' => $p->link_pago_estado,
@@ -684,7 +707,7 @@ class PortalEstudianteController extends Controller
                     ? $p->matricula->ofertaAcademica->grupoWhatsapp->nombre : null,
                 'recibo_id' => $p->reciboCaja?->id,
                 'numero_recibo' => $p->reciboCaja?->numero_recibo,
-                'fecha_recibo' => $p->reciboCaja?->fecha_recibo?->format('d/m/Y H:i') ?? $p->reciboCaja?->fecha_proceso?->format('d/m/Y H:i') ?? null,
+                'fecha_recibo' => $p->reciboCaja?->fecha_recibo?->format('d/m/Y H:i'),
                 'tiene_comprobante' => $p->comprobantes->isNotEmpty(),
                 'comprobantes' => $p->comprobantes->map(fn ($c) => [
                     'id' => $c->id,
@@ -692,7 +715,7 @@ class PortalEstudianteController extends Controller
                     'tipo_archivo' => $c->tipo_archivo,
                     'estado' => $c->estado,
                     'fecha' => $c->creado_en?->format('d/m/Y H:i'),
-                    'ruta_descarga' => $c->ruta_archivo ? \Illuminate\Support\Facades\Storage::url($c->ruta_archivo) : null,
+                    'ruta_descarga' => $c->ruta_archivo ? Storage::url($c->ruta_archivo) : null,
                 ])->values(),
             ]);
 
@@ -709,7 +732,7 @@ class PortalEstudianteController extends Controller
         $estudiante = $request->attributes->get('estudiante');
 
         if ((int) $pago->estudiante_id !== (int) $estudiante->id) {
-            return \App\Helpers\RespuestaError::noEncontrado('Pago')->response($request);
+            return RespuestaError::noEncontrado('Pago')->response($request);
         }
 
         DB::transaction(function () use ($pago) {
@@ -753,7 +776,7 @@ class PortalEstudianteController extends Controller
         $recibos = $estudiante->recibos()
             ->with(['conceptoPago', 'metodoPago', 'pago:id,codigo'])
             ->where('estado', '!=', 'anulado')
-            ->latest('fecha_recibo')
+            ->orderByRaw('COALESCE(fecha_recibo, fecha_proceso, creado_en) DESC')
             ->get()
             ->map(fn ($r) => [
                 'id' => $r->id,
@@ -793,7 +816,7 @@ class PortalEstudianteController extends Controller
             ->latest('fecha_confirmacion')
             ->first();
 
-        if (!$matricula || !$matricula->ofertaAcademica) {
+        if (! $matricula || ! $matricula->ofertaAcademica) {
             return response()->json([
                 'resultado' => 'A',
                 'codigo' => 0,
@@ -812,10 +835,10 @@ class PortalEstudianteController extends Controller
                 'nivel_codigo' => $o->nivelAcademico->codigo,
                 'nivel_nombre' => $o->nivelAcademico->nombre,
                 'periodo' => $o->periodoAcademico->nombre ?? null,
-                'horario' => $o->horario ? $o->horario->hora_inicio . ' - ' . $o->horario->hora_fin : null,
+                'horario' => $o->horario ? $o->horario->hora_inicio.' - '.$o->horario->hora_fin : null,
                 'regimen' => $o->nivelAcademico->regimenAcademico->nombre ?? null,
                 'modalidad' => $o->modalidad->nombre ?? null,
-                'docente' => $o->docente ? trim($o->docente->nombre . ' ' . $o->docente->apellido) : null,
+                'docente' => $o->docente ? trim($o->docente->nombre.' '.$o->docente->apellido) : null,
             ],
         ]);
     }
@@ -825,11 +848,11 @@ class PortalEstudianteController extends Controller
         $estudiante = $request->attributes->get('estudiante');
 
         $calificaciones = Calificacion::with([
-                'matricula.ofertaAcademica.nivelAcademico:id,codigo,nombre',
-                'matricula.ofertaAcademica.periodoAcademico:id,codigo,nombre',
-                'matricula.ofertaAcademica.horario:id,codigo,nombre,hora_inicio,hora_fin',
-                'matricula.ofertaAcademica.docente:id,codigo,nombre,apellido',
-            ])
+            'matricula.ofertaAcademica.nivelAcademico:id,codigo,nombre',
+            'matricula.ofertaAcademica.periodoAcademico:id,codigo,nombre',
+            'matricula.ofertaAcademica.horario:id,codigo,nombre,hora_inicio,hora_fin',
+            'matricula.ofertaAcademica.docente:id,codigo,nombre,apellido',
+        ])
             ->where('estudiante_id', $estudiante->id)
             ->orderByDesc('calificaciones.id')
             ->get()
@@ -839,10 +862,10 @@ class PortalEstudianteController extends Controller
                 'nivel' => $c->matricula?->ofertaAcademica?->nivelAcademico?->nombre,
                 'periodo' => $c->matricula?->ofertaAcademica?->periodoAcademico?->nombre,
                 'horario' => $c->matricula?->ofertaAcademica?->horario
-                    ? $c->matricula->ofertaAcademica->horario->hora_inicio . ' - ' . $c->matricula->ofertaAcademica->horario->hora_fin
+                    ? $c->matricula->ofertaAcademica->horario->hora_inicio.' - '.$c->matricula->ofertaAcademica->horario->hora_fin
                     : null,
                 'docente' => $c->matricula?->ofertaAcademica?->docente
-                    ? trim($c->matricula->ofertaAcademica->docente->nombre . ' ' . $c->matricula->ofertaAcademica->docente->apellido)
+                    ? trim($c->matricula->ofertaAcademica->docente->nombre.' '.$c->matricula->ofertaAcademica->docente->apellido)
                     : null,
                 'nota_final' => $c->nota_final,
                 'faltas' => $c->faltas,
@@ -882,7 +905,7 @@ class PortalEstudianteController extends Controller
                     ->orWhereColumn('usos_actuales', '<', 'usos_maximos');
             });
 
-        if (!empty($conceptoIds)) {
+        if (! empty($conceptoIds)) {
             $query->whereIn('concepto_pago_id', $conceptoIds);
         }
 
@@ -910,7 +933,7 @@ class PortalEstudianteController extends Controller
 
         $pago = Pago::where('estudiante_id', $estudiante->id)->findOrFail($datos['pago_id']);
 
-        if (!in_array($pago->estado, ['solicita_link', 'esperando_respuesta']) || empty($pago->link_pago_url)) {
+        if (! in_array($pago->estado, ['solicita_link', 'esperando_respuesta']) || empty($pago->link_pago_url)) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'El enlace de pago todavía no está disponible o ya fue respondido'], 422);
         }
 
@@ -942,16 +965,21 @@ class PortalEstudianteController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($datos['pago_id']);
 
+            $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_estudiante', $pago->concepto_pago_id, $pago->metodo_pago_id);
+            if (empty($configFlujo['habilita_reenganche'])) {
+                return ['ok' => false, 'codigo' => 422, 'mensaje' => 'El reenganche de flujo está deshabilitado para este proceso.'];
+            }
+
             if ($pago->estado === 'aprobado') {
                 return ['ok' => false, 'codigo' => 422, 'mensaje' => 'El pago ya fue aprobado y no requiere reenganche.'];
             }
 
-            if (!$pago->matricula_id || !$pago->matricula) {
+            if (! $pago->matricula_id || ! $pago->matricula) {
                 return ['ok' => false, 'codigo' => 422, 'mensaje' => 'El pago no tiene matrícula asociada.'];
             }
 
             $matricula = Matricula::lockForUpdate()->find($pago->matricula_id);
-            if (!$matricula) {
+            if (! $matricula) {
                 return ['ok' => false, 'codigo' => 404, 'mensaje' => 'La matrícula ya no existe.'];
             }
 
@@ -998,7 +1026,7 @@ class PortalEstudianteController extends Controller
             ];
         });
 
-        if (!$resultado['ok']) {
+        if (! $resultado['ok']) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => $resultado['codigo'],
@@ -1036,7 +1064,7 @@ class PortalEstudianteController extends Controller
             ->latest('fecha_confirmacion')
             ->first();
 
-        if (!$matricula || !$matricula->ofertaAcademica || !$matricula->ofertaAcademica->grupoWhatsapp) {
+        if (! $matricula || ! $matricula->ofertaAcademica || ! $matricula->ofertaAcademica->grupoWhatsapp) {
             return response()->json([
                 'resultado' => 'A',
                 'codigo' => 0,
@@ -1045,17 +1073,35 @@ class PortalEstudianteController extends Controller
             ]);
         }
 
-        $tienePagoAprobado = $estudiante->pagos()
+        $pagoAprobado = $estudiante->pagos()
             ->where('matricula_id', $matricula->id)
             ->where('estado', 'aprobado')
-            ->exists();
+            ->latest('id')
+            ->first();
+
+        if (! $pagoAprobado) {
+            return response()->json([
+                'resultado' => 'A',
+                'codigo' => 0,
+                'mensaje' => 'OK',
+                'data' => ['whatsapp_link' => null],
+            ]);
+        }
+
+        $configFlujo = app(ResolutorFlujoMatricula::class)->resolver(
+            'portal_estudiante',
+            $pagoAprobado->concepto_pago_id,
+            $pagoAprobado->metodo_pago_id,
+        );
+
+        $habilitaWhatsapp = ! empty($configFlujo['habilita_whatsapp']);
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'OK',
             'data' => [
-                'whatsapp_link' => $tienePagoAprobado ? $matricula->ofertaAcademica->grupoWhatsapp->link : null,
+                'whatsapp_link' => $habilitaWhatsapp ? $matricula->ofertaAcademica->grupoWhatsapp->link : null,
             ],
         ]);
     }
@@ -1065,10 +1111,10 @@ class PortalEstudianteController extends Controller
         $estudiante = $request->attributes->get('estudiante');
 
         $certificados = CertificadoElectronico::with([
-                'nivelAcademico:id,codigo,nombre',
-                'historialAcademico.ofertaAcademica.periodoAcademico:id,codigo,nombre',
-                'historialAcademico.ofertaAcademica.sucursal:id,codigo,nombre',
-            ])
+            'nivelAcademico:id,codigo,nombre',
+            'historialAcademico.ofertaAcademica.periodoAcademico:id,codigo,nombre',
+            'historialAcademico.ofertaAcademica.sucursal:id,codigo,nombre',
+        ])
             ->where('estudiante_id', $estudiante->id)
             ->orderByDesc('emitido_en')
             ->get()
@@ -1096,7 +1142,7 @@ class PortalEstudianteController extends Controller
 
     private function validarReferenciaFechaMetodo(array $datos, int $metodoId): array
     {
-        $metodo = \App\Models\MetodoPago::find($metodoId);
+        $metodo = MetodoPago::find($metodoId);
         $requerido = $metodo && in_array($metodo->codigo, DetectorPagoDuplicado::METODOS_VALIDABLES, true);
 
         $referencia = isset($datos['referencia']) ? trim((string) $datos['referencia']) : '';
@@ -1105,7 +1151,7 @@ class PortalEstudianteController extends Controller
 
         if ($fechaPago) {
             try {
-                $fechaCarbon = \Illuminate\Support\Carbon::parse($fechaPago)->startOfDay();
+                $fechaCarbon = Carbon::parse($fechaPago)->startOfDay();
             } catch (\Throwable $e) {
                 $fechaCarbon = null;
             }
@@ -1115,13 +1161,13 @@ class PortalEstudianteController extends Controller
             if ($referencia === '') {
                 return [
                     'ok' => false,
-                    'error' => 'El número de referencia es obligatorio para ' . $metodo->nombre . '.',
+                    'error' => 'El número de referencia es obligatorio para '.$metodo->nombre.'.',
                 ];
             }
             if ($fechaCarbon === null) {
                 return [
                     'ok' => false,
-                    'error' => 'La fecha de pago es obligatoria para ' . $metodo->nombre . '.',
+                    'error' => 'La fecha de pago es obligatoria para '.$metodo->nombre.'.',
                 ];
             }
         }
@@ -1134,13 +1180,13 @@ class PortalEstudianteController extends Controller
         ];
     }
 
-    private function validarCuentaBancaria(\App\Models\MetodoPago $metodo, mixed $cuentaBancariaId): CuentaBancaria|false|null
+    private function validarCuentaBancaria(MetodoPago $metodo, mixed $cuentaBancariaId): CuentaBancaria|false|null
     {
-        if (!in_array($metodo->codigo, ['DEP', 'TRA'], true)) {
+        if (! in_array($metodo->codigo, ['DEP', 'TRA'], true)) {
             return null;
         }
 
-        if (!$cuentaBancariaId) {
+        if (! $cuentaBancariaId) {
             return false;
         }
 

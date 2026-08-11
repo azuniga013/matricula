@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Academico;
 
+use App\Events\AsistenciaNotificableRegistrada;
 use App\Http\Controllers\Controller;
 use App\Models\AsistenciaEstudiante;
 use App\Models\Matricula;
@@ -129,27 +130,50 @@ class AsistenciaController extends Controller
 
         return DB::transaction(function () use ($datos, $user) {
             $registradas = 0;
+            $asistenciasNotificables = [];
 
             $asistencias = $datos['asistencias'] ?? [];
             foreach ($asistencias as $item) {
-                $cuentaFalta = $item['cuenta_como_falta'] ?? (in_array($item['estado'], ['falta']));
+                $cuentaFalta = $item['cuenta_como_falta'] ?? in_array($item['estado'], ['falta'], true);
 
-                AsistenciaEstudiante::updateOrCreate(
-                    [
+                $asistencia = AsistenciaEstudiante::query()
+                    ->where('matricula_id', $item['matricula_id'])
+                    ->whereDate('fecha', $datos['fecha'])
+                    ->first();
+
+                if ($asistencia) {
+                    $asistencia->update([
+                        'oferta_academica_id' => $datos['oferta_academica_id'],
+                        'estado' => $item['estado'],
+                        'cuenta_como_falta' => $cuentaFalta,
+                        'observacion' => $item['observacion'] ?? null,
+                        'registrado_por' => $user->id,
+                        'actualizado_en' => now(),
+                    ]);
+                } else {
+                    $asistencia = AsistenciaEstudiante::create([
                         'matricula_id' => $item['matricula_id'],
                         'fecha' => $datos['fecha'],
-                    ],
-                    [
                         'oferta_academica_id' => $datos['oferta_academica_id'],
                         'estado' => $item['estado'],
                         'cuenta_como_falta' => $cuentaFalta,
                         'observacion' => $item['observacion'] ?? null,
                         'registrado_por' => $user->id,
                         'creado_por' => $user->id,
-                    ]
-                );
+                    ]);
+                }
+
+                if (in_array($asistencia->estado, ['falta', 'tardanza'], true)) {
+                    $asistenciasNotificables[] = $asistencia->id;
+                }
 
                 $registradas++;
+            }
+
+            if (! empty($asistenciasNotificables)) {
+                DB::afterCommit(function () use ($asistenciasNotificables) {
+                    event(new AsistenciaNotificableRegistrada(array_values(array_unique($asistenciasNotificables))));
+                });
             }
 
             return response()->json([

@@ -1,5 +1,11 @@
 # New session - 2026-07-24T20:09:55.090Z
 
+> Nota 2026-08-10: archivo histórico de trabajo y trazas de edición. No usar
+> como especificación vigente ni como lista activa de tareas. Puede contener
+> referencias obsoletas a `backend/`, `frontend/`, React u otros artefactos ya
+> descartados. Contrastar siempre con `docs/PENDIENTES.md`, `AGENTS.md` y los
+> documentos de patrón actuales.
+
 **Session ID:** ses_06a40516dffeNa6Mdzs2GbnvvR
 **Created:** 24/7/2026, 14:09:55
 **Updated:** 24/7/2026, 19:12:40
@@ -13721,4 +13727,3 @@ No puedo escribir archivos en modo Plan (solo lectura). Cuando salgas de este mo
 FIN
 
 ---
-

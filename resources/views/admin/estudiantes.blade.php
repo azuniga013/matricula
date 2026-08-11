@@ -87,7 +87,7 @@
             {{-- Tabs de la ficha --}}
             <div class="border-b border-gray-200 px-6">
                 <nav class="flex space-x-1 overflow-x-auto">
-                    <template x-for="t in [{id:'datos',label:'Datos'},{id:'matriculas',label:'Matrículas'},{id:'pagos',label:'Pagos'},{id:'recibos',label:'Recibos'},{id:'calificaciones',label:'Historial académico'}]" :key="t.id">
+                    <template x-for="t in [{id:'datos',label:'Datos'},{id:'responsables',label:'Responsables'},{id:'matriculas',label:'Matrículas'},{id:'pagos',label:'Pagos'},{id:'recibos',label:'Recibos'},{id:'calificaciones',label:'Historial académico'}]" :key="t.id">
                         <button @click="fichaTab = t.id" :class="fichaTab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap py-3 px-3 border-b-2 text-sm font-medium" x-text="t.label"></button>
                     </template>
                 </nav>
@@ -125,6 +125,51 @@
                             <span x-show="ficha?.es_primer_ingreso" class="badge badge-info">Primer Ingreso</span>
                             <span class="badge badge-neutral" x-text="ficha?.sucursal?.nombre || ''"></span>
                         </div>
+                    </div>
+                </div>
+
+                <div x-show="fichaTab === 'responsables'">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Contactos responsables</h4>
+                            <p class="text-sm text-gray-500">Consentimiento y canales de notificación por asistencia.</p>
+                        </div>
+                        <button x-show="ficha?.id && api.hasPermission('estudiantes.modificar')" @click="openContactoModal()" class="btn btn-primary btn-sm">Nuevo contacto</button>
+                    </div>
+
+                    <template x-if="fichaContactos.length === 0">
+                        <p class="text-sm text-gray-400 text-center py-8">Sin contactos responsables registrados</p>
+                    </template>
+
+                    <div class="table-container" x-show="fichaContactos.length > 0">
+                        <table class="table">
+                            <thead><tr><th>Nombre</th><th>Parentesco</th><th>Correo</th><th>WhatsApp</th><th>Canales</th><th>Consentimiento</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
+                            <tbody>
+                                <template x-for="c in fichaContactos" :key="c.id">
+                                    <tr>
+                                        <td class="font-medium" x-text="c.nombre"></td>
+                                        <td class="text-sm text-gray-500" x-text="c.parentesco || '-' "></td>
+                                        <td class="text-sm text-gray-500" x-text="c.correo || '-' "></td>
+                                        <td class="text-sm text-gray-500 font-mono" x-text="c.telefono_whatsapp || '-' "></td>
+                                        <td>
+                                            <div class="flex flex-wrap gap-1">
+                                                <span x-show="c.recibe_asistencia_email" class="badge badge-info">Email</span>
+                                                <span x-show="c.recibe_asistencia_whatsapp" class="badge badge-success">WhatsApp</span>
+                                                <span x-show="!c.recibe_asistencia_email && !c.recibe_asistencia_whatsapp" class="badge badge-neutral">Sin canal</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-sm text-gray-500" x-text="fmtFecha(c.consentimiento_asistencia_en) || '-' "></td>
+                                        <td><span :class="c.estado === 'activo' ? 'badge-success' : 'badge-danger'" class="badge" x-text="c.estado"></span></td>
+                                        <td class="text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button x-show="api.hasPermission('estudiantes.modificar')" @click="editContacto(c)" class="btn btn-ghost btn-sm">Editar</button>
+                                                <button x-show="api.hasPermission('estudiantes.modificar') && c.estado === 'activo'" @click="desactivarContacto(c)" class="btn btn-ghost btn-sm text-red-600">Desactivar</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -166,8 +211,8 @@
                                         <td class="text-xs text-gray-500" x-text="p.metodo_pago?.nombre || '-'"></td>
                                         <td class="font-medium">L <span x-text="fmtMonto(p.monto)"></span></td>
                                         <td><span :class="{'badge-success': p.estado === 'aprobado', 'badge-warning': p.estado === 'pendiente' || p.estado === 'en_revision', 'badge-danger': p.estado === 'rechazado'}" class="badge" x-text="p.estado"></span></td>
-                                        <td class="text-gray-500 text-xs" x-text="fmtFecha(p.creado_en)"></td>
-                                        <td class="text-gray-400 text-xs" x-text="fmtHora(p.creado_en)"></td>
+                                        <td class="text-gray-500 text-xs" x-text="fmtFecha(p.fecha_proceso || p.fecha_aprobacion || p.creado_en)"></td>
+                                        <td class="text-gray-400 text-xs" x-text="fmtHora(p.fecha_proceso || p.fecha_aprobacion || p.creado_en)"></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -343,6 +388,76 @@
             </form>
         </div>
     </div>
+
+    <div x-show="showContactoModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" @click="showContactoModal = false"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900" x-text="editingContacto ? 'Editar contacto responsable' : 'Nuevo contacto responsable'"></h3>
+                <button @click="showContactoModal = false" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
+            </div>
+            <form @submit.prevent="saveContacto()" class="p-6 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label">Nombre</label>
+                        <input x-model="contactoForm.nombre" type="text" required class="input">
+                    </div>
+                    <div>
+                        <label class="label">Parentesco</label>
+                        <input x-model="contactoForm.parentesco" type="text" class="input" placeholder="madre, padre, tutor...">
+                    </div>
+                    <div>
+                        <label class="label">Correo</label>
+                        <input x-model="contactoForm.correo" type="email" class="input">
+                    </div>
+                    <div>
+                        <label class="label">WhatsApp</label>
+                        <input x-model="contactoForm.telefono_whatsapp" type="text" class="input" placeholder="+50499990000">
+                    </div>
+                    <div>
+                        <label class="label">Prioridad</label>
+                        <input x-model="contactoForm.prioridad" type="number" min="1" max="99" class="input">
+                    </div>
+                    <div>
+                        <label class="label">Consentimiento</label>
+                        <input x-model="contactoForm.consentimiento_asistencia_en" type="datetime-local" class="input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="label">Evidencia de consentimiento</label>
+                        <textarea x-model="contactoForm.consentimiento_evidencia" class="input min-h-[90px]" placeholder="Referencia, observación o evidencia resumida"></textarea>
+                    </div>
+                    <div>
+                        <label class="label">Vigente desde</label>
+                        <input x-model="contactoForm.vigente_desde" type="date" class="input">
+                    </div>
+                    <div>
+                        <label class="label">Vigente hasta</label>
+                        <input x-model="contactoForm.vigente_hasta" type="date" class="input">
+                    </div>
+                    <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <label class="flex items-center gap-2"><input x-model="contactoForm.recibe_asistencia_email" type="checkbox" class="rounded"> <span>Email asistencia</span></label>
+                        <label class="flex items-center gap-2"><input x-model="contactoForm.recibe_asistencia_whatsapp" type="checkbox" class="rounded"> <span>WhatsApp asistencia</span></label>
+                        <div>
+                            <label class="label">Estado</label>
+                            <select x-model="contactoForm.estado" class="input">
+                                <option value="activo">activo</option>
+                                <option value="inactivo">inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="contactoError" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                    <p class="text-sm text-red-600 font-medium" x-text="contactoError"></p>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" @click="showContactoModal = false" class="btn btn-outline">Cancelar</button>
+                    <button type="submit" :disabled="savingContacto" class="btn btn-primary"><span x-text="savingContacto ? 'Guardando...' : 'Guardar' "></span></button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -359,10 +474,11 @@
 <script>
 function estudiantes() {
     return {
-        loading: true, showModal: false, showFicha: false, editing: false, saving: false, error: '', fieldErrors: {},
+        loading: true, showModal: false, showFicha: false, showContactoModal: false, editing: false, editingContacto: false, saving: false, savingContacto: false, error: '', contactoError: '', fieldErrors: {},
         estudiantes: [], sucursales: [], ficha: null, form: {}, editId: null, search: '', filtroSucursal: '',
         fichaTab: 'datos', fichaDataLoading: false,
-        fichaMatriculas: [], fichaPagos: [], fichaRecibos: [], fichaCalificaciones: [], fichaCertificados: [],
+        fichaMatriculas: [], fichaPagos: [], fichaRecibos: [], fichaCalificaciones: [], fichaCertificados: [], fichaContactos: [],
+        contactoForm: {}, contactoId: null,
 
         async init() { await Promise.all([this.loadEstudiantes(), this.loadSucursales()]); },
 
@@ -394,7 +510,7 @@ function estudiantes() {
 
         async viewFicha(e) {
             this.showFicha = true; this.ficha = e;
-            this.fichaMatriculas = []; this.fichaPagos = []; this.fichaRecibos = []; this.fichaCalificaciones = []; this.fichaCertificados = [];
+            this.fichaMatriculas = []; this.fichaPagos = []; this.fichaRecibos = []; this.fichaCalificaciones = []; this.fichaCertificados = []; this.fichaContactos = [];
             this.fichaDataLoading = true; this.fichaTab = 'datos';
             const headers = { Authorization: `Bearer ${localStorage.getItem('auth_token')}` };
             const extractData = (r) => r?.data?.data?.data || r?.data?.data || [];
@@ -435,7 +551,76 @@ function estudiantes() {
                 const r = await window.axios.get(`/api/v1/estudiantes/certificados/estudiante/${e.id}`, { headers });
                 this.fichaCertificados = r.data.data || [];
             } catch(err) { console.error('certs', err); }
+            try {
+                const r = await window.axios.get(`/api/v1/estudiantes/${e.id}/contactos-responsable`, { headers });
+                this.fichaContactos = r.data.data || [];
+            } catch(err) { console.error('contactos', err); }
             this.fichaDataLoading = false;
+        },
+
+        openContactoModal() {
+            this.editingContacto = false; this.contactoId = null; this.contactoError = '';
+            this.contactoForm = { nombre:'', parentesco:'', correo:'', telefono_whatsapp:'', recibe_asistencia_email:false, recibe_asistencia_whatsapp:false, consentimiento_asistencia_en:'', consentimiento_evidencia:'', prioridad:1, vigente_desde:'', vigente_hasta:'', estado:'activo' };
+            this.showContactoModal = true;
+        },
+
+        editContacto(c) {
+            this.editingContacto = true; this.contactoId = c.id; this.contactoError = '';
+            this.contactoForm = {
+                nombre: c.nombre || '',
+                parentesco: c.parentesco || '',
+                correo: c.correo || '',
+                telefono_whatsapp: c.telefono_whatsapp || '',
+                recibe_asistencia_email: !!c.recibe_asistencia_email,
+                recibe_asistencia_whatsapp: !!c.recibe_asistencia_whatsapp,
+                consentimiento_asistencia_en: c.consentimiento_asistencia_en ? String(c.consentimiento_asistencia_en).slice(0, 16) : '',
+                consentimiento_evidencia: c.consentimiento_evidencia || '',
+                prioridad: c.prioridad || 1,
+                vigente_desde: c.vigente_desde ? String(c.vigente_desde).slice(0, 10) : '',
+                vigente_hasta: c.vigente_hasta ? String(c.vigente_hasta).slice(0, 10) : '',
+                estado: c.estado || 'activo',
+            };
+            this.showContactoModal = true;
+        },
+
+        async saveContacto() {
+            if (!this.ficha?.id) return;
+            this.savingContacto = true; this.contactoError = '';
+            try {
+                const payload = { ...this.contactoForm };
+                const url = this.editingContacto
+                    ? `/api/v1/estudiantes/${this.ficha.id}/contactos-responsable/${this.contactoId}`
+                    : `/api/v1/estudiantes/${this.ficha.id}/contactos-responsable`;
+                const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (data.resultado === 'A') {
+                    this.showContactoModal = false;
+                    await this.recargarContactosFicha();
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Contacto responsable guardado', type: 'success' } }));
+                }
+            } catch (e) {
+                this.contactoError = window.extractError ? window.extractError(e, 'No se pudo guardar el contacto responsable') : 'No se pudo guardar el contacto responsable';
+            } finally {
+                this.savingContacto = false;
+            }
+        },
+
+        async desactivarContacto(c) {
+            if (!this.ficha?.id || !confirm(`¿Desactivar a ${c.nombre}?`)) return;
+            try {
+                const { data } = await window.api.actualizar(`/api/v1/estudiantes/${this.ficha.id}/contactos-responsable/${c.id}/desactivar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (data.resultado === 'A') {
+                    await this.recargarContactosFicha();
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Contacto responsable desactivado', type: 'success' } }));
+                }
+            } catch (e) {
+                alert(window.extractError ? window.extractError(e, 'No se pudo desactivar el contacto') : 'No se pudo desactivar el contacto');
+            }
+        },
+
+        async recargarContactosFicha() {
+            if (!this.ficha?.id) return;
+            const { data } = await window.axios.get(`/api/v1/estudiantes/${this.ficha.id}/contactos-responsable`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+            this.fichaContactos = data.data || [];
         },
 
         async emitirCertificadoAdmin(c) {

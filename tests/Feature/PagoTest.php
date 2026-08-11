@@ -2,11 +2,43 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Aula, CuentaBancaria, DepartamentoAcademico, Docente, EnlacePago, Estudiante, Horario, Matricula, Modalidad, Modulo, NivelAcademico, ObligacionPagoEstudiante, OpcionModulo, OfertaAcademica, Permiso, PeriodoAcademico, PlanCobro, PlanEstudio, Rol, Sucursal, User, VersionPlanEstudio};
+use App\Models\Aula;
+use App\Models\CuentaBancaria;
+use App\Models\DepartamentoAcademico;
+use App\Models\Docente;
+use App\Models\EnlacePago;
+use App\Models\Estudiante;
+use App\Models\Horario;
+use App\Models\InventarioLibro;
+use App\Models\Libro;
+use App\Models\Matricula;
+use App\Models\Modalidad;
+use App\Models\Modulo;
+use App\Models\NivelAcademico;
+use App\Models\ObligacionPagoEstudiante;
+use App\Models\OfertaAcademica;
+use App\Models\OpcionModulo;
+use App\Models\Pago;
+use App\Models\PeriodoAcademico;
+use App\Models\Permiso;
+use App\Models\PlanCobro;
+use App\Models\PlanEstudio;
+use App\Models\ReciboCaja;
+use App\Models\Rol;
+use App\Models\Sucursal;
+use App\Models\User;
+use App\Models\VersionPlanEstudio;
+use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Pagos\CasosUso\ActualizarLinkPago;
+use App\Modules\Pagos\CasosUso\AprobarPago;
+use App\Modules\Pagos\CasosUso\EliminarPagoTotal;
+use App\Modules\Pagos\CasosUso\RechazarPago;
+use App\Modules\Pagos\CasosUso\RegistrarPago;
+use App\Modules\Pagos\CasosUso\SubirComprobantePago;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PagoTest extends TestCase
@@ -14,14 +46,24 @@ class PagoTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $token;
+
     private Sucursal $sucursal;
+
     private Estudiante $estudiante;
+
     private string $studentToken;
+
     private Matricula $matricula;
+
     private int $conceptoMatId;
+
     private int $conceptoCuoId;
+
     private int $metodoEfeId;
+
+    private int $metodoLinkId;
 
     protected function setUp(): void
     {
@@ -41,6 +83,11 @@ class PagoTest extends TestCase
         ]);
         $this->admin->roles()->attach($rol->id, ['estado' => 'activo']);
         $this->token = $this->admin->createToken('test')->plainTextToken;
+        DB::table('alcances_usuario')->insert([
+            'usuario_id' => $this->admin->id,
+            'tipo' => 'global',
+            'estado' => 'activo',
+        ]);
 
         $this->sucursal = Sucursal::factory()->create(['codigo' => 'SPS']);
 
@@ -56,6 +103,10 @@ class PagoTest extends TestCase
         ]);
         $this->metodoEfeId = DB::table('metodos_pago')->insertGetId([
             'codigo' => 'EFE', 'nombre' => 'Efectivo', 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+        $this->metodoLinkId = DB::table('metodos_pago')->insertGetId([
+            'codigo' => 'LNK', 'nombre' => 'Link de pago', 'estado' => 'activo', 'permite_link_pago' => true,
             'creado_en' => now(), 'actualizado_en' => now(),
         ]);
 
@@ -117,7 +168,7 @@ class PagoTest extends TestCase
         foreach (['consultar', 'crear', 'modificar', 'eliminar', 'aprobar'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcion->id,
-                'codigo' => 'pagos.' . $accion,
+                'codigo' => 'pagos.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -189,7 +240,7 @@ class PagoTest extends TestCase
 
     public function test_consulta_obligaciones_pendientes_por_concepto_para_pago_administrativo(): void
     {
-        $response = $this->getJson('/api/v1/pagos/obligaciones-estudiante?estudiante_id=' . $this->estudiante->id . '&concepto_pago_id=' . $this->conceptoCuoId, $this->headers());
+        $response = $this->getJson('/api/v1/pagos/obligaciones-estudiante?estudiante_id='.$this->estudiante->id.'&concepto_pago_id='.$this->conceptoCuoId, $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
@@ -297,7 +348,7 @@ class PagoTest extends TestCase
 
         $this->postJson("/api/v1/pagos/{$pago['id']}/aprobar", [], $this->headers());
 
-        $recibo = \App\Models\ReciboCaja::where('pago_id', $pago['id'])->first();
+        $recibo = ReciboCaja::where('pago_id', $pago['id'])->first();
 
         $response = $this->postJson("/api/v1/recibos-caja/{$recibo->id}/anular", [
             'motivo_anulacion' => 'Error en monto',
@@ -420,7 +471,7 @@ class PagoTest extends TestCase
             'estudiante_id' => $this->estudiante->id,
             'matricula_id' => $this->matricula->id,
             'concepto_pago_id' => $this->conceptoMatId,
-            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_id' => $this->metodoLinkId,
             'monto' => 1200.00,
             'solicitar_link' => true,
         ], $this->headers());
@@ -451,7 +502,7 @@ class PagoTest extends TestCase
             'estudiante_id' => $this->estudiante->id,
             'matricula_id' => $this->matricula->id,
             'concepto_pago_id' => $this->conceptoMatId,
-            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_id' => $this->metodoLinkId,
             'monto' => 1200.00,
             'solicitar_link' => true,
         ], $this->headers());
@@ -471,7 +522,7 @@ class PagoTest extends TestCase
             'estudiante_id' => $this->estudiante->id,
             'matricula_id' => $this->matricula->id,
             'concepto_pago_id' => $this->conceptoMatId,
-            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_id' => $this->metodoLinkId,
             'monto' => 1200.00,
             'solicitar_link' => true,
         ], $this->headers());
@@ -507,7 +558,7 @@ class PagoTest extends TestCase
             'estudiante_id' => $this->estudiante->id,
             'matricula_id' => $this->matricula->id,
             'concepto_pago_id' => $this->conceptoMatId,
-            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_id' => $this->metodoLinkId,
             'monto' => 1200.00,
             'solicitar_link' => true,
         ], $this->headers());
@@ -527,7 +578,7 @@ class PagoTest extends TestCase
             'estudiante_id' => $this->estudiante->id,
             'matricula_id' => $this->matricula->id,
             'concepto_pago_id' => $this->conceptoMatId,
-            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_id' => $this->metodoLinkId,
             'monto' => 1200.00,
             'solicitar_link' => true,
         ], $this->headers());
@@ -565,5 +616,262 @@ class PagoTest extends TestCase
 
         $this->assertDatabaseMissing('pagos', ['id' => $pago['id']]);
         $this->assertDatabaseMissing('recibos_caja', ['pago_id' => $pago['id']]);
+    }
+
+    public function test_aprobar_pago_mediante_caso_de_uso_genera_recibo(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers())->json('data');
+
+        $this->postJson("/api/v1/pagos/{$pago['id']}/link-pago", [
+            'link_pago_url' => 'https://pago.ejemplo/test-link',
+        ], $this->headers());
+
+        $this->postJson('/api/v1/estudiantes/confirmar-link-pago', [
+            'pago_id' => $pago['id'],
+        ], ['Authorization' => "Bearer {$this->studentToken}"])->assertOk();
+
+        $casoUso = app(AprobarPago::class);
+        $resultado = $casoUso->ejecutar($pago['id'], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Pago aprobado y recibo generado', $resultado->mensaje());
+        $this->assertSame('aprobado', $resultado->data()['pago']->estado);
+        $this->assertNotNull($resultado->data()['recibo']);
+        $this->assertDatabaseHas('recibos_caja', ['pago_id' => $pago['id'], 'estado' => 'emitido']);
+
+        $obligacion = ObligacionPagoEstudiante::where('matricula_id', $this->matricula->id)
+            ->where('concepto_pago_id', $this->conceptoMatId)->first();
+        $this->assertEquals(1200.00, $obligacion->monto_pagado);
+        $this->assertEquals('pagado', $obligacion->estado);
+    }
+
+    public function test_aprobar_pago_mediante_caso_de_uso_rechaza_estado_no_aprobable(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+        ], $this->headers())->json('data');
+
+        $this->assertEquals('aprobado', $pago['estado']);
+
+        $casoUso = app(AprobarPago::class);
+        $resultado = $casoUso->ejecutar($pago['id'], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+    }
+
+    public function test_aprobar_endpoint_sigue_delegando_al_caso_de_uso(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers())->json('data');
+
+        $this->postJson("/api/v1/pagos/{$pago['id']}/link-pago", [
+            'link_pago_url' => 'https://pago.ejemplo/test-link',
+        ], $this->headers());
+
+        $this->postJson('/api/v1/estudiantes/confirmar-link-pago', [
+            'pago_id' => $pago['id'],
+        ], ['Authorization' => "Bearer {$this->studentToken}"])->assertOk();
+
+        $response = $this->postJson("/api/v1/pagos/{$pago['id']}/aprobar", [], $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.pago.estado', 'aprobado');
+
+        $this->assertDatabaseHas('recibos_caja', ['pago_id' => $pago['id'], 'estado' => 'emitido']);
+    }
+
+    public function test_registrar_pago_mediante_caso_de_uso(): void
+    {
+        $casoUso = app(RegistrarPago::class);
+        $resultado = $casoUso->ejecutar([
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Pago registrado y aprobado', $resultado->mensaje());
+        $this->assertSame('aprobado', $resultado->data()['pago']->estado);
+        $this->assertNotNull($resultado->data()['recibo']);
+        $this->assertDatabaseHas('recibos_caja', ['pago_id' => $resultado->data()['pago']->id, 'estado' => 'emitido']);
+    }
+
+    public function test_rechazar_pago_mediante_caso_de_uso(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers())->json('data');
+
+        $casoUso = app(RechazarPago::class);
+        $resultado = $casoUso->ejecutar($pago['id'], 'Comprobante ilegible', new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Pago rechazado', $resultado->mensaje());
+        $this->assertDatabaseHas('pagos', [
+            'id' => $pago['id'],
+            'estado' => 'rechazado',
+            'link_pago_estado' => 'rechazado',
+        ]);
+    }
+
+    public function test_actualizar_link_mediante_caso_de_uso(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers())->json('data');
+
+        $casoUso = app(ActualizarLinkPago::class);
+        $resultado = $casoUso->ejecutar($pago['id'], 'pago.ejemplo/test-link', new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Link guardado correctamente', $resultado->mensaje());
+        $this->assertSame('https://pago.ejemplo/test-link', $resultado->data()['pago']->link_pago_url);
+        $this->assertSame('enviado', $resultado->data()['pago']->link_pago_estado);
+
+        $invalido = $casoUso->ejecutar($pago['id'], 'no es una url', new ContextoUsuario($this->admin->id));
+        $this->assertFalse($invalido->ok());
+        $this->assertSame(422, $invalido->codigo());
+    }
+
+    public function test_eliminar_pago_total_mediante_caso_de_uso(): void
+    {
+        $pago = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+        ], $this->headers())->json('data');
+
+        $resultado = app(EliminarPagoTotal::class)->ejecutar($pago['id']);
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Pago eliminado por completo', $resultado->mensaje());
+        $this->assertTrue($resultado->data()['ok']);
+        $this->assertDatabaseMissing('pagos', ['id' => $pago['id']]);
+        $this->assertDatabaseMissing('recibos_caja', ['pago_id' => $pago['id']]);
+    }
+
+    public function test_subir_comprobante_mediante_caso_de_uso(): void
+    {
+        Storage::fake('public');
+
+        $pago = Pago::create([
+            'codigo' => 'PAG-PEND-001',
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'sucursal_id' => $this->sucursal->id,
+            'monto' => 1200.00,
+            'estado' => 'pendiente',
+            'creado_por' => $this->admin->id,
+            'creado_en' => now(),
+        ]);
+
+        $archivo = UploadedFile::fake()->image('comprobante.jpg');
+        $resultado = app(SubirComprobantePago::class)->ejecutar($pago->id, $archivo, new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Comprobante subido correctamente', $resultado->mensaje());
+        $this->assertDatabaseHas('comprobantes_pago', ['pago_id' => $pago->id, 'estado' => 'adjuntado']);
+    }
+
+    public function test_subir_comprobante_mediante_caso_de_uso_rechaza_pago_no_pendiente(): void
+    {
+        Storage::fake('public');
+
+        $pago = Pago::create([
+            'codigo' => 'PAG-APROB-001',
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'sucursal_id' => $this->sucursal->id,
+            'monto' => 1200.00,
+            'estado' => 'aprobado',
+            'aprobado_por' => $this->admin->id,
+            'fecha_aprobacion' => now(),
+            'creado_por' => $this->admin->id,
+            'creado_en' => now(),
+        ]);
+
+        $resultado = app(SubirComprobantePago::class)->ejecutar($pago->id, UploadedFile::fake()->image('rechazo.jpg'), new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+    }
+
+    public function test_registrar_pago_con_libro_sin_existencia_devuelve_422_y_no_crea_pago(): void
+    {
+        $conceptoVliId = DB::table('conceptos_pago')->insertGetId([
+            'codigo' => 'VLI', 'nombre' => 'Venta de libro', 'tipo_monto' => 'por_inventario',
+            'requiere_autorizacion_monto' => false, 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'English Book A1', 'precio_venta' => 350, 'creado_en' => now()]);
+        $inventario = InventarioLibro::create([
+            'libro_id' => $libro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 1,
+            'existencia_minima' => 0,
+            'creado_por' => $this->admin->id,
+            'creado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $conceptoVliId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 350.00,
+            'inventario_libro_id' => $inventario->id,
+            'cantidad_libro' => 2,
+        ], $this->headers());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('codigo_error', '422_INVENTARIO_INSUFICIENTE')
+            ->assertJsonPath('mensaje', 'No hay suficiente existencia. Disponible: 1');
+
+        $this->assertDatabaseMissing('pagos', [
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $conceptoVliId,
+        ]);
+        $this->assertDatabaseMissing('movimientos_inventario_libros', [
+            'inventario_libro_id' => $inventario->id,
+        ]);
+        $this->assertDatabaseHas('inventario_libros', [
+            'id' => $inventario->id,
+            'existencia_actual' => 1,
+        ]);
     }
 }

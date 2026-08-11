@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api\V1\Seguridad;
 
 use App\Http\Controllers\Controller;
 use App\Models\SesionUsuario;
+use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SesionController extends Controller
 {
+    public function __construct(
+        protected ServicioBitacora $bitacora,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $sesiones = SesionUsuario::where('usuario_id', $request->user()->id)
@@ -39,7 +44,19 @@ class SesionController extends Controller
             ->where('usuario_id', $request->user()->id)
             ->firstOrFail();
 
+        $antes = ['revocado_en' => $sesion->revocado_en];
         $sesion->update(['revocado_en' => now()]);
+
+        $this->bitacora->registrarOperacionPermitida(
+            $request->user()->id,
+            'revocar_sesion',
+            'seguridad',
+            $request->ip(),
+            $request->userAgent() ?? '',
+            $sesion->id,
+            $antes,
+            ['revocado_en' => $sesion->fresh()->revocado_en?->toIso8601String()],
+        );
 
         return response()->json([
             'resultado' => 'A',

@@ -8,8 +8,8 @@ use App\Models\AplicacionPago;
 use App\Models\Matricula;
 use App\Models\MetodoPago;
 use App\Models\Pago;
-use App\Models\ProveedorPago;
 use App\Services\Pagos\FabricaProcesadorPago;
+use App\Services\Pagos\ValidadorReglasPago;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,15 +28,15 @@ class PagoTarjetaController extends Controller
             'obligacion_ids.*' => 'integer|exists:obligaciones_pago_estudiante,id',
         ]);
 
-        $returnUrl = $request->input('return_url', route('portal.pagos.paypal.retorno', [], false) . '?pago_id=PLACEHOLDER');
-        $cancelUrl = $request->input('cancel_url', route('portal.pagos.paypal.cancelado', [], false) . '?pago_id=PLACEHOLDER');
+        $returnUrl = $request->input('return_url', route('portal.pagos.paypal.retorno', [], false).'?pago_id=PLACEHOLDER');
+        $cancelUrl = $request->input('cancel_url', route('portal.pagos.paypal.cancelado', [], false).'?pago_id=PLACEHOLDER');
 
         $metodoTarjeta = MetodoPago::where('codigo', 'TAR')
             ->where('estado', 'activo')
             ->with('proveedorPago')
             ->first();
 
-        if (!$metodoTarjeta || !$metodoTarjeta->proveedorPago) {
+        if (! $metodoTarjeta || ! $metodoTarjeta->proveedorPago) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -45,7 +45,7 @@ class PagoTarjetaController extends Controller
         }
 
         $proveedor = $metodoTarjeta->proveedorPago;
-        if (!$proveedor->activo) {
+        if (! $proveedor->activo) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -69,17 +69,28 @@ class PagoTarjetaController extends Controller
             ], 422);
         }
 
-        $montoTotal = $obligaciones->sum(fn($o) => $o->saldoPendiente());
+        $montoTotal = $obligaciones->sum(fn ($o) => $o->saldoPendiente());
         $primerConcepto = $obligaciones->first()->conceptoPago;
         $obligacionIds = $obligaciones->pluck('id')->toArray();
 
+        if (app(ValidadorReglasPago::class)->seleccionExcluyeMatriculaPendiente($matricula->id, $obligacionIds)) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_MATRICULA_OBLIGATORIA',
+                'mensaje' => 'Debe incluir la obligación de matrícula antes de pagar cuotas.',
+            ], 422);
+        }
+
         $resultado = DB::transaction(function () use (
-            $estudiante, $matricula, $datos, $metodoTarjeta, $proveedor,
+            $estudiante, $matricula, $metodoTarjeta, $proveedor,
             $montoTotal, $primerConcepto, $obligacionIds, $obligaciones,
             $returnUrl, $cancelUrl
         ) {
+            $fechaProceso = now();
+
             $codigoPago = app(ServicioNomenclatura::class)->generarCodigo(
-                entidad: 'pagos_' . date('Y'),
+                entidad: 'pagos_'.date('Y'),
                 formato: 'PAG-{ANIO}-{SECUENCIA:6}',
                 longitudSecuencia: 6,
                 anio: date('Y'),
@@ -95,7 +106,8 @@ class PagoTarjetaController extends Controller
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $montoTotal,
                 'estado' => 'pendiente',
-                'creado_en' => now(),
+                'fecha_proceso' => $fechaProceso,
+                'creado_en' => $fechaProceso,
             ]);
 
             $obligacionesMap = $obligaciones->keyBy('id');
@@ -117,8 +129,9 @@ class PagoTarjetaController extends Controller
                 'cancel_url' => str_replace('PLACEHOLDER', $pago->id, $cancelUrl),
             ]);
 
-            if (!$resultadoProc->exitoso) {
+            if (! $resultadoProc->exitoso) {
                 DB::rollBack();
+
                 return $resultadoProc;
             }
 
@@ -159,7 +172,7 @@ class PagoTarjetaController extends Controller
         $token = $request->input('token', $request->query('token'));
         $pagoId = $request->input('pago_id', $request->query('pago_id'));
 
-        if (!$token) {
+        if (! $token) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 422,
@@ -168,7 +181,7 @@ class PagoTarjetaController extends Controller
         }
 
         $pago = Pago::with('metodoPago.proveedorPago')->find($pagoId);
-        if (!$pago) {
+        if (! $pago) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 404,
@@ -185,7 +198,7 @@ class PagoTarjetaController extends Controller
                 $resultado = $procesador->capturar($token);
             }
 
-            if (!$resultado->exitoso) {
+            if (! $resultado->exitoso) {
                 $pago->update([
                     'estado' => 'rechazado',
                     'procesador_respuesta' => json_encode(['error' => $resultado->error]),
@@ -242,7 +255,7 @@ class PagoTarjetaController extends Controller
         Log::info('PayPal webhook received', ['payload' => $payload]);
 
         $eventType = $payload['event_type'] ?? '';
-        $resource  = $payload['resource'] ?? [];
+        $resource = $payload['resource'] ?? [];
 
         if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
             $transaccionId = $resource['id'] ?? null;
@@ -316,7 +329,7 @@ class PagoTarjetaController extends Controller
 
     public static function actualizarMatricula(Pago $pago): void
     {
-        if (!$pago->matricula_id) {
+        if (! $pago->matricula_id) {
             return;
         }
 

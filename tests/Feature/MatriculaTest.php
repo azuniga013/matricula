@@ -2,7 +2,29 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Aula, DepartamentoAcademico, Docente, Estudiante, Horario, Modalidad, Modulo, NivelAcademico, ObligacionPagoEstudiante, OpcionModulo, OfertaAcademica, Permiso, PeriodoAcademico, PlanCobro, PlanEstudio, Rol, Sucursal, User, VersionPlanEstudio};
+use App\Models\Aula;
+use App\Models\DepartamentoAcademico;
+use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\Horario;
+use App\Models\Modalidad;
+use App\Models\Modulo;
+use App\Models\NivelAcademico;
+use App\Models\ObligacionPagoEstudiante;
+use App\Models\OfertaAcademica;
+use App\Models\OpcionModulo;
+use App\Models\PeriodoAcademico;
+use App\Models\Permiso;
+use App\Models\PlanCobro;
+use App\Models\PlanEstudio;
+use App\Models\Rol;
+use App\Models\Sucursal;
+use App\Models\User;
+use App\Models\VersionPlanEstudio;
+use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Matriculas\CasosUso\CancelarMatricula;
+use App\Modules\Matriculas\CasosUso\ConfirmarMatricula;
+use App\Modules\Matriculas\CasosUso\ReservarMatricula;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,17 +33,29 @@ class MatriculaTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $token;
+
     private Sucursal $sucursal;
+
     private PeriodoAcademico $periodo;
+
     private NivelAcademico $nivel;
+
     private Modalidad $regimen;
+
     private Modalidad $modalidad;
+
     private Horario $horario;
+
     private Docente $docente;
+
     private Aula $aula;
+
     private OfertaAcademica $oferta;
+
     private Estudiante $estudiante;
+
     private PlanCobro $planCobro;
 
     protected function setUp(): void
@@ -150,7 +184,7 @@ class MatriculaTest extends TestCase
         foreach (['consultar', 'crear', 'modificar', 'eliminar', 'aprobar'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcion->id,
-                'codigo' => 'matriculas.' . $accion,
+                'codigo' => 'matriculas.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -348,5 +382,92 @@ class MatriculaTest extends TestCase
         $response = $this->postJson('/api/v1/matriculas/reservar', [], $this->headers());
 
         $response->assertUnprocessable();
+    }
+
+    public function test_reservar_matricula_mediante_caso_de_uso(): void
+    {
+        $casoUso = app(ReservarMatricula::class);
+        $resultado = $casoUso->ejecutar([
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('reservada', $resultado->data()['matricula']->estado);
+        $this->assertDatabaseHas('matriculas', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'estado' => 'reservada',
+        ]);
+
+        $this->oferta->refresh();
+        $this->assertEquals(1, $this->oferta->cupos_reservados);
+    }
+
+    public function test_reservar_endpoint_sigue_delegando_al_caso_de_uso(): void
+    {
+        $response = $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.estado', 'reservada');
+    }
+
+    public function test_confirmar_matricula_mediante_caso_de_uso(): void
+    {
+        $reserva = app(ReservarMatricula::class)->ejecutar([
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+        ], new ContextoUsuario($this->admin->id))->data()['matricula'];
+
+        $casoUso = app(ConfirmarMatricula::class);
+        $resultado = $casoUso->ejecutar($reserva->id, new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('en_revision', $resultado->data()['matricula']->estado);
+
+        $obligaciones = ObligacionPagoEstudiante::where('matricula_id', $reserva->id)->get();
+        $this->assertCount(2, $obligaciones);
+    }
+
+    public function test_confirmar_mediante_caso_de_uso_rechaza_estado_no_reservada(): void
+    {
+        $reserva = app(ReservarMatricula::class)->ejecutar([
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+        ], new ContextoUsuario($this->admin->id))->data()['matricula'];
+
+        app(ConfirmarMatricula::class)->ejecutar($reserva->id, new ContextoUsuario($this->admin->id));
+
+        $resultado = app(ConfirmarMatricula::class)->ejecutar($reserva->id, new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+        $this->assertSame('Solo se pueden confirmar matrículas reservadas', $resultado->mensaje());
+    }
+
+    public function test_cancelar_matricula_mediante_caso_de_uso(): void
+    {
+        $reserva = app(ReservarMatricula::class)->ejecutar([
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+        ], new ContextoUsuario($this->admin->id))->data()['matricula'];
+
+        $casoUso = app(CancelarMatricula::class);
+        $resultado = $casoUso->ejecutar($reserva->id, 'El estudiante ya no puede asistir', new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('rechazado', $resultado->data()['matricula']->estado);
+
+        $this->oferta->refresh();
+        $this->assertEquals(0, $this->oferta->cupos_reservados);
+
+        $this->assertDatabaseHas('obligaciones_pago_estudiante', [
+            'matricula_id' => $reserva->id,
+            'estado' => 'rechazado',
+        ]);
     }
 }

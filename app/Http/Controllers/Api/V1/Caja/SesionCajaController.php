@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api\V1\Caja;
 
 use App\Http\Controllers\Controller;
-use App\Models\{SesionCaja, DetalleCierreCaja, Pago, ConceptoPago, MetodoPago};
-use App\Services\ServicioNomenclatura;
+use App\Models\SesionCaja;
+use App\Models\Sucursal;
+use App\Modules\Caja\CasosUso\AbrirSesionCaja;
+use App\Modules\Caja\CasosUso\CerrarSesionCaja;
+use App\Modules\Comun\ContextoUsuario;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class SesionCajaController extends Controller
 {
@@ -23,6 +26,7 @@ class SesionCajaController extends Controller
             'sucursal:id,codigo,nombre',
             'cajero:id,name',
         ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'sesiones_caja');
 
         if ($request->filled('sucursal_id')) {
             $query->where('sesiones_caja.sucursal_id', $request->sucursal_id);
@@ -49,126 +53,67 @@ class SesionCajaController extends Controller
             'observaciones' => 'nullable|string|max:500',
         ]);
 
-        $sesionAbierta = SesionCaja::where('sucursal_id', $request->sucursal_id)
-            ->where('usuario_cajero_id', auth()->id())
-            ->where('estado', 'abierta')
-            ->exists();
+        $sucursal = Sucursal::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($sucursal, $request->user(), 'sucursales');
+        $sucursal->findOrFail((int) $request->input('sucursal_id'));
 
-        if ($sesionAbierta) {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'Ya tiene una sesión de caja abierta en esta sucursal',
-            ], 422);
-        }
-
-        $codigoSesion = app(ServicioNomenclatura::class)->generarCodigo(
-            entidad: 'sesiones_caja_' . date('Y'),
-            formato: 'SCA-{ANIO}-{SECUENCIA:6}',
-            longitudSecuencia: 6,
-            anio: date('Y'),
+        $resultado = app(AbrirSesionCaja::class)->ejecutar(
+            $request->all(),
+            ContextoUsuario::desdeRequest(),
         );
 
-        $sesion = SesionCaja::create([
-            'codigo' => $codigoSesion['codigo'],
-            'sucursal_id' => $request->sucursal_id,
-            'usuario_cajero_id' => auth()->id(),
-            'monto_inicial' => $request->monto_inicial,
-            'estado' => 'abierta',
-            'fecha_apertura' => now(),
-            'observaciones' => $request->observaciones,
-            'creado_por' => auth()->id(),
-        ]);
+        if (! $resultado->ok()) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
+        }
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
-            'mensaje' => 'Sesión de caja abierta',
-            'data' => $sesion,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['sesion'],
         ], 201);
     }
 
     public function cerrar(int $id, Request $request): JsonResponse
     {
+        $query = SesionCaja::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'sesiones_caja');
+        $query->findOrFail($id);
+
         $request->validate([
             'monto_final' => 'required|numeric|min:0',
             'observaciones' => 'nullable|string|max:500',
         ]);
 
-        $resultado = DB::transaction(function () use ($id, $request) {
-            $sesion = SesionCaja::lockForUpdate()->findOrFail($id);
+        $resultado = app(CerrarSesionCaja::class)->ejecutar(
+            $id,
+            $request->all(),
+            ContextoUsuario::desdeRequest(),
+        );
 
-            if ($sesion->estado !== 'abierta') {
-                return ['ok' => false, 'codigo' => 422, 'mensaje' => 'La sesión ya está cerrada'];
-            }
-
-            if ($sesion->usuario_cajero_id !== auth()->id()) {
-                return ['ok' => false, 'codigo' => 403, 'mensaje' => 'Solo el cajero que abrió la sesión puede cerrarla'];
-            }
-
-            $fechaCierre = $sesion->fecha_cierre ?? now();
-
-            $pagos = Pago::where('estado', 'aprobado')
-                ->where('sucursal_id', $sesion->sucursal_id)
-                ->where(function ($query) use ($sesion, $fechaCierre) {
-                    $query->where('sesion_caja_id', $sesion->id)
-                        ->orWhereDate('fecha_aprobacion', $fechaCierre->toDateString());
-                })
-                ->get();
-
-            $totalesPorConceptoMetodo = $pagos->groupBy(function ($pago) {
-                return $pago->concepto_pago_id . '_' . $pago->metodo_pago_id;
-            })->map(function ($grupo, $key) {
-                $primero = $grupo->first();
-                return [
-                    'concepto_pago_id' => $primero->concepto_pago_id,
-                    'metodo_pago_id' => $primero->metodo_pago_id,
-                    'cantidad_transacciones' => $grupo->count(),
-                    'monto_total' => $grupo->sum('monto'),
-                ];
-            });
-
-            foreach ($totalesPorConceptoMetodo as $detalle) {
-                DetalleCierreCaja::create([
-                    'sesion_caja_id' => $sesion->id,
-                    'concepto_pago_id' => $detalle['concepto_pago_id'],
-                    'metodo_pago_id' => $detalle['metodo_pago_id'],
-                    'cantidad_transacciones' => $detalle['cantidad_transacciones'],
-                    'monto_total' => $detalle['monto_total'],
-                    'estado' => 'activo',
-                    'creado_por' => auth()->id(),
-                ]);
-            }
-
-            $sesion->update([
-                'estado' => 'cerrada',
-                'monto_final' => $request->monto_final,
-                'fecha_cierre' => now(),
-                'observaciones' => $request->observaciones,
-                'cerrado_por' => auth()->id(),
-                'actualizado_por' => auth()->id(),
-            ]);
-
-            return ['ok' => true, 'sesion' => $sesion->fresh('detalles')];
-        });
-
-        if (!$resultado['ok']) {
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => $resultado['codigo'],
-                'mensaje' => $resultado['mensaje'],
-            ], $resultado['codigo']);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Sesión de caja cerrada con éxito',
-            'data' => $resultado['sesion'],
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['sesion'],
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $sesion = SesionCaja::with([
             'sucursal:id,codigo,nombre',
@@ -177,7 +122,9 @@ class SesionCajaController extends Controller
             'detalles:concepto_pago_id,metodo_pago_id,cantidad_transacciones,monto_total',
             'detalles.conceptoPago:id,codigo,nombre',
             'detalles.metodoPago:id,codigo,nombre',
-        ])->findOrFail($id);
+        ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($sesion, $request->user(), 'sesiones_caja');
+        $sesion = $sesion->findOrFail($id);
 
         $sesion->setAttribute('total_ingresos', $sesion->detalles?->sum('monto_total') ?? $sesion->pagos?->sum('monto') ?? 0);
 

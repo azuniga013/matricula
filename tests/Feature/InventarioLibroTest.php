@@ -2,7 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Models\{InventarioLibro, Libro, Modulo, OpcionModulo, Permiso, Rol, Sucursal, User};
+use App\Models\InventarioLibro;
+use App\Models\Libro;
+use App\Models\Modulo;
+use App\Models\OpcionModulo;
+use App\Models\Permiso;
+use App\Models\Rol;
+use App\Models\Sucursal;
+use App\Models\User;
+use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Inventario\CasosUso\AjustarExistencia;
+use App\Modules\Inventario\CasosUso\RegistrarInventario;
+use App\Modules\Inventario\CasosUso\VenderLibro;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,7 +22,9 @@ class InventarioLibroTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private string $token;
+
     private Sucursal $sucursal;
 
     protected function setUp(): void
@@ -32,6 +45,11 @@ class InventarioLibroTest extends TestCase
         ]);
         $this->admin->roles()->attach($rol->id, ['estado' => 'activo']);
         $this->token = $this->admin->createToken('test')->plainTextToken;
+        \DB::table('alcances_usuario')->insert([
+            'usuario_id' => $this->admin->id,
+            'tipo' => 'global',
+            'estado' => 'activo',
+        ]);
 
         $this->sucursal = Sucursal::factory()->create(['codigo' => 'SPS']);
     }
@@ -44,7 +62,7 @@ class InventarioLibroTest extends TestCase
         foreach (['consultar', 'crear', 'modificar', 'aprobar'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcion->id,
-                'codigo' => 'inventario.' . $accion,
+                'codigo' => 'inventario.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -301,10 +319,220 @@ class InventarioLibroTest extends TestCase
             'inventario_libro_id' => $invData['id'], 'cantidad' => 3, 'motivo' => '+3',
         ], $this->headers());
 
-        $response = $this->getJson('/api/v1/inventario/kardex?inventario_libro_id=' . $invData['id'], $this->headers());
+        $response = $this->getJson('/api/v1/inventario/kardex?inventario_libro_id='.$invData['id'], $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
             ->assertJsonCount(2, 'data.movimientos');
+    }
+
+    public function test_registrar_inventario_mediante_caso_de_uso(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+
+        $resultado = app(RegistrarInventario::class)->ejecutar([
+            'libro_id' => $libro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 10,
+            'existencia_minima' => 2,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Inventario registrado exitosamente', $resultado->mensaje());
+        $this->assertSame(10, $resultado->data()['inventario']->existencia_actual);
+        $this->assertDatabaseHas('inventario_libros', [
+            'libro_id' => $libro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 10,
+            'existencia_minima' => 2,
+            'creado_por' => $this->admin->id,
+        ]);
+        $this->assertDatabaseHas('movimientos_inventario_libros', [
+            'tipo_movimiento' => 'entrada',
+            'cantidad' => 10,
+            'existencia_antes' => 0,
+            'existencia_despues' => 10,
+        ]);
+    }
+
+    public function test_registrar_inventario_mediante_caso_de_uso_rechaza_duplicado(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 5, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(RegistrarInventario::class)->ejecutar([
+            'libro_id' => $libro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 10,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+        $this->assertSame('El libro ya tiene inventario registrado en esta sucursal', $resultado->mensaje());
+    }
+
+    public function test_registrar_inventario_sin_existencia_no_crea_movimiento(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+
+        $resultado = app(RegistrarInventario::class)->ejecutar([
+            'libro_id' => $libro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 0,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame(0, $resultado->data()['inventario']->existencia_actual);
+        $this->assertDatabaseCount('movimientos_inventario_libros', 0);
+    }
+
+    public function test_ajustar_existencia_entrada_mediante_caso_de_uso(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        $inv = InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 5, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(AjustarExistencia::class)->ejecutar([
+            'inventario_libro_id' => $inv->id,
+            'cantidad' => 3,
+            'motivo' => 'Reabastecimiento',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Entrada registrada', $resultado->mensaje());
+        $this->assertSame(8, $resultado->data()['inventario']->existencia_actual);
+        $this->assertDatabaseHas('movimientos_inventario_libros', [
+            'inventario_libro_id' => $inv->id,
+            'tipo_movimiento' => 'entrada',
+            'cantidad' => 3,
+            'existencia_antes' => 5,
+            'existencia_despues' => 8,
+            'creado_por' => $this->admin->id,
+        ]);
+    }
+
+    public function test_ajustar_existencia_salida_mediante_caso_de_uso(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        $inv = InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 10, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(AjustarExistencia::class)->ejecutar([
+            'inventario_libro_id' => $inv->id,
+            'cantidad' => -3,
+            'motivo' => 'Ajuste por daño',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Salida registrada', $resultado->mensaje());
+        $this->assertSame(7, $resultado->data()['inventario']->existencia_actual);
+    }
+
+    public function test_ajustar_existencia_mediante_caso_de_uso_rechaza_negativo(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        $inv = InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 2, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(AjustarExistencia::class)->ejecutar([
+            'inventario_libro_id' => $inv->id,
+            'cantidad' => -5,
+            'motivo' => 'Intentar negativo',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+        $this->assertSame('La existencia no puede ser negativa', $resultado->mensaje());
+        $this->assertDatabaseHas('inventario_libros', [
+            'id' => $inv->id,
+            'existencia_actual' => 2,
+        ]);
+    }
+
+    public function test_ajustar_existencia_mediante_caso_de_uso_rechaza_inventario_inexistente(): void
+    {
+        $resultado = app(AjustarExistencia::class)->ejecutar([
+            'inventario_libro_id' => 999999,
+            'cantidad' => 3,
+            'motivo' => 'Test',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(404, $resultado->codigo());
+        $this->assertSame('404_INVENTARIO_NO_ENCONTRADO', $resultado->codigoError());
+    }
+
+    public function test_vender_libro_mediante_caso_de_uso(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 350.00, 'creado_en' => now()]);
+        $inv = InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 10, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(VenderLibro::class)->ejecutar([
+            'inventario_libro_id' => $inv->id,
+            'cantidad' => 2,
+            'motivo' => 'Venta a estudiante',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame('Venta registrada', $resultado->mensaje());
+        $this->assertSame(8, $resultado->data()['venta']['inventario']->existencia_actual);
+        $this->assertSame(700.0, $resultado->data()['venta']['total_venta']);
+        $this->assertDatabaseHas('movimientos_inventario_libros', [
+            'inventario_libro_id' => $inv->id,
+            'tipo_movimiento' => 'salida',
+            'cantidad' => 2,
+            'existencia_antes' => 10,
+            'existencia_despues' => 8,
+            'motivo' => 'Venta a estudiante',
+            'referencia_type' => null,
+            'referencia_id' => null,
+            'creado_por' => $this->admin->id,
+        ]);
+    }
+
+    public function test_vender_libro_mediante_caso_de_uso_rechaza_stock_insuficiente(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        $inv = InventarioLibro::create([
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 1, 'creado_en' => now(),
+        ]);
+
+        $resultado = app(VenderLibro::class)->ejecutar([
+            'inventario_libro_id' => $inv->id,
+            'cantidad' => 5,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(422, $resultado->codigo());
+        $this->assertSame('No hay suficiente existencia. Disponible: 1', $resultado->mensaje());
+        $this->assertDatabaseHas('inventario_libros', [
+            'id' => $inv->id,
+            'existencia_actual' => 1,
+        ]);
+    }
+
+    public function test_vender_libro_mediante_caso_de_uso_rechaza_inventario_inexistente(): void
+    {
+        $resultado = app(VenderLibro::class)->ejecutar([
+            'inventario_libro_id' => 999999,
+            'cantidad' => 1,
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(404, $resultado->codigo());
+        $this->assertSame('404_INVENTARIO_NO_ENCONTRADO', $resultado->codigoError());
     }
 }

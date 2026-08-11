@@ -67,6 +67,7 @@ Las pruebas fuerzan SQLite en memoria, `RefreshDatabase`, cola síncrona y corre
 ## Referencias
 
 - `docs/PATRON_IMPLEMENTACION_RBAC.md`: patrón obligatorio para módulos y permisos.
+- `docs/PATRON_MODULARIZACION_CASOS_USO.md`: semáforo de decisión de cuándo extraer casos de uso (P-032) y estructura de módulos.
 - `docs/ARQUITECTURA_RBAC.md`: flujo de autorización y alcances.
 - `docs/REGLAS_NEGOCIO_POR_DOMINIO.md`: reglas detalladas del Portal Académico y Portal del Estudiante.
 - `docs/PENDIENTES.md`: registro canónico de pendientes y estado de validación.

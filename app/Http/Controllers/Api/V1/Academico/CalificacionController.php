@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1\Academico;
 
-use App\Http\Controllers\Controller;
-use App\Models\{Calificacion, HistorialAcademico, Matricula, OfertaAcademica, NivelAcademico};
-use App\Services\{ServicioNomenclatura, ServicioBitacora};
 use App\Helpers\RespuestaError;
+use App\Http\Controllers\Controller;
+use App\Models\Calificacion;
+use App\Modules\Calificaciones\CasosUso\ActualizarCalificacion;
+use App\Modules\Calificaciones\CasosUso\RegistrarCalificaciones;
+use App\Modules\Calificaciones\Servicios\ValidadorAccesoOfertaDocente;
+use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Comun\ResultadoCasoUso;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class CalificacionController extends Controller
 {
-    public function __construct(protected ?ServicioBitacora $bitacora = null) {}
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -47,6 +49,7 @@ class CalificacionController extends Controller
         $calificaciones = $query->orderByDesc('calificaciones.id')->paginate($request->get('per_page', 25));
         $calificaciones->getCollection()->transform(function (Calificacion $calificacion) {
             $calificacion->setAttribute('aprobada', $calificacion->estaAprobada());
+
             return $calificacion;
         });
 
@@ -69,64 +72,14 @@ class CalificacionController extends Controller
             'calificaciones.*.observaciones' => 'nullable|string|max:500',
         ]);
 
-        $oferta = OfertaAcademica::findOrFail($request->oferta_academica_id);
-        if (!$this->puedeGestionarOferta($request, $oferta)) {
-            return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
-        }
+        $resultado = app(RegistrarCalificaciones::class)->ejecutar(
+            (int) $request->oferta_academica_id,
+            $request->calificaciones,
+            $request->user()?->docente_id,
+            ContextoUsuario::desdeRequest(),
+        );
 
-        $resultado = DB::transaction(function () use ($request, $oferta) {
-            $docenteId = $oferta->docente_id;
-            $creadas = [];
-
-            foreach ($request->calificaciones as $item) {
-                $matricula = Matricula::where('estudiante_id', $item['estudiante_id'])
-                    ->where('oferta_academica_id', $oferta->id)
-                    ->where('estado', 'matriculado')
-                    ->first();
-
-                if (!$matricula) continue;
-
-                $codigoCalificacion = app(ServicioNomenclatura::class)->generarCodigo(
-                    entidad: 'calificaciones_' . date('Y'),
-                    formato: 'CAL-{ANIO}-{SECUENCIA:6}',
-                    longitudSecuencia: 6,
-                    anio: date('Y'),
-                );
-
-                $calificacion = Calificacion::updateOrCreate(
-                    [
-                        'estudiante_id' => $item['estudiante_id'],
-                        'oferta_academica_id' => $oferta->id,
-                    ],
-                    [
-                        'codigo' => $codigoCalificacion['codigo'],
-                        'matricula_id' => $matricula->id,
-                        'nota_final' => $item['nota_final'] ?? null,
-                        'faltas' => $item['faltas'] ?? 0,
-                        'docente_id' => $docenteId,
-                        'estado' => 'registrado',
-                        'observaciones' => $item['observaciones'] ?? null,
-                        'creado_por' => $request->user()?->id,
-                    ]
-                );
-
-                $creadas[] = $calificacion;
-            }
-
-            return $creadas;
-        });
-
-        foreach ($resultado as $cal) {
-            $cal->load('matricula', 'ofertaAcademica.nivelAcademico', 'ofertaAcademica.periodoAcademico', 'ofertaAcademica.modalidad');
-            $this->sincronizarHistorialAcademico($cal);
-        }
-
-        return response()->json([
-            'resultado' => 'A',
-            'codigo' => 200,
-            'mensaje' => count($resultado) . ' calificaciones registradas',
-            'data' => $resultado,
-        ]);
+        return $this->responder($resultado);
     }
 
     public function show(Request $request, int $id): JsonResponse
@@ -137,7 +90,7 @@ class CalificacionController extends Controller
             'docente:id,codigo,nombre,apellido',
             'matricula:id,codigo,estado',
         ])->findOrFail($id);
-        if (!$this->puedeGestionarOferta($request, $calificacion->ofertaAcademica)) {
+        if (! app(ValidadorAccesoOfertaDocente::class)->puedeGestionar($request->user()?->docente_id, $calificacion->ofertaAcademica)) {
             return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
         }
 
@@ -157,80 +110,33 @@ class CalificacionController extends Controller
             'observaciones' => 'nullable|string|max:500',
         ]);
 
-        $calificacion = Calificacion::with('ofertaAcademica')->findOrFail($id);
-        if (!$this->puedeGestionarOferta($request, $calificacion->ofertaAcademica)) {
-            return RespuestaError::make('403_OFERTA_NO_ASIGNADA', 403, 'No tienes asignada esta oferta académica')->response($request);
+        $resultado = app(ActualizarCalificacion::class)->ejecutar(
+            $id,
+            $request->only(['nota_final', 'faltas', 'observaciones']),
+            $request->user()?->docente_id,
+            ContextoUsuario::desdeRequest(),
+        );
+
+        return $this->responder($resultado);
+    }
+
+    private function responder(ResultadoCasoUso $resultado): JsonResponse
+    {
+        if (! $resultado->ok()) {
+            return RespuestaError::make(
+                $resultado->codigoError() ?? 'ERROR',
+                $resultado->codigo(),
+                $resultado->mensaje()
+            )->response(request());
         }
 
-        $calificacion->update([
-            'nota_final' => $request->nota_final ?? $calificacion->nota_final,
-            'faltas' => $request->faltas ?? $calificacion->faltas,
-            'observaciones' => $request->observaciones ?? $calificacion->observaciones,
-            'estado' => 'corregido',
-            'actualizado_por' => $request->user()?->id,
-        ]);
-
-        $calificacion->load('matricula', 'ofertaAcademica.nivelAcademico', 'ofertaAcademica.periodoAcademico', 'ofertaAcademica.modalidad');
-        $this->sincronizarHistorialAcademico($calificacion);
+        $data = $resultado->data();
 
         return response()->json([
             'resultado' => 'A',
-            'codigo' => 200,
-            'mensaje' => 'Calificación actualizada',
-            'data' => $calificacion,
+            'codigo' => $resultado->codigo(),
+            'mensaje' => $resultado->mensaje(),
+            'data' => $data['calificaciones'] ?? $data['calificacion'] ?? null,
         ]);
-    }
-
-    private function sincronizarHistorialAcademico(Calificacion $calificacion): void
-    {
-        $matricula = $calificacion->matricula;
-        $oferta = $calificacion->ofertaAcademica()->with(['nivelAcademico', 'periodoAcademico', 'modalidad'])->first();
-
-        if (!$matricula || !$oferta) {
-            return;
-        }
-
-        $estado = 'matriculado';
-        if ($calificacion->nota_final !== null) {
-            // Usa el método que ya evalúa nota + faltas según modalidad
-            $estado = $calificacion->estaAprobada() ? 'aprobado' : 'reprobado';
-        }
-
-        $codigoHistorial = 'HIS-' . $calificacion->codigo;
-        $codigoHistorial = substr($codigoHistorial, 0, 50);
-
-        $historial = HistorialAcademico::where('estudiante_id', $calificacion->estudiante_id)
-            ->where('matricula_id', $calificacion->matricula_id)
-            ->first();
-
-        if ($historial) {
-            $historial->update([
-                'oferta_academica_id' => $oferta->id,
-                'nivel_academico_id' => $oferta->nivel_academico_id,
-                'periodo_academico_id' => $oferta->periodo_academico_id,
-                'estado' => $estado,
-                'nota_final' => $calificacion->nota_final,
-                'faltas' => $calificacion->faltas ?? 0,
-                'observaciones' => $calificacion->observaciones,
-            ]);
-        } else {
-            HistorialAcademico::create([
-                'codigo' => $codigoHistorial,
-                'estudiante_id' => $calificacion->estudiante_id,
-                'matricula_id' => $calificacion->matricula_id,
-                'oferta_academica_id' => $oferta->id,
-                'nivel_academico_id' => $oferta->nivel_academico_id,
-                'periodo_academico_id' => $oferta->periodo_academico_id,
-                'estado' => $estado,
-                'nota_final' => $calificacion->nota_final,
-                'faltas' => $calificacion->faltas ?? 0,
-                'observaciones' => $calificacion->observaciones,
-            ]);
-        }
-    }
-
-    private function puedeGestionarOferta(Request $request, ?OfertaAcademica $oferta): bool
-    {
-        return !$request->user()->docente_id || ($oferta && (int) $oferta->docente_id === (int) $request->user()->docente_id);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Estudiantes;
 use App\Http\Controllers\Controller;
 use App\Models\Estudiante;
 use App\Models\Matricula;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,7 @@ class EstudianteController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Estudiante::activos()->ordenados()->with('sucursal');
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'estudiantes');
 
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
@@ -81,8 +83,11 @@ class EstudianteController extends Controller
         ], 201);
     }
 
-    public function show(Estudiante $estudiante): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        $estudiante = Estudiante::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($estudiante, $request->user(), 'estudiantes');
+        $estudiante = $estudiante->findOrFail($id);
         $estudiante->load('sucursal', 'acceso');
 
         return response()->json([
@@ -95,6 +100,10 @@ class EstudianteController extends Controller
 
     public function update(Request $request, Estudiante $estudiante): JsonResponse
     {
+        $query = Estudiante::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'estudiantes');
+        $query->findOrFail($estudiante->id);
+
         $datos = $request->validate([
             'nombre' => 'required|string|max:150',
             'apellido' => 'required|string|max:150',
@@ -125,7 +134,9 @@ class EstudianteController extends Controller
             'identidad' => 'required|string|max:30',
         ]);
 
-        $estudiante = Estudiante::where('identidad', $request->identidad)->first();
+        $query = Estudiante::where('identidad', $request->identidad);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'estudiantes');
+        $estudiante = $query->first();
 
         if (!$estudiante) {
             return response()->json([
@@ -151,9 +162,11 @@ class EstudianteController extends Controller
         ]);
     }
 
-    public function planActivo(int $id): JsonResponse
+    public function planActivo(Request $request, int $id): JsonResponse
     {
-        $estudiante = Estudiante::findOrFail($id);
+        $estudiante = Estudiante::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($estudiante, $request->user(), 'estudiantes');
+        $estudiante = $estudiante->findOrFail($id);
 
         $matriculaActiva = Matricula::where('estudiante_id', $estudiante->id)
             ->where('estado', 'matriculado')

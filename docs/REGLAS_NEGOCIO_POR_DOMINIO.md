@@ -240,13 +240,17 @@ Seleccionar estudiante y oferta
   `habilita_confirmacion_matricula`. Solo opera una matrícula `reservada`,
   vuelve a validar cupo, prerrequisitos y horario, y la pasa a `en_revision`.
 - **Revisión de pago:** requiere el permiso de pagos correspondiente y
-  `habilita_revision_contable`. Comprueba comprobante cuando
-  `requiere_comprobante` está activo, método, referencia, fecha, monto y
-  obligaciones aplicables.
-- **Aprobación:** requiere `pagos.aprobar` y `habilita_aprobacion_pago`.
-  Aplica el pago a obligaciones, confirma la matrícula si corresponde, mueve el
-  cupo reservado a matriculado y genera el recibo si
-  `habilita_generacion_recibo` está activo.
+  `habilita_revision_contable`. Aplica a pagos que llegan con comprobante o
+  por flujo de link y comprueba método, referencia, fecha, monto y obligaciones
+  aplicables.
+- **Registro administrativo directo:** si el flujo tiene
+  `habilita_aprobacion_pago`, administración puede registrar un pago aprobado
+  inmediatamente. En ese caso aplica el pago a obligaciones, confirma la
+  matrícula si corresponde, mueve el cupo reservado a matriculado y genera el
+  recibo si `habilita_generacion_recibo` está activo.
+- **Aprobación posterior:** requiere `pagos.aprobar` y
+  `habilita_aprobacion_pago`. Se usa para pagos que están `pendiente` o
+  `en_revision` y completa los mismos efectos contables y académicos del flujo.
 - **Rechazo:** requiere permiso de aprobación, conserva el pago y el motivo,
   libera la reserva cuando corresponda y no entrega WhatsApp.
 - **Reenganche o gestión posterior:** requiere `habilita_reenganche` y se
@@ -349,8 +353,8 @@ integridad transaccional.
   reversión o ajuste autorizado.
 - Los únicos estados de recibo son `emitido`, `anulado` y `reversado`.
   `veces_reimpreso` es un contador separado y no un estado.
-- Reimprimir un recibo incrementa el contador y registra usuario, fecha y
-  motivo; un recibo anulado no se reimprime como válido.
+- Reimprimir un recibo incrementa el contador y registra usuario y fecha de la
+  operación; un recibo anulado no se reimprime como válido.
 
 ### 2.9 Caja e inventario
 

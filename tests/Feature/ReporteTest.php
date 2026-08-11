@@ -45,6 +45,11 @@ class ReporteTest extends TestCase
         ]);
         $this->admin->roles()->attach($rol->id, ['estado' => 'activo']);
         $this->token = $this->admin->createToken('test')->plainTextToken;
+        DB::table('alcances_usuario')->insert([
+            'usuario_id' => $this->admin->id,
+            'tipo' => 'global',
+            'estado' => 'activo',
+        ]);
 
         $this->sucursal = Sucursal::factory()->create(['codigo' => 'SPS']);
         $this->periodo = PeriodoAcademico::create([

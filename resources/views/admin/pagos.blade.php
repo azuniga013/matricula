@@ -43,7 +43,7 @@
                                     <td class="font-semibold">L <span x-text="fmtMonto(p.monto)"></span></td>
                                     <td class="text-xs text-gray-500 max-w-xs truncate" x-text="p.observaciones || '-'"></td>
                                     <td class="text-xs text-gray-500" x-text="p.referencia_externa || '-'"></td>
-                                    <td class="text-gray-500 text-xs" x-text="fmtFecha(p.creado_en)"></td>
+                                    <td class="text-gray-500 text-xs" x-text="fmtFecha(p.fecha_proceso || p.fecha_aprobacion || p.creado_en)"></td>
                                     <td>
                                         <template x-if="p.comprobantes && p.comprobantes.length > 0">
                                             <button @click="verComprobante(p)" class="btn btn-ghost btn-sm text-brand-600">

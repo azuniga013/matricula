@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\{Modulo, OpcionModulo, ParametroGlobal, Permiso, Rol, User};
+use App\Services\NotificacionesAsistencia\ConfiguracionNotificacionesAsistencia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -107,5 +108,22 @@ class ParametroGlobalTest extends TestCase
 
         $this->getJson('/api/v1/seguridad/parametros-globales', ['Authorization' => "Bearer $token"])
             ->assertForbidden();
+    }
+
+    public function test_configuracion_notificaciones_asistencia_lee_parametros_globales(): void
+    {
+        ParametroGlobal::create(['grupo' => 'notificaciones_asistencia', 'codigo' => 'EMAIL_HABILITADO', 'nombre' => 'Email', 'valor' => 'false', 'tipo' => 'booleano', 'estado' => true]);
+        ParametroGlobal::create(['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_HABILITADO', 'nombre' => 'WhatsApp', 'valor' => 'true', 'tipo' => 'booleano', 'estado' => true]);
+        ParametroGlobal::create(['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_DRIVER', 'nombre' => 'Driver', 'valor' => 'stub', 'tipo' => 'texto', 'estado' => true]);
+        ParametroGlobal::create(['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_REMITENTE', 'nombre' => 'Remitente', 'valor' => 'SANVICENTE', 'tipo' => 'texto', 'estado' => true]);
+        ParametroGlobal::create(['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_PLANTILLA', 'nombre' => 'Plantilla', 'valor' => 'asistencia_basica', 'tipo' => 'texto', 'estado' => true]);
+
+        $config = app(ConfiguracionNotificacionesAsistencia::class);
+
+        $this->assertFalse($config->emailHabilitado());
+        $this->assertTrue($config->whatsappHabilitado());
+        $this->assertSame('stub', $config->whatsappDriver());
+        $this->assertSame('SANVICENTE', $config->whatsappRemitente());
+        $this->assertSame('asistencia_basica', $config->whatsappPlantilla());
     }
 }

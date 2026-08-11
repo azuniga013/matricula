@@ -62,7 +62,7 @@ class ResolutorAlcanceDatos
     protected function entidadTieneSucursal(string $entidad): bool
     {
         return in_array($entidad, [
-            'sucursales', 'ofertas_academicas', 'matriculas', 'pagos',
+            'sucursales', 'estudiantes', 'ofertas_academicas', 'matriculas', 'pagos',
             'recibos_caja', 'sesiones_caja', 'aulas', 'grupos_whatsapp',
             'inventario_libros',
         ]);

@@ -7,6 +7,7 @@ use App\Models\{Calificacion, DetalleCierreCaja, Matricula, Pago, ReciboCaja, Se
 use App\Models\ParametroGlobal;
 use App\Services\ExportacionReportesService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,64 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReporteController extends Controller
 {
+    private function aplicarAlcanceAdministrativo(Request $request, $query, string $sucursalColumna, ?string $creadoPorColumna = null)
+    {
+        $usuario = $request->user();
+
+        if (! $usuario || $usuario->tieneAlcanceGlobal()) {
+            return $query;
+        }
+
+        $idsSucursales = $usuario->idsSucursalesAsignadas();
+        if (! empty($idsSucursales)) {
+            return $query->whereIn($sucursalColumna, $idsSucursales);
+        }
+
+        if ($creadoPorColumna) {
+            return $query->where($creadoPorColumna, $usuario->id);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function aplicarAlcanceReporte(Request $request, $query, ?string $sucursalColumna = null, ?string $docenteColumna = null)
+    {
+        $usuario = $request->user();
+
+        if (! $usuario || $usuario->tieneAlcanceGlobal()) {
+            return $query;
+        }
+
+        $idsSucursales = $usuario->idsSucursalesAsignadas();
+        if (! empty($idsSucursales) && $sucursalColumna) {
+            if ($query instanceof EloquentBuilder && str_contains($sucursalColumna, '.')) {
+                $partes = explode('.', $sucursalColumna);
+                if ($partes[0] === $query->getModel()->getTable()) {
+                    return $query->whereIn($sucursalColumna, $idsSucursales);
+                }
+                $columna = array_pop($partes);
+                return $query->whereHas(implode('.', $partes), fn ($q) => $q->whereIn($columna, $idsSucursales));
+            }
+
+            return $query->whereIn($sucursalColumna, $idsSucursales);
+        }
+
+        if ($usuario->docente_id && $docenteColumna) {
+            if ($query instanceof EloquentBuilder && str_contains($docenteColumna, '.')) {
+                $partes = explode('.', $docenteColumna);
+                if ($partes[0] === $query->getModel()->getTable()) {
+                    return $query->where($docenteColumna, $usuario->docente_id);
+                }
+                $columna = array_pop($partes);
+                return $query->whereHas(implode('.', $partes), fn ($q) => $q->where($columna, $usuario->docente_id));
+            }
+
+            return $query->where($docenteColumna, $usuario->docente_id);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
     private function expresionFecha(string $columna): string
     {
         return match (DB::connection()->getDriverName()) {
@@ -159,6 +218,8 @@ class ReporteController extends Controller
             )
             ->groupBy('periodos_academicos.id', 'periodos_academicos.codigo', 'periodos_academicos.nombre');
 
+        $this->aplicarAlcanceReporte($request, $query, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
+
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
         }
@@ -194,6 +255,8 @@ class ReporteController extends Controller
             )
             ->groupBy('sucursales.id', 'sucursales.codigo', 'sucursales.nombre');
 
+        $this->aplicarAlcanceReporte($request, $query, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
+
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
         }
@@ -225,6 +288,8 @@ class ReporteController extends Controller
                 DB::raw('COUNT(matriculas.id) as total_matriculados')
             )
             ->groupBy('niveles_academicos.id', 'niveles_academicos.codigo', 'niveles_academicos.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
@@ -270,6 +335,8 @@ class ReporteController extends Controller
             ->groupBy('docentes.id', 'docentes.codigo', 'docentes.nombre', 'docentes.apellido',
                 'niveles_academicos.id', 'niveles_academicos.codigo', 'niveles_academicos.nombre',
                 'horarios.id', 'horarios.codigo', 'horarios.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
@@ -333,9 +400,11 @@ class ReporteController extends Controller
                 'estudiantes.correo',
                 'estudiantes.telefono',
                 'matriculas.estado as estado_matricula'
-            )
-            ->orderBy('estudiantes.apellido')
-            ->get();
+            );
+
+        $this->aplicarAlcanceReporte($request, $alumnos, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
+
+        $alumnos = $alumnos->orderBy('estudiantes.apellido')->get();
 
         return response()->json([
             'resultado' => 'A',
@@ -353,6 +422,7 @@ class ReporteController extends Controller
 
         $calificaciones = DB::table('calificaciones')
             ->join('estudiantes', 'calificaciones.estudiante_id', '=', 'estudiantes.id')
+            ->join('ofertas_academicas', 'calificaciones.oferta_academica_id', '=', 'ofertas_academicas.id')
             ->where('calificaciones.oferta_academica_id', $request->oferta_academica_id)
             ->select(
                 'estudiantes.codigo as estudiante_codigo',
@@ -361,9 +431,11 @@ class ReporteController extends Controller
                 'calificaciones.nota_final',
                 'calificaciones.faltas',
                 'calificaciones.estado as estado_calificacion'
-            )
-            ->orderBy('estudiantes.apellido')
-            ->get();
+            );
+
+        $this->aplicarAlcanceReporte($request, $calificaciones, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
+
+        $calificaciones = $calificaciones->orderBy('estudiantes.apellido')->get();
 
         return response()->json([
             'resultado' => 'A',
@@ -391,8 +463,11 @@ class ReporteController extends Controller
                 'periodos_academicos.codigo as periodo_codigo',
                 'periodos_academicos.nombre as periodo_nombre',
                 'matriculas.fecha_confirmacion'
-            )
-            ->first();
+            );
+
+        $this->aplicarAlcanceReporte($request, $matricula, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
+
+        $matricula = $matricula->first();
 
         return response()->json([
             'resultado' => 'A',
@@ -425,6 +500,8 @@ class ReporteController extends Controller
             )
             ->groupBy('conceptos_pago.id', 'conceptos_pago.codigo', 'conceptos_pago.nombre');
 
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
+
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
         }
@@ -450,6 +527,8 @@ class ReporteController extends Controller
 
         $query = DB::table('pagos')
             ->join('metodos_pago', 'pagos.metodo_pago_id', '=', 'metodos_pago.id')
+            ->leftJoin('matriculas', 'pagos.matricula_id', '=', 'matriculas.id')
+            ->leftJoin('ofertas_academicas', 'matriculas.oferta_academica_id', '=', 'ofertas_academicas.id')
             ->where('pagos.estado', 'aprobado')
             ->whereBetween(DB::raw($this->expresionFecha('pagos.creado_en')), [$request->fecha_desde, $request->fecha_hasta])
             ->select(
@@ -459,6 +538,8 @@ class ReporteController extends Controller
                 DB::raw('SUM(pagos.monto) as total_monto')
             )
             ->groupBy('metodos_pago.id', 'metodos_pago.codigo', 'metodos_pago.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
@@ -493,6 +574,8 @@ class ReporteController extends Controller
                 DB::raw('SUM(pagos.monto) as total_monto')
             )
             ->groupBy('sucursales.id', 'sucursales.codigo', 'sucursales.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
@@ -556,6 +639,8 @@ class ReporteController extends Controller
                 'matriculas.codigo as matricula_codigo'
             )
             ->orderByDesc('pagos.creado_en');
+
+        $this->aplicarAlcanceAdministrativo($request, $query, 'pagos.sucursal_id', 'pagos.creado_por');
 
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
@@ -624,6 +709,8 @@ class ReporteController extends Controller
             )
             ->orderByDesc('pagos.fecha_rechazo');
 
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
+
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
         }
@@ -664,6 +751,8 @@ class ReporteController extends Controller
             'pago.matricula.ofertaAcademica.planCobro:id,codigo,nombre',
         ])
             ->whereBetween(DB::raw($this->expresionFecha('COALESCE(recibos_caja.fecha_recibo, recibos_caja.creado_en)')), [$request->fecha_desde, $request->fecha_hasta]);
+
+        $this->aplicarAlcanceReporte($request, $query, 'recibos_caja.sucursal_id', 'pago.matricula.ofertaAcademica.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);
@@ -743,6 +832,8 @@ class ReporteController extends Controller
             )
             ->groupBy('sucursales.id', 'sucursales.codigo', 'sucursales.nombre', 'periodos_academicos.id', 'periodos_academicos.codigo', 'periodos_academicos.nombre', 'planes_estudio.id', 'planes_estudio.codigo', 'planes_estudio.nombre', 'niveles_academicos.id', 'niveles_academicos.codigo', 'niveles_academicos.nombre', 'horarios.id', 'horarios.codigo', 'horarios.nombre', 'docentes.id', 'docentes.codigo', 'docentes.nombre', 'docentes.apellido', 'estudiantes.id', 'estudiantes.codigo', 'estudiantes.nombre', 'estudiantes.apellido', 'estudiantes.correo', 'estudiantes.telefono', 'metodos_pago.id', 'metodos_pago.codigo', 'metodos_pago.nombre');
 
+        $this->aplicarAlcanceReporte($request, $query, 'recibos_caja.sucursal_id', 'ofertas_academicas.docente_id');
+
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);
         }
@@ -769,6 +860,8 @@ class ReporteController extends Controller
 
         $query = DB::table('pagos')
             ->join('conceptos_pago', 'pagos.concepto_pago_id', '=', 'conceptos_pago.id')
+            ->leftJoin('matriculas', 'pagos.matricula_id', '=', 'matriculas.id')
+            ->leftJoin('ofertas_academicas', 'matriculas.oferta_academica_id', '=', 'ofertas_academicas.id')
             ->where('pagos.estado', 'aprobado')
             ->whereBetween(DB::raw($this->expresionFecha('pagos.fecha_aprobacion')), [$request->fecha_desde, $request->fecha_hasta])
             ->select(
@@ -778,6 +871,8 @@ class ReporteController extends Controller
                 DB::raw('SUM(pagos.monto) as total_monto')
             )
             ->groupBy('conceptos_pago.id', 'conceptos_pago.codigo', 'conceptos_pago.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
@@ -815,6 +910,8 @@ class ReporteController extends Controller
         ])
         ->select('recibos_caja.*')
         ->whereBetween(DB::raw($this->expresionFecha('COALESCE(recibos_caja.fecha_recibo, recibos_caja.creado_en)')), [$request->fecha_desde, $request->fecha_hasta]);
+
+        $this->aplicarAlcanceReporte($request, $query, 'recibos_caja.sucursal_id', 'pago.matricula.ofertaAcademica.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);
@@ -860,6 +957,8 @@ class ReporteController extends Controller
             'pago.matricula.ofertaAcademica.docente:id,codigo,nombre,apellido',
         ])
         ->where('recibos_caja.estado', 'anulado');
+
+        $this->aplicarAlcanceReporte($request, $query, 'recibos_caja.sucursal_id', 'pago.matricula.ofertaAcademica.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);
@@ -915,6 +1014,8 @@ class ReporteController extends Controller
                 DB::raw('SUM(COALESCE(recibos_caja.monto_total, 0)) as total_monto')
             )
             ->groupBy('users.id', 'users.name', 'sucursales.id', 'sucursales.codigo', 'sucursales.nombre', 'sesiones_caja.codigo', 'metodos_pago.id', 'metodos_pago.codigo', 'metodos_pago.nombre');
+
+        $this->aplicarAlcanceReporte($request, $query, 'sesiones_caja.sucursal_id', null);
 
         if ($request->filled('sucursal_id')) {
             $query->where('sesiones_caja.sucursal_id', $request->sucursal_id);
@@ -978,6 +1079,8 @@ class ReporteController extends Controller
                 DB::raw('SUM(recibos_caja.monto_total) as total_monto')
             )
             ->groupBy(DB::raw($this->expresionFecha('COALESCE(recibos_caja.fecha_recibo, recibos_caja.creado_en)')), 'sucursales.id', 'sucursales.codigo', 'sucursales.nombre', 'metodos_pago.id', 'metodos_pago.codigo', 'metodos_pago.nombre', 'users.id', 'users.name', 'periodos_academicos.id', 'periodos_academicos.codigo', 'periodos_academicos.nombre', 'planes_estudio.id', 'planes_estudio.codigo', 'planes_estudio.nombre', 'niveles_academicos.id', 'niveles_academicos.codigo', 'niveles_academicos.nombre', 'horarios.id', 'horarios.codigo', 'horarios.nombre', 'docentes.id', 'docentes.codigo', 'docentes.nombre', 'docentes.apellido', 'estudiantes.id', 'estudiantes.codigo', 'estudiantes.nombre', 'estudiantes.apellido', 'estudiantes.correo', 'estudiantes.telefono');
+
+        $this->aplicarAlcanceReporte($request, $query, 'recibos_caja.sucursal_id', 'ofertas_academicas.docente_id');
 
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);

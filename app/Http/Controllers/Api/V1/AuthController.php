@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\IntentoAcceso;
 use App\Models\SesionUsuario;
+use App\Models\User;
 use App\Services\CachePermisosService;
 use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
@@ -26,11 +27,29 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = \App\Models\User::where('email', $request->email)->first();
+        $usuario = User::where('email', $request->email)->first();
 
-        if (!$usuario || !Hash::check($request->password, $usuario->password)) {
+        if ($usuario && $usuario->estaBloqueado()) {
+            $this->registrarIntento($request, $usuario, 'fallido', 'Usuario bloqueado');
+
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 423,
+                'codigo_error' => '423_USUARIO_BLOQUEADO',
+                'mensaje' => 'Su cuenta está bloqueada temporalmente',
+            ], 423);
+        }
+
+        if (! $usuario || ! Hash::check($request->password, $usuario->password)) {
             $this->registrarIntento($request, $usuario, 'fallido', 'Credenciales inválidas');
-            $this->bloquearSiExcedeIntentos($usuario, (string) $request->email, $request);
+            if ($this->bloquearSiExcedeIntentos($usuario, (string) $request->email, $request)) {
+                return response()->json([
+                    'resultado' => 'R',
+                    'codigo' => 423,
+                    'codigo_error' => '423_USUARIO_BLOQUEADO',
+                    'mensaje' => 'Su cuenta está bloqueada temporalmente',
+                ], 423);
+            }
 
             throw ValidationException::withMessages([
                 'email' => ['Las credenciales proporcionadas son incorrectas'],
@@ -128,7 +147,7 @@ class AuthController extends Controller
     {
         $usuario = $request->user() ?: auth()->user();
 
-        if (!$usuario) {
+        if (! $usuario) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 401,
@@ -162,7 +181,7 @@ class AuthController extends Controller
         ]);
     }
 
-    protected function registrarSesion(\App\Models\User $usuario, string $token, Request $request): void
+    protected function registrarSesion(User $usuario, string $token, Request $request): void
     {
         SesionUsuario::create([
             'usuario_id' => $usuario->id,
@@ -181,10 +200,23 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = \App\Models\User::where('email', $request->email)->first();
+        $usuario = User::where('email', $request->email)->first();
 
-        if (!$usuario || !Hash::check($request->password, $usuario->password)) {
+        if ($usuario && $usuario->estaBloqueado()) {
+            $this->registrarIntento($request, $usuario, 'fallido', 'Usuario bloqueado');
+
+            return back()->withErrors([
+                'email' => 'Su cuenta está bloqueada temporalmente',
+            ])->onlyInput('email');
+        }
+
+        if (! $usuario || ! Hash::check($request->password, $usuario->password)) {
             $this->registrarIntento($request, $usuario, 'fallido', 'Credenciales inválidas');
+            if ($this->bloquearSiExcedeIntentos($usuario, (string) $request->email, $request)) {
+                return back()->withErrors([
+                    'email' => 'Su cuenta está bloqueada temporalmente',
+                ])->onlyInput('email');
+            }
 
             return back()->withErrors([
                 'email' => 'Las credenciales proporcionadas son incorrectas',
@@ -252,20 +284,24 @@ class AuthController extends Controller
         ]);
     }
 
-    protected function bloquearSiExcedeIntentos($usuario, string $correo, Request $request): void
+    protected function bloquearSiExcedeIntentos($usuario, string $correo, Request $request): bool
     {
-        if (!$usuario) {
-            return;
+        if (! $usuario) {
+            return false;
         }
+
+        $ventanaMinutos = config('seguridad.intentos.ventana_minutos', 15);
+        $maximos = config('seguridad.intentos.maximos', 5);
+        $bloqueoMinutos = config('seguridad.intentos.bloqueo_minutos', 15);
 
         $fallidos = IntentoAcceso::where('correo', $correo)
             ->where('resultado', 'fallido')
-            ->where('creado_en', '>=', now()->subMinutes(30))
+            ->where('creado_en', '>=', now()->subMinutes($ventanaMinutos))
             ->count();
 
-        if ($fallidos >= 5) {
+        if ($fallidos >= $maximos) {
             $usuario->update([
-                'bloqueado_hasta' => now()->addMinutes(30),
+                'bloqueado_hasta' => now()->addMinutes($bloqueoMinutos),
                 'actualizado_por' => $usuario->id,
             ]);
 
@@ -279,6 +315,10 @@ class AuthController extends Controller
                 null,
                 ['correo' => $correo, 'fallidos' => $fallidos]
             );
+
+            return true;
         }
+
+        return false;
     }
 }

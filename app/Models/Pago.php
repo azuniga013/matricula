@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 
 class Pago extends Model
 {
@@ -123,5 +124,20 @@ class Pago extends Model
     public function scopeAprobados($query)
     {
         return $query->where('pagos.estado', 'aprobado');
+    }
+
+    public function getFechaProcesoAttribute($value): ?Carbon
+    {
+        if ($value) {
+            return $this->asDateTime($value);
+        }
+
+        if ($this->fecha_aprobacion) {
+            return $this->fecha_aprobacion;
+        }
+
+        $creadoEn = $this->getAttributeFromArray('creado_en');
+
+        return $creadoEn ? $this->asDateTime($creadoEn) : null;
     }
 }

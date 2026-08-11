@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UsuarioRol;
 use App\Models\UsuarioSucursal;
 use App\Services\CachePermisosService;
+use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class UsuarioController extends Controller
 {
     public function __construct(
         protected CachePermisosService $cachePermisos,
+        protected ServicioBitacora $bitacora,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -135,12 +137,36 @@ class UsuarioController extends Controller
 
         $datos['actualizado_por'] = $request->user()->id;
 
+        if (
+            ($datos['estado'] ?? null) === 'inactivo'
+            && $usuario->estado === 'activo'
+            && $this->esUltimoSuperadminActivo($usuario)
+        ) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_ULTIMO_SUPERADMIN',
+                'mensaje' => 'No puede inactivar al último superadministrador activo.',
+            ], 422);
+        }
+
+        $estadoAntes = $usuario->estado;
         $usuario->update($datos);
 
         if (isset($datos['estado']) && $datos['estado'] === 'inactivo') {
             $usuario->tokens()->delete();
             $usuario->sesiones()->whereNull('revocado_en')->update(['revocado_en' => now()]);
             $this->cachePermisos->invalidarPermisos($usuario->id);
+            $this->bitacora->registrarOperacionPermitida(
+                $request->user()->id,
+                'inactivar_usuario',
+                'seguridad',
+                $request->ip(),
+                $request->userAgent() ?? '',
+                $usuario->id,
+                ['estado' => $estadoAntes],
+                ['estado' => 'inactivo'],
+            );
         }
 
         $usuario->load(['roles', 'sucursales', 'docente']);
@@ -159,6 +185,18 @@ class UsuarioController extends Controller
             'roles' => 'required|array|min:1',
             'roles.*' => 'exists:roles,codigo',
         ]);
+
+        if (
+            ! in_array('SUPERADMIN', $datos['roles'], true)
+            && $this->esUltimoSuperadminActivo($usuario)
+        ) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_ULTIMO_SUPERADMIN',
+                'mensaje' => 'No puede retirar el rol SUPERADMIN al último superadministrador activo.',
+            ], 422);
+        }
 
         DB::transaction(function () use ($usuario, $datos, $request) {
             $usuario->roles()->detach();
@@ -239,11 +277,36 @@ class UsuarioController extends Controller
 
         $usuario->tokens()->delete();
         $usuario->sesiones()->whereNull('revocado_en')->update(['revocado_en' => now()]);
+        $this->bitacora->registrarOperacionPermitida(
+            $request->user()->id,
+            'restablecer_contrasena_usuario',
+            'seguridad',
+            $request->ip(),
+            $request->userAgent() ?? '',
+            $usuario->id,
+            null,
+            ['debe_cambiar_contrasena' => false],
+        );
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'Contraseña restablecida exitosamente',
         ]);
+    }
+
+    protected function esUltimoSuperadminActivo(User $usuario): bool
+    {
+        $esSuperadmin = $usuario->roles()
+            ->where('roles.codigo', 'SUPERADMIN')
+            ->exists();
+
+        if (! $esSuperadmin || $usuario->estado !== 'activo') {
+            return false;
+        }
+
+        return User::where('estado', 'activo')
+            ->whereHas('roles', fn ($q) => $q->where('roles.codigo', 'SUPERADMIN'))
+            ->count() <= 1;
     }
 }

@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\Api\V1\Pagos;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Pago, ComprobantePago, ObligacionPagoEstudiante, AplicacionPago, ReciboCaja, ConceptoPago, Matricula, OfertaAcademica, SesionCaja, CuentaBancaria};
-use App\Services\ServicioNomenclatura;
+use App\Models\ConceptoPago;
+use App\Models\Estudiante;
+use App\Models\ObligacionPagoEstudiante;
+use App\Models\Pago;
+use App\Modules\Pagos\CasosUso\ActualizarLinkPago;
+use App\Modules\Pagos\CasosUso\AprobarPago;
+use App\Modules\Pagos\CasosUso\EliminarPagoTotal;
+use App\Modules\Pagos\CasosUso\RechazarPago;
+use App\Modules\Pagos\CasosUso\RegistrarPago;
+use App\Modules\Pagos\CasosUso\SubirComprobantePago;
+use App\Modules\Comun\ContextoUsuario;
+use App\Services\ResolutorAlcanceDatos;
 use App\Services\ResolutorFlujoMatricula;
-use Carbon\Carbon;
+use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class PagoController extends Controller
 {
@@ -38,6 +46,7 @@ class PagoController extends Controller
             'aplicaciones.obligacion:id,concepto_pago_id,numero_cuota,nombre_cargo,monto,monto_pagado,estado',
             'aplicaciones.obligacion.conceptoPago:id,codigo,nombre',
         ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'pagos');
 
         if ($request->filled('sucursal_id')) {
             $query->where('pagos.sucursal_id', $request->sucursal_id);
@@ -102,10 +111,14 @@ class PagoController extends Controller
             'metodo_pago_id' => 'nullable|exists:metodos_pago,id',
         ]);
 
+        $estudiante = Estudiante::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($estudiante, $request->user(), 'estudiantes');
+        $estudiante->findOrFail($datos['estudiante_id']);
+
         $concepto = ConceptoPago::findOrFail($datos['concepto_pago_id']);
         $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $concepto->id, $datos['metodo_pago_id'] ?? null);
 
-        if (!in_array($concepto->codigo, ['MAT', 'CUO'], true) || empty($configFlujo['habilita_seleccion_obligaciones'])) {
+        if (! in_array($concepto->codigo, ['MAT', 'CUO'], true) || empty($configFlujo['habilita_seleccion_obligaciones'])) {
             return response()->json([
                 'resultado' => 'A',
                 'codigo' => 0,
@@ -157,6 +170,7 @@ class PagoController extends Controller
             'fecha_proceso' => 'nullable|date',
             'referencia_externa' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string|max:500',
+            'solicitar_link' => 'nullable|boolean',
             'obligaciones' => 'nullable|array',
             'obligaciones.*.obligacion_id' => 'required_with:obligaciones|exists:obligaciones_pago_estudiante,id',
             'obligaciones.*.monto_aplicado' => 'required_with:obligaciones|numeric|min:0.01',
@@ -165,428 +179,141 @@ class PagoController extends Controller
             'codigo_recibo' => 'nullable|string|max:50',
         ]);
 
-        $metodoPagoId = $request->metodo_pago_id ? (int) $request->metodo_pago_id : null;
-        $metodo = $metodoPagoId ? \App\Models\MetodoPago::find($metodoPagoId) : null;
-        $cuentaBancaria = $this->validarCuentaBancaria($metodo, $request->input('cuenta_bancaria_id'));
-        if ($cuentaBancaria === false) {
+        $resultado = app(RegistrarPago::class)->ejecutar(
+            [...$request->all(), 'solicitar_link' => $request->boolean('solicitar_link')],
+            ContextoUsuario::desdeRequest(),
+        );
+
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => 422,
-                'codigo_error' => '422_CUENTA_BANCARIA_REQUERIDA',
-                'mensaje' => 'Debe seleccionar una cuenta bancaria activa para pagos por depósito o transferencia.',
-            ], 422);
-        }
-        $solicitaLink = $request->boolean('solicitar_link') || ($metodo?->permite_link_pago ?? false);
-
-        $resultado = DB::transaction(function () use ($request, $metodo, $cuentaBancaria, $solicitaLink) {
-            $estudiante = \App\Models\Estudiante::findOrFail($request->estudiante_id);
-            $concepto = ConceptoPago::findOrFail($request->concepto_pago_id);
-            $fechaProceso = Carbon::parse($request->fecha_proceso ?? now());
-            $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $concepto->id, $request->metodo_pago_id ? (int) $request->metodo_pago_id : null);
-
-            $resultadoCodigo = app(ServicioNomenclatura::class)->generarCodigo(
-                entidad: 'pagos_' . date('Y'),
-                formato: 'PAG-{ANIO}-{SECUENCIA:6}',
-                longitudSecuencia: 6,
-                anio: date('Y'),
-            );
-
-            $pago = Pago::create([
-                'codigo' => $resultadoCodigo['codigo'],
-                'estudiante_id' => $estudiante->id,
-                'matricula_id' => $request->matricula_id,
-                'concepto_pago_id' => $concepto->id,
-                'metodo_pago_id' => $request->metodo_pago_id,
-                'cuenta_bancaria_id' => $cuentaBancaria?->id,
-                'sucursal_id' => $estudiante->sucursal_id,
-                'monto' => $request->monto,
-                'estado' => $solicitaLink ? 'solicita_link' : 'aprobado',
-                'referencia_externa' => $request->referencia_externa,
-                'observaciones' => $request->observaciones,
-                'aprobado_por' => $solicitaLink ? null : auth()->id(),
-                'fecha_aprobacion' => $solicitaLink ? null : $fechaProceso,
-                'creado_por' => auth()->id(),
-                'creado_en' => $fechaProceso,
-            ]);
-
-            $sesionCaja = \App\Models\SesionCaja::where('sucursal_id', $pago->sucursal_id)
-                ->where('usuario_cajero_id', auth()->id())
-                ->where('estado', 'abierta')
-                ->latest('id')
-                ->first();
-
-            if ($sesionCaja) {
-                $pago->update([
-                    'sesion_caja_id' => $sesionCaja->id,
-                    'actualizado_por' => auth()->id(),
-                ]);
-            }
-
-            if ($request->filled('inventario_libro_id') && $concepto->codigo === 'VLI') {
-                $inventario = \App\Models\InventarioLibro::lockForUpdate()->findOrFail($request->inventario_libro_id);
-                if ($inventario->existencia_actual < $request->cantidad_libro) {
-                    throw new \RuntimeException('No hay suficiente existencia. Disponible: ' . $inventario->existencia_actual);
-                }
-                $nuevaExistencia = $inventario->existencia_actual - $request->cantidad_libro;
-                $inventario->update([
-                    'existencia_actual' => $nuevaExistencia,
-                    'actualizado_por' => auth()->id(),
-                ]);
-                \App\Models\MovimientoInventarioLibro::create([
-                    'inventario_libro_id' => $inventario->id,
-                    'tipo_movimiento' => 'salida',
-                    'cantidad' => $request->cantidad_libro,
-                    'existencia_antes' => $inventario->existencia_actual,
-                    'existencia_despues' => $nuevaExistencia,
-                    'motivo' => 'Venta de libro - Pago ' . $pago->codigo,
-                    'referencia_type' => Pago::class,
-                    'referencia_id' => $pago->id,
-                    'creado_por' => auth()->id(),
-                ]);
-            }
-
-            $esSolicitudLink = $solicitaLink;
-
-            if ($pago->matricula_id) {
-                $matricula = \App\Models\Matricula::lockForUpdate()->find($pago->matricula_id);
-                if ($matricula && !$esSolicitudLink && in_array($matricula->estado, ['reservada', 'en_revision'])) {
-                    $matricula->update([
-                        'estado' => 'matriculado',
-                        'fecha_confirmacion' => now(),
-                        'actualizado_por' => auth()->id(),
-                    ]);
-
-                    $oferta = \App\Models\OfertaAcademica::lockForUpdate()->find($matricula->oferta_academica_id);
-                    if ($oferta && $oferta->cupos_reservados > 0) {
-                        $oferta->decrement('cupos_reservados');
-                        $oferta->increment('cupos_matriculados');
-                        if ($oferta->cuposDisponibles() <= 0) {
-                            $oferta->update(['estado' => 'lleno']);
-                        }
-                    }
-                }
-
-                $obligacionesQuery = ObligacionPagoEstudiante::where('matricula_id', $pago->matricula_id)
-                    ->whereIn('estado', ['pendiente', 'parcial'])
-                    ->orderBy('numero_cuota');
-
-                if ($request->filled('obligaciones')) {
-                    $ids = collect($request->input('obligaciones'))
-                        ->pluck('obligacion_id')
-                        ->map(fn ($id) => (int) $id)
-                        ->values();
-                    $obligacionesQuery->whereIn('id', $ids);
-                }
-
-                $obligaciones = $obligacionesQuery->get();
-
-                $montoRestante = $pago->monto;
-
-                foreach ($obligaciones as $obligacion) {
-                    if ($montoRestante <= 0) break;
-
-                    $saldo = $obligacion->monto - $obligacion->monto_pagado;
-                    $seleccion = collect($request->input('obligaciones', []))
-                        ->firstWhere('obligacion_id', $obligacion->id);
-                    $montoAplicar = $seleccion
-                        ? min((float) $seleccion['monto_aplicado'], $saldo, $montoRestante)
-                        : min($montoRestante, $saldo);
-
-                    $obligacion->update([
-                        'monto_pagado' => $obligacion->monto_pagado + $montoAplicar,
-                        'estado' => ($obligacion->monto_pagado + $montoAplicar) >= $obligacion->monto ? 'pagado' : 'parcial',
-                    ]);
-
-                    AplicacionPago::create([
-                        'pago_id' => $pago->id,
-                        'obligacion_pago_estudiante_id' => $obligacion->id,
-                        'estudiante_id' => $pago->estudiante_id,
-                        'monto_aplicado' => $montoAplicar,
-                        'estado' => 'activo',
-                        'creado_por' => auth()->id(),
-                    ]);
-
-                    $montoRestante -= $montoAplicar;
-                }
-            }
-
-            $recibo = $esSolicitudLink || empty($configFlujo['habilita_generacion_recibo']) ? null : $this->generarRecibo($pago);
-
-            return ['pago' => $pago, 'recibo' => $recibo];
-        });
-
-        if (!empty($resultado['ok']) && $resultado['ok'] === false) {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => $resultado['codigo'] ?? 422,
-                'mensaje' => $resultado['mensaje'] ?? 'No se pudo registrar el pago',
-            ], $resultado['codigo'] ?? 422);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
-            'mensaje' => $solicitaLink ? 'Pago registrado en solicitud de link' : 'Pago registrado y aprobado',
-            'data' => $resultado['pago'],
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['pago'],
         ], 201);
     }
 
     public function actualizarLink(Request $request, int $id): JsonResponse
     {
+        $query = Pago::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'pagos');
+        $query->findOrFail($id);
+
         $request->validate([
             'link_pago_url' => 'required|string|max:500',
         ]);
 
-        $pago = Pago::findOrFail($id);
-        if ($pago->estado !== 'solicita_link') {
-            return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'El pago no está en solicitud de link'], 422);
+        $resultado = app(ActualizarLinkPago::class)->ejecutar($id, $request->input('link_pago_url'), ContextoUsuario::desdeRequest());
+
+        if (! $resultado->ok()) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
 
-        $link = trim($request->input('link_pago_url'));
-        if (!preg_match('/^https?:\/\//i', $link)) {
-            $link = 'https://' . $link;
-        }
-
-        if (!filter_var($link, FILTER_VALIDATE_URL)) {
-            return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'El link de pago no tiene un formato válido'], 422);
-        }
-
-        $datos = [
-            'link_pago_url' => $link,
-            'link_generado_por' => auth()->id(),
-            'link_generado_en' => now(),
-            'estado' => 'solicita_link',
-            'actualizado_por' => auth()->id(),
-        ];
-        if (Schema::hasColumn('pagos', 'link_pago_estado')) {
-            $datos['link_pago_estado'] = 'enviado';
-        }
-
-        $pago->update($datos);
-
-        return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => 'Link guardado correctamente', 'data' => $pago->fresh()]);
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['pago'],
+        ]);
     }
 
     public function subirComprobante(Request $request, int $pagoId): JsonResponse
     {
+        $query = Pago::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'pagos');
+        $query->findOrFail($pagoId);
+
         $request->validate([
             'archivo' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
-        $pago = Pago::findOrFail($pagoId);
-        $configFlujo = app(ResolutorFlujoMatricula::class)->resolver('portal_administrativo', $pago->concepto_pago_id, $pago->metodo_pago_id);
+        $resultado = app(SubirComprobantePago::class)->ejecutar($pagoId, $request->file('archivo'), ContextoUsuario::desdeRequest());
 
-        if (empty($configFlujo['habilita_carga_comprobante'])) {
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'La carga de comprobantes está deshabilitada para este flujo',
-            ], 422);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
-
-        if ($pago->estado !== 'pendiente') {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'Solo se pueden subir comprobantes a pagos pendientes',
-            ], 422);
-        }
-
-        $archivo = $request->file('archivo');
-        $nombre = $pago->codigo . '_' . time() . '.' . $archivo->getClientOriginalExtension();
-        $ruta = $archivo->storeAs('comprobantes', $nombre, 'public');
-
-        $comprobante = ComprobantePago::create([
-            'pago_id' => $pago->id,
-            'nombre_archivo' => $archivo->getClientOriginalName(),
-            'ruta_archivo' => $ruta,
-            'tipo_archivo' => $archivo->getClientOriginalExtension(),
-            'tamano_bytes' => $archivo->getSize(),
-            'estado' => 'adjuntado',
-            'creado_por' => auth()->id(),
-        ]);
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
-            'mensaje' => 'Comprobante subido correctamente',
-            'data' => $comprobante,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['comprobante'],
         ], 201);
     }
 
     public function aprobar(int $id): JsonResponse
     {
-        $resultado = DB::transaction(function () use ($id) {
-            $pago = Pago::lockForUpdate()->findOrFail($id);
+        $query = Pago::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, request()->user(), 'pagos');
+        $query->findOrFail($id);
 
-            if (!in_array($pago->estado, ['pendiente', 'en_revision'])) {
-                return ['ok' => false, 'codigo' => 422, 'mensaje' => 'El pago no está pendiente ni en revisión'];
-            }
+        $resultado = app(AprobarPago::class)->ejecutar($id, ContextoUsuario::desdeRequest());
 
-            $pago->update([
-                'estado' => 'aprobado',
-                'aprobado_por' => auth()->id(),
-                'fecha_aprobacion' => now(),
-                'actualizado_por' => auth()->id(),
-            ]);
-
-            if (!$pago->sesion_caja_id) {
-                $sesionCaja = \App\Models\SesionCaja::where('sucursal_id', $pago->sucursal_id)
-                    ->where('usuario_cajero_id', auth()->id())
-                    ->where('estado', 'abierta')
-                    ->latest('id')
-                    ->first();
-
-                if ($sesionCaja) {
-                    $pago->update([
-                        'sesion_caja_id' => $sesionCaja->id,
-                        'actualizado_por' => auth()->id(),
-                    ]);
-                }
-            }
-
-            if ($pago->matricula_id) {
-                $matricula = \App\Models\Matricula::lockForUpdate()->find($pago->matricula_id);
-                if ($matricula && in_array($matricula->estado, ['reservada', 'en_revision'])) {
-                    $matricula->update([
-                        'estado' => 'matriculado',
-                        'fecha_confirmacion' => now(),
-                        'actualizado_por' => auth()->id(),
-                    ]);
-
-                    $oferta = \App\Models\OfertaAcademica::lockForUpdate()->find($matricula->oferta_academica_id);
-                    if ($oferta && $oferta->cupos_reservados > 0) {
-                        $oferta->decrement('cupos_reservados');
-                        $oferta->increment('cupos_matriculados');
-                        if ($oferta->cuposDisponibles() <= 0) {
-                            $oferta->update(['estado' => 'lleno']);
-                        }
-                    }
-                }
-
-                $obligaciones = ObligacionPagoEstudiante::where('matricula_id', $pago->matricula_id)
-                    ->where('estado', 'pendiente')
-                    ->orderBy('numero_cuota')
-                    ->get();
-
-                $montoRestante = $pago->monto;
-
-                foreach ($obligaciones as $obligacion) {
-                    if ($montoRestante <= 0) break;
-
-                    $saldo = $obligacion->monto - $obligacion->monto_pagado;
-                    $montoAplicar = min($montoRestante, $saldo);
-
-                    $obligacion->update([
-                        'monto_pagado' => $obligacion->monto_pagado + $montoAplicar,
-                        'estado' => ($obligacion->monto_pagado + $montoAplicar) >= $obligacion->monto ? 'pagado' : 'parcial',
-                    ]);
-
-                    AplicacionPago::create([
-                        'pago_id' => $pago->id,
-                        'obligacion_pago_estudiante_id' => $obligacion->id,
-                        'estudiante_id' => $pago->estudiante_id,
-                        'monto_aplicado' => $montoAplicar,
-                        'estado' => 'activo',
-                        'creado_por' => auth()->id(),
-                    ]);
-
-                    $montoRestante -= $montoAplicar;
-                }
-            }
-
-            $recibo = $this->generarRecibo($pago);
-
-            return ['ok' => true, 'pago' => $pago->fresh(), 'recibo' => $recibo];
-        });
-
-        if (!$resultado['ok']) {
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => $resultado['codigo'],
-                'mensaje' => $resultado['mensaje'],
-            ], $resultado['codigo']);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Pago aprobado y recibo generado',
-            'data' => [
-                'pago' => $resultado['pago'],
-                'recibo' => $resultado['recibo'],
-            ],
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data(),
         ]);
     }
 
     public function rechazar(int $id, Request $request): JsonResponse
     {
+        $query = Pago::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'pagos');
+        $query->findOrFail($id);
+
         $request->validate([
             'motivo_rechazo' => 'required|string|max:500',
         ]);
 
-        $pago = Pago::lockForUpdate()->findOrFail($id);
+        $resultado = app(RechazarPago::class)->ejecutar($id, $request->motivo_rechazo, ContextoUsuario::desdeRequest());
 
-        if (!in_array($pago->estado, ['pendiente', 'solicita_link', 'en_revision'])) {
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'El pago no está en un estado válido para rechazo. Estado actual: ' . $pago->estado,
-            ], 422);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
-
-        DB::transaction(function () use ($pago, $request) {
-            $datos = [
-                'estado' => 'rechazado',
-                'rechazado_por' => auth()->id(),
-                'fecha_rechazo' => now(),
-                'motivo_rechazo' => $request->motivo_rechazo,
-                'actualizado_por' => auth()->id(),
-            ];
-            if (Schema::hasColumn('pagos', 'link_pago_estado')) {
-                $datos['link_pago_estado'] = $pago->estado === 'solicita_link' ? 'rechazado' : $pago->link_pago_estado;
-            }
-
-            $pago->update($datos);
-
-            AplicacionPago::where('pago_id', $pago->id)
-                ->where('estado', 'pendiente')
-                ->update([
-                    'estado' => 'cancelado',
-                    'actualizado_en' => now(),
-                ]);
-
-            if ($pago->matricula_id) {
-                $matricula = Matricula::lockForUpdate()->find($pago->matricula_id);
-                if ($matricula && in_array($matricula->estado, ['reservada', 'en_revision'])) {
-                    $matricula->update([
-                        'estado' => 'rechazado',
-                        'actualizado_por' => auth()->id(),
-                    ]);
-
-                    $oferta = OfertaAcademica::lockForUpdate()->find($matricula->oferta_academica_id);
-                    if ($oferta && $oferta->cupos_reservados > 0) {
-                        $oferta->decrement('cupos_reservados');
-                        $oferta->update(['estado' => 'abierto']);
-                    }
-
-                    $obligacionIds = $pago->aplicaciones()->pluck('obligacion_pago_estudiante_id');
-                    ObligacionPagoEstudiante::whereIn('id', $obligacionIds)
-                        ->where('estado', 'pendiente')
-                        ->update(['estado' => 'rechazado']);
-                }
-            }
-        });
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Pago rechazado',
-            'data' => $pago,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['pago'],
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $pago = Pago::with([
             'estudiante:id,codigo,nombre,apellido',
@@ -599,7 +326,9 @@ class PagoController extends Controller
             'aplicaciones.obligacion:id,concepto_pago_id,numero_cuota,nombre_cargo,monto,monto_pagado,estado',
             'aplicaciones.obligacion.conceptoPago:id,codigo,nombre',
             'reciboCaja:id,codigo,numero_recibo,estado',
-        ])->findOrFail($id);
+        ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($pago, $request->user(), 'pagos');
+        $pago = $pago->findOrFail($id);
 
         return response()->json([
             'resultado' => 'A',
@@ -611,38 +340,33 @@ class PagoController extends Controller
 
     public function eliminarTotal(int $id): JsonResponse
     {
-        $resultado = DB::transaction(function () use ($id) {
-            $pago = Pago::with(['reciboCaja', 'comprobantes', 'aplicaciones'])->lockForUpdate()->findOrFail($id);
+        $query = Pago::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, request()->user(), 'pagos');
+        $query->findOrFail($id);
 
-            if ($pago->reciboCaja) {
-                $pago->reciboCaja()->delete();
-            }
+        $resultado = app(EliminarPagoTotal::class)->ejecutar($id);
 
-            if ($pago->comprobantes->isNotEmpty()) {
-                $pago->comprobantes()->delete();
-            }
-
-            if ($pago->aplicaciones->isNotEmpty()) {
-                $pago->aplicaciones()->delete();
-            }
-
-            $pago->delete();
-
-            return true;
-        });
+        if (! $resultado->ok()) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
+        }
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Pago eliminado por completo',
-            'data' => $resultado,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['ok'],
         ]);
     }
 
     public function siguienteRecibo(): JsonResponse
     {
         $anio = date('Y');
-        $entidad = 'recibos_caja_' . $anio;
+        $entidad = 'recibos_caja_'.$anio;
 
         $preview = app(ServicioNomenclatura::class)->previewSiguienteCodigo(
             entidad: $entidad,
@@ -657,75 +381,5 @@ class PagoController extends Controller
             'mensaje' => 'OK',
             'data' => $preview,
         ]);
-    }
-
-    private function validarCuentaBancaria(?\App\Models\MetodoPago $metodo, mixed $cuentaBancariaId): CuentaBancaria|false|null
-    {
-        if (!$metodo || !in_array($metodo->codigo, ['DEP', 'TRA'], true)) {
-            return null;
-        }
-
-        if (!$cuentaBancariaId) {
-            return false;
-        }
-
-        return CuentaBancaria::activas()->find($cuentaBancariaId) ?: false;
-    }
-
-    private function generarRecibo(Pago $pago, ?string $codigoRecibo = null): ReciboCaja
-    {
-        $reciboExistente = ReciboCaja::where('pago_id', $pago->id)->first();
-        if ($reciboExistente) {
-            return $reciboExistente;
-        }
-
-        $anio = date('Y');
-        $servicio = app(ServicioNomenclatura::class);
-
-        if ($codigoRecibo) {
-            $recibo = $this->intentarCrearRecibo($pago, $codigoRecibo, 0, $anio);
-            if ($recibo) return $recibo;
-        }
-
-        for ($intento = 0; $intento < 5; $intento++) {
-            $resultado = $servicio->generarCodigo(
-                entidad: 'recibos_caja_' . $anio,
-                formato: 'RC-{ANIO}-{SECUENCIA:6}',
-                longitudSecuencia: 6,
-                anio: $anio,
-            );
-            $recibo = $this->intentarCrearRecibo($pago, $resultado['codigo'], $resultado['secuencia'], $anio);
-            if ($recibo) return $recibo;
-        }
-
-        throw new \RuntimeException('No se pudo generar el recibo después de varios intentos');
-    }
-
-    private function intentarCrearRecibo(Pago $pago, string $codigo, int $secuencia, string $anio): ?ReciboCaja
-    {
-        try {
-            $fechaLocal = now(config('app.timezone'));
-
-            $recibo = ReciboCaja::create([
-                'codigo' => $codigo,
-                'numero_recibo' => $secuencia,
-                'pago_id' => $pago->id,
-                'estudiante_id' => $pago->estudiante_id,
-                'sucursal_id' => $pago->sucursal_id,
-                'concepto_pago_id' => $pago->concepto_pago_id,
-                'metodo_pago_id' => $pago->metodo_pago_id,
-                'monto_total' => $pago->monto,
-                'estado' => 'emitido',
-                'anio' => $anio,
-                'fecha_proceso' => $pago->fecha_proceso ?? $pago->fecha_aprobacion ?? $pago->creado_en ?? $fechaLocal,
-                'fecha_recibo' => $pago->fecha_proceso ?? $pago->fecha_aprobacion ?? $pago->creado_en ?? $fechaLocal,
-                'creado_por' => auth()->id(),
-                'creado_en' => $fechaLocal,
-            ]);
-
-            return $recibo;
-        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
-            return null;
-        }
     }
 }

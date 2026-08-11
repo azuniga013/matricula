@@ -1,9 +1,19 @@
 <?php
 
+use App\Http\Middleware\AutenticarEstudiante;
+use App\Http\Middleware\RegistrarPeticion;
+use App\Http\Middleware\ValidarSesionAdministrativa;
+use App\Http\Middleware\VerificarPermiso;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,35 +26,36 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->alias([
-            'permission' => \App\Http\Middleware\VerificarPermiso::class,
-            'log.peticion' => \App\Http\Middleware\RegistrarPeticion::class,
-            'auth.estudiante' => \App\Http\Middleware\AutenticarEstudiante::class,
+            'admin.session' => ValidarSesionAdministrativa::class,
+            'permission' => VerificarPermiso::class,
+            'log.peticion' => RegistrarPeticion::class,
+            'auth.estudiante' => AutenticarEstudiante::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->renderable(function (\Throwable $e) {
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+        $exceptions->renderable(function (Throwable $e) {
+            if ($e instanceof NotFoundHttpException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 404,
                     'mensaje' => 'Recurso no encontrado',
                 ], 404);
             }
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException) {
+            if ($e instanceof AccessDeniedHttpException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 403,
                     'mensaje' => 'No tiene permiso para realizar esta acción',
                 ], 403);
             }
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException) {
+            if ($e instanceof MethodNotAllowedHttpException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 405,
                     'mensaje' => 'Método no permitido',
                 ], 405);
             }
-            if ($e instanceof \Illuminate\Validation\ValidationException) {
+            if ($e instanceof ValidationException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 422,
@@ -52,20 +63,21 @@ return Application::configure(basePath: dirname(__DIR__))
                     'errores' => $e->errors(),
                 ], 422);
             }
-            if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+            if ($e instanceof AuthenticationException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 401,
                     'mensaje' => 'No autenticado',
                 ], 401);
             }
-            if ($e instanceof \Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException) {
+            if ($e instanceof TooManyRequestsHttpException) {
                 return new JsonResponse([
                     'resultado' => 'R',
                     'codigo' => 429,
                     'mensaje' => 'Demasiadas peticiones. Intente más tarde',
                 ], 429);
             }
+
             return null;
         });
     })->create();

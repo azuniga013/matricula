@@ -2,14 +2,28 @@
 
 namespace Tests\Feature;
 
-use App\Models\{
-    Aula, AccesoEstudiante, ConceptoPago, CuentaBancaria, DepartamentoAcademico,
-    Docente, Estudiante, Horario, MetodoPago, Modalidad, NivelAcademico,
-    OfertaAcademica, PeriodoAcademico, PlanCobro, PlanEstudio,
-    Sucursal, VersionPlanEstudio, HistorialAcademico
-};
+use App\Models\AccesoEstudiante;
+use App\Models\Aula;
+use App\Models\ConceptoPago;
+use App\Models\CuentaBancaria;
+use App\Models\DepartamentoAcademico;
 use App\Models\DetallePlanCobro;
+use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\HistorialAcademico;
+use App\Models\Horario;
 use App\Models\Matricula;
+use App\Models\MetodoPago;
+use App\Models\Modalidad;
+use App\Models\NivelAcademico;
+use App\Models\OfertaAcademica;
+use App\Models\Pago;
+use App\Models\PeriodoAcademico;
+use App\Models\PlanCobro;
+use App\Models\PlanEstudio;
+use App\Models\ReciboCaja;
+use App\Models\Sucursal;
+use App\Models\VersionPlanEstudio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -19,8 +33,11 @@ class PortalEstudianteTest extends TestCase
     use RefreshDatabase;
 
     private Sucursal $sucursal;
+
     private Estudiante $estudiante;
+
     private string $token;
+
     private OfertaAcademica $oferta;
 
     protected function setUp(): void
@@ -285,6 +302,48 @@ class PortalEstudianteTest extends TestCase
             ->assertJsonPath('resultado', 'A');
     }
 
+    public function test_mis_matriculas_no_muestra_matriculas_de_otro_estudiante(): void
+    {
+        Matricula::create([
+            'codigo' => 'MAT-SELF-001',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'fecha_reserva' => now(),
+        ]);
+
+        $otro = Estudiante::factory()->create([
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'activo',
+        ]);
+        $otroToken = 'otro-mat-'.Str::random(20);
+        AccesoEstudiante::create([
+            'estudiante_id' => $otro->id,
+            'email' => 'otro-mat@test.com',
+            'password' => 'password',
+            'estado' => 'activo',
+            'token' => hash('sha256', $otroToken),
+        ]);
+        Matricula::create([
+            'codigo' => 'MAT-OTRO-001',
+            'estudiante_id' => $otro->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'fecha_reserva' => now()->addMinute(),
+        ]);
+
+        $response = $this->getJson('/api/v1/estudiantes/mis-matriculas', [
+            'Authorization' => "Bearer {$otroToken}",
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.codigo', 'MAT-OTRO-001');
+    }
+
     public function test_mis_pagos(): void
     {
         $response = $this->getJson('/api/v1/estudiantes/mis-pagos', $this->studentHeaders());
@@ -320,7 +379,7 @@ class PortalEstudianteTest extends TestCase
             'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
         ], $this->studentHeaders());
 
-        $otroToken = 'otro-token-' . Str::random(20);
+        $otroToken = 'otro-token-'.Str::random(20);
         $accesoOtro = AccesoEstudiante::where('estudiante_id', $otro->id)->firstOrFail();
         $accesoOtro->update(['token' => hash('sha256', $otroToken)]);
 
@@ -328,6 +387,55 @@ class PortalEstudianteTest extends TestCase
 
         $response->assertOk()->assertJsonPath('resultado', 'A');
         $this->assertCount(0, $response->json('data'));
+    }
+
+    public function test_no_puede_eliminar_pago_de_otro_estudiante(): void
+    {
+        $otro = Estudiante::factory()->create([
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'activo',
+        ]);
+        $concepto = ConceptoPago::where('codigo', 'MAT')->firstOrFail();
+        $metodo = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $pago = Pago::create([
+            'codigo' => 'PAG-AJENO-001',
+            'estudiante_id' => $otro->id,
+            'concepto_pago_id' => $concepto->id,
+            'metodo_pago_id' => $metodo->id,
+            'sucursal_id' => $this->sucursal->id,
+            'monto' => 250.00,
+            'estado' => 'solicita_link',
+        ]);
+
+        $response = $this->postJson("/api/v1/estudiantes/mis-pagos/{$pago->id}", [], $this->studentHeaders());
+
+        $response->assertStatus(404)
+            ->assertJsonPath('resultado', 'R');
+    }
+
+    public function test_no_puede_registrar_pago_para_matricula_de_otro_estudiante(): void
+    {
+        $otro = Estudiante::factory()->create([
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'activo',
+        ]);
+        $matriculaAjena = Matricula::create([
+            'codigo' => 'MAT-AJENA-001',
+            'estudiante_id' => $otro->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'reservada',
+            'fecha_reserva' => now(),
+        ]);
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+
+        $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matriculaAjena->id,
+            'metodo_pago_id' => $metodoLink->id,
+        ], $this->studentHeaders());
+
+        $response->assertStatus(404)
+            ->assertJsonPath('resultado', 'R');
     }
 
     public function test_registrar_pago_link_sin_comprobante_queda_en_solicita_link(): void
@@ -390,7 +498,7 @@ class PortalEstudianteTest extends TestCase
             ->assertJsonPath('codigo', 422)
             ->assertJsonPath('mensaje', 'Ya tiene una solicitud de pago en proceso para estas obligaciones. Espere la respuesta de contabilidad antes de solicitar otro link.');
 
-        $pagosConSolicitud = \App\Models\Pago::where('estudiante_id', $this->estudiante->id)
+        $pagosConSolicitud = Pago::where('estudiante_id', $this->estudiante->id)
             ->whereIn('estado', ['solicita_link', 'esperando_respuesta', 'en_revision'])
             ->count();
         $this->assertEquals(1, $pagosConSolicitud, 'Solo debe existir una solicitud de link en proceso');
@@ -413,7 +521,7 @@ class PortalEstudianteTest extends TestCase
 
         $pagoId = $response->json('data.pago_id');
 
-        \App\Models\Pago::where('id', $pagoId)->update([
+        Pago::where('id', $pagoId)->update([
             'estado' => 'en_revision',
             'link_pago_url' => null,
             'link_pago_estado' => null,
@@ -435,6 +543,84 @@ class PortalEstudianteTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
+    }
+
+    public function test_mis_recibos_no_muestra_recibos_de_otro_estudiante(): void
+    {
+        $otro = Estudiante::factory()->create([
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'activo',
+        ]);
+        $otroToken = 'otro-recibo-'.Str::random(20);
+        $accesoOtro = AccesoEstudiante::create([
+            'estudiante_id' => $otro->id,
+            'email' => 'otro-recibo@test.com',
+            'password' => 'password',
+            'estado' => 'activo',
+            'token' => hash('sha256', $otroToken),
+        ]);
+
+        $concepto = ConceptoPago::where('codigo', 'MAT')->firstOrFail();
+        $metodo = MetodoPago::firstOrFail();
+
+        $pagoPropio = Pago::create([
+            'codigo' => 'PAG-SELF-001',
+            'estudiante_id' => $this->estudiante->id,
+            'concepto_pago_id' => $concepto->id,
+            'metodo_pago_id' => $metodo->id,
+            'sucursal_id' => $this->sucursal->id,
+            'monto' => 100.00,
+            'estado' => 'aprobado',
+            'fecha_aprobacion' => now(),
+        ]);
+        ReciboCaja::create([
+            'codigo' => 'RC-SELF-001',
+            'numero_recibo' => 1,
+            'pago_id' => $pagoPropio->id,
+            'estudiante_id' => $this->estudiante->id,
+            'sucursal_id' => $this->sucursal->id,
+            'concepto_pago_id' => $concepto->id,
+            'metodo_pago_id' => $metodo->id,
+            'monto_total' => 100.00,
+            'estado' => 'emitido',
+            'anio' => (int) date('Y'),
+            'fecha_proceso' => now(),
+            'fecha_recibo' => now(),
+        ]);
+
+        $pagoOtro = Pago::create([
+            'codigo' => 'PAG-OTRO-001',
+            'estudiante_id' => $otro->id,
+            'concepto_pago_id' => $concepto->id,
+            'metodo_pago_id' => $metodo->id,
+            'sucursal_id' => $this->sucursal->id,
+            'monto' => 125.00,
+            'estado' => 'aprobado',
+            'fecha_aprobacion' => now(),
+        ]);
+        ReciboCaja::create([
+            'codigo' => 'RC-OTRO-001',
+            'numero_recibo' => 2,
+            'pago_id' => $pagoOtro->id,
+            'estudiante_id' => $otro->id,
+            'sucursal_id' => $this->sucursal->id,
+            'concepto_pago_id' => $concepto->id,
+            'metodo_pago_id' => $metodo->id,
+            'monto_total' => 125.00,
+            'estado' => 'emitido',
+            'anio' => (int) date('Y'),
+            'fecha_proceso' => now(),
+            'fecha_recibo' => now()->addMinute(),
+        ]);
+
+        $response = $this->getJson('/api/v1/estudiantes/mis-recibos', [
+            'Authorization' => "Bearer {$otroToken}",
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.numero_recibo', 2);
     }
 
     public function test_mi_nivel_sin_matricula(): void
@@ -466,7 +652,7 @@ class PortalEstudianteTest extends TestCase
         $this->assertNull($response->json('data.whatsapp'));
     }
 
-    public function testCerrarSesionEstudiante(): void
+    public function test_cerrar_sesion_estudiante(): void
     {
         $response = $this->postJson('/api/v1/estudiantes/cerrar-sesion', [], $this->studentHeaders());
 
@@ -493,6 +679,68 @@ class PortalEstudianteTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
+    }
+
+    public function test_mis_calificaciones_no_muestra_historial_de_otro_estudiante(): void
+    {
+        $matriculaPropia = Matricula::create([
+            'codigo' => 'MAT-CAL-001',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+        HistorialAcademico::create([
+            'codigo' => 'HIS-SELF-001',
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $matriculaPropia->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nivel_academico_id' => $this->oferta->nivel_academico_id,
+            'periodo_academico_id' => $this->oferta->periodo_academico_id,
+            'nota_final' => 90,
+            'faltas' => 0,
+            'estado' => 'aprobado',
+        ]);
+
+        $otro = Estudiante::factory()->create([
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'activo',
+        ]);
+        $otroToken = 'otro-cal-'.Str::random(20);
+        AccesoEstudiante::create([
+            'estudiante_id' => $otro->id,
+            'email' => 'otro-cal@test.com',
+            'password' => 'password',
+            'estado' => 'activo',
+            'token' => hash('sha256', $otroToken),
+        ]);
+        $matriculaOtro = Matricula::create([
+            'codigo' => 'MAT-CAL-002',
+            'estudiante_id' => $otro->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+        HistorialAcademico::create([
+            'codigo' => 'HIS-OTRO-001',
+            'estudiante_id' => $otro->id,
+            'matricula_id' => $matriculaOtro->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nivel_academico_id' => $this->oferta->nivel_academico_id,
+            'periodo_academico_id' => $this->oferta->periodo_academico_id,
+            'nota_final' => 75,
+            'faltas' => 2,
+            'estado' => 'reprobado',
+        ]);
+
+        $response = $this->getJson('/api/v1/estudiantes/mis-calificaciones', [
+            'Authorization' => "Bearer {$otroToken}",
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.codigo', 'HIS-OTRO-001');
     }
 
     public function test_estudiante_puede_generar_certificado_desde_su_historial_aprobado(): void

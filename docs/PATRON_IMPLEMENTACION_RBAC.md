@@ -6,7 +6,9 @@ Un módulo nuevo no debe inventar tablas de seguridad, repetir middleware ni dec
 
 ## 1. Declarar el módulo
 
-Agregar el código y nombre en `backend/config/rbac.php`. El seeder `SeguridadRbacSeeder` usa `RegistroPermisosService` para crear, sin duplicar, los permisos estándar:
+Agregar el código y nombre en `config/rbac.php`. El seeder
+`SeguridadRbacSeeder` usa `RegistroPermisosService` para crear, sin duplicar,
+los permisos estándar:
 
 ```text
 <modulo>.consultar
@@ -48,12 +50,12 @@ El permiso no sustituye el alcance. El controlador o servicio debe aplicar `Reso
 
 ## 3. Aplicar el permiso en la pantalla
 
-El login administrativo entrega `usuario.permisos`. El frontend los conserva en `permisos_admin` y reutiliza `frontend/src/rbac.jsx`:
+El login administrativo entrega `usuario.permisos`. La interfaz Blade +
+Alpine.js los consume desde `window.api` y decide qué acciones ocultar o
+mostrar sin reemplazar la validación backend:
 
-```jsx
-<AccionProtegida permisos={permisosActuales()} permiso="inventario.crear">
-  <button>Crear libro</button>
-</AccionProtegida>
+```html
+<button x-show="api.hasPermission('inventario.crear')">Crear libro</button>
 ```
 
 Ocultar una acción en frontend mejora la experiencia; la API continúa siendo la autoridad y responde `403_SIN_PERMISO` ante un acceso directo no permitido.

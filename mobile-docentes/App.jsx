@@ -14,6 +14,7 @@ const MODULES = [
   { id: 'ofertas', title: 'Ofertas Académicas', detail: 'Lista de estudiantes por oferta' },
   { id: 'asistencia', title: 'Asistencia Diaria', detail: 'Lista y pase de asistencia' },
   { id: 'calificaciones', title: 'Calificaciones', detail: 'Lista y notas de estudiantes' },
+  { id: 'sincronizacion', title: 'Sincronización', detail: 'Pendientes, errores y reintentos' },
 ];
 
 export default function App() {
@@ -32,6 +33,8 @@ export default function App() {
   const [attendance, setAttendance] = useState({});
   const [date, setDate] = useState(today());
   const [syncing, setSyncing] = useState(false);
+  const [syncSummary, setSyncSummary] = useState(null);
+  const [pendingVersion, setPendingVersion] = useState(0);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioGuardado, setBioGuardado] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
@@ -57,7 +60,9 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  const pendingCount = useMemo(() => databaseReady ? pending().length : 0, [databaseReady, items, selected, attendance, gradeRows, syncing]);
+  const pendingCount = useMemo(() => databaseReady ? pending().length : 0, [databaseReady, items, selected, attendance, gradeRows, syncing, pendingVersion]);
+  const pendingRows = useMemo(() => databaseReady ? pending() : [], [databaseReady, items, selected, attendance, gradeRows, syncing, pendingVersion]);
+  const recentErrors = useMemo(() => pendingRows.filter((item) => item.ultimo_error).slice(0, 3), [pendingRows]);
   const periods = useMemo(() => Object.values(items.reduce((all, offer) => {
     const period = offer.periodo_academico;
     if (period?.id) all[period.id] = period;
@@ -81,7 +86,8 @@ export default function App() {
       }
       setItems(cachedOffers());
       if (selected) await openOffer(selected.id);
-    } catch (error) { Alert.alert('No se pudo sincronizar', error.message); }
+      setSyncSummary({ type: 'ok', message: 'Datos descargados correctamente.' });
+    } catch (error) { Alert.alert('No se pudo sincronizar', error.message); setSyncSummary({ type: 'error', message: error.message }); }
     finally { setSyncing(false); }
   }
 
@@ -91,13 +97,14 @@ export default function App() {
     let procesadas = 0;
     let errorSincronizacion = null;
     try {
-      for (const operation of pending()) {
-        const data = JSON.parse(operation.datos);
-        try {
-          if (operation.tipo === 'asistencia') await saveAttendance(operation.oferta_id, data.fecha, data.asistencias);
-          if (operation.tipo === 'calificaciones') await saveGrades(operation.oferta_id, data.calificaciones);
-          removePending(operation.uuid);
-          procesadas++;
+        for (const operation of pending()) {
+          const data = JSON.parse(operation.datos);
+          try {
+            if (operation.tipo === 'asistencia') await saveAttendance(operation.uuid, operation.oferta_id, data.fecha, data);
+            if (operation.tipo === 'calificaciones') await saveGrades(operation.uuid, operation.oferta_id, data);
+            removePending(operation.uuid);
+            setPendingVersion((value) => value + 1);
+            procesadas++;
         } catch (error) {
           markError(operation.uuid, error.message);
           errorSincronizacion = error.message || 'El servidor no pudo guardar la información.';
@@ -112,7 +119,13 @@ export default function App() {
         }
       }
       await refresh();
-      return { procesadas, pendientes: pending().length, error: errorSincronizacion };
+      const resultado = { procesadas, pendientes: pending().length, error: errorSincronizacion };
+      setSyncSummary(
+        errorSincronizacion
+          ? { type: 'warning', message: errorSincronizacion }
+          : { type: 'ok', message: `${procesadas} operación(es) sincronizadas. ${resultado.pendientes} pendiente(s).` }
+      );
+      return resultado;
     } finally { setSyncing(false); }
   }
 
@@ -152,9 +165,14 @@ export default function App() {
 
   async function saveAttendanceLocally() {
     if (!studentsForOffer.length) return Alert.alert('Sin estudiantes', 'Esta oferta no tiene estudiantes matriculados para registrar.');
-    const asistencias = studentsForOffer.map((student) => ({ matricula_id: student.matricula_id, estado: attendance[student.matricula_id]?.estado || 'presente', observacion: attendance[student.matricula_id]?.observacion || null }));
+    const asistencias = studentsForOffer.map((student) => ({
+      matricula_id: student.matricula_id,
+      estado: attendance[student.matricula_id]?.estado || 'presente',
+      cuenta_como_falta: ['falta'].includes(attendance[student.matricula_id]?.estado || 'presente'),
+      observacion: attendance[student.matricula_id]?.observacion || null,
+    }));
     replaceAttendance(selected.id, date, asistencias);
-    queue('asistencia', selected.id, { fecha: date, asistencias });
+    asistencias.forEach((item) => queue('asistencia', selected.id, { fecha: date, ...item }));
     if (!online) return Alert.alert('Guardado local', 'La asistencia queda pendiente de sincronización hasta recuperar internet.');
     const resultado = await synchronizeQueue();
     if (resultado.error) return Alert.alert('Asistencia pendiente', `${resultado.error} Se conserva localmente para reintentar.`);
@@ -165,7 +183,7 @@ export default function App() {
       const id = student.estudiante_id || student.id;
       return { estudiante_id: id, nota_final: gradeRows[id]?.nota_final || null, faltas: Number(gradeRows[id]?.faltas || 0), observaciones: gradeRows[id]?.observaciones || null };
     });
-    queue('calificaciones', selected.id, { calificaciones });
+    calificaciones.forEach((item) => queue('calificaciones', selected.id, item));
     if (!online) return Alert.alert('Guardado local', 'Las calificaciones quedan pendientes de sincronización hasta recuperar internet.');
     const resultado = await synchronizeQueue();
     if (resultado.error) return Alert.alert('Calificaciones pendientes', `${resultado.error} Se conservan localmente para reintentar.`);
@@ -192,11 +210,40 @@ export default function App() {
   if (loading) return <Centered text="Preparando aplicación docente..." />;
   if (!user) return <Login {...{ email, setEmail, password, setPassword, submit: submitLogin, bioAvailable, bioGuardado, setBioGuardado, bioLoading, bioLogin }} />;
   if (selected) return <StudentList module={module} offer={selected} students={studentsForOffer} attendance={attendance} setAttendance={setAttendance} grades={gradeRows} setGrades={setGradeRows} date={date} setDate={setDate} online={online} saveAttendance={saveAttendanceLocally} saveGrades={saveGradesLocally} changeDate={changeAttendanceDate} back={() => setSelected(null)} />;
-  if (!module) return <Menu user={user} online={online} pendingCount={pendingCount} modules={MODULES} open={setModule} sync={() => refresh(null)} syncing={syncing} logout={closeSession} />;
+  if (!module) return <Menu user={user} online={online} pendingCount={pendingCount} recentErrors={recentErrors} syncSummary={syncSummary} modules={MODULES} open={setModule} sync={() => refresh(null)} syncing={syncing} logout={closeSession} />;
+  if (module === 'sincronizacion') return <SyncQueueScreen pendingRows={pendingRows} online={online} syncing={syncing} syncSummary={syncSummary} synchronize={synchronizeQueue} back={() => setModule(null)} />;
   return <OfferList module={MODULES.find((item) => item.id === module)} offers={visibleOffers} periods={periods} periodId={periodId} selectPeriod={(id) => { setPeriodId(id); if (online) refresh(id); }} open={openOffer} back={() => setModule(null)} sync={() => refresh(periodId)} syncing={syncing} />;
 }
 
-function Menu({ user, online, pendingCount, modules, open, sync, syncing, logout }) { return <SafeAreaView style={styles.container}><View style={styles.header}><View><Text style={styles.title}>Portal Docente</Text><Text style={styles.sub}>{user.nombre} · {online ? 'En línea' : 'Modo offline'} · {pendingCount} pendientes</Text></View><Button title={syncing ? 'Sincronizando' : 'Sincronizar'} disabled={syncing} onPress={sync} /></View><ScrollView contentContainerStyle={styles.list}>{modules.map((item) => <TouchableOpacity key={item.id} style={styles.menuCard} onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.muted}>{item.detail}</Text></TouchableOpacity>)}</ScrollView><View style={styles.footer}><Button title="Cerrar sesión" onPress={logout} /></View></SafeAreaView>; }
+function Menu({ user, online, pendingCount, recentErrors, syncSummary, modules, open, sync, syncing, logout }) { return <SafeAreaView style={styles.container}><View style={styles.header}><View><Text style={styles.title}>Portal Docente</Text><Text style={styles.sub}>{user.nombre} · {online ? 'En línea' : 'Modo offline'} · {pendingCount} pendientes</Text></View><Button title={syncing ? 'Sincronizando' : 'Sincronizar'} disabled={syncing} onPress={sync} /></View><ScrollView contentContainerStyle={styles.list}>{syncSummary ? <View style={styles.card}><Text style={styles.cardTitle}>Estado de sincronización</Text><Text style={styles.muted}>{syncSummary.message}</Text></View> : null}{recentErrors.length ? <View style={styles.card}><Text style={styles.cardTitle}>Pendientes con error</Text>{recentErrors.map((item) => <Text key={item.uuid} style={styles.muted}>• {item.tipo}: {item.ultimo_error}</Text>)}</View> : null}{modules.map((item) => <TouchableOpacity key={item.id} style={styles.menuCard} onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.muted}>{item.detail}</Text></TouchableOpacity>)}</ScrollView><View style={styles.footer}><Button title="Cerrar sesión" onPress={logout} /></View></SafeAreaView>; }
+function SyncQueueScreen({ pendingRows, online, syncing, syncSummary, synchronize, back }) {
+  async function retryNow() {
+    const resultado = await synchronize();
+    if (resultado.error) return Alert.alert('Sincronización incompleta', resultado.error);
+    Alert.alert('Sincronización completada', `${resultado.procesadas} operación(es) aplicadas.`);
+  }
+
+  function discardPending(item) {
+    Alert.alert(
+      'Descartar pendiente',
+      'Esta operación se eliminará del dispositivo y no volverá a sincronizarse. ¿Desea continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Descartar',
+          style: 'destructive',
+          onPress: () => {
+            removePending(item.uuid);
+            setPendingVersion((value) => value + 1);
+            setSyncSummary({ type: 'warning', message: 'Operación descartada localmente.' });
+          },
+        },
+      ]
+    );
+  }
+
+  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>Sincronización</Text><Text style={styles.sub}>{online ? 'Con conexión disponible' : 'Sin conexión'} · {pendingRows.length} pendiente(s)</Text></View><Button title={syncing ? '...' : 'Reintentar'} disabled={syncing || !pendingRows.length} onPress={retryNow} /></View><ScrollView contentContainerStyle={styles.list}>{syncSummary ? <View style={styles.card}><Text style={styles.cardTitle}>Último resultado</Text><Text style={styles.muted}>{syncSummary.message}</Text></View> : null}{!pendingRows.length ? <View style={styles.card}><Text style={styles.cardTitle}>Sin pendientes</Text><Text style={styles.muted}>No hay operaciones locales esperando sincronización.</Text></View> : null}{pendingRows.map((item) => <View key={item.uuid} style={styles.card}><Text style={styles.cardTitle}>{item.tipo === 'asistencia' ? 'Asistencia' : 'Calificación'}</Text><Text style={styles.muted}>Resumen: {summarizePendingPayload(item)}</Text><Text style={styles.muted}>UUID: {item.uuid}</Text><Text style={styles.muted}>Oferta: {item.oferta_id}</Text><Text style={styles.muted}>Creado: {item.creado_en}</Text><Text style={styles.muted}>Reintentos: {item.reintentos}</Text><Text style={styles.muted}>Estado: {item.ultimo_error ? (String(item.ultimo_error).toLowerCase().includes('conflicto') ? 'Conflicto' : 'Con error') : 'Pendiente'}</Text>{item.ultimo_error ? <Text style={styles.muted}>Detalle: {item.ultimo_error}</Text> : null}<View style={styles.pendingActions}><Button title="Descartar" color="#b91c1c" onPress={() => discardPending(item)} /></View></View>)}</ScrollView></SafeAreaView>;
+}
 function PeriodFilter({ periods, periodId, selectPeriod }) { return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><TouchableOpacity style={[styles.chip, !periodId && styles.chipOn]} onPress={() => selectPeriod(null)}><Text>Todos</Text></TouchableOpacity>{periods.map((period) => <TouchableOpacity key={period.id} style={[styles.chip, String(periodId) === String(period.id) && styles.chipOn]} onPress={() => selectPeriod(period.id)}><Text>{period.codigo || period.nombre}</Text></TouchableOpacity>)}</ScrollView>; }
 function OfferList({ module, offers, periods, periodId, selectPeriod, open, back, sync, syncing }) { return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{module.title}</Text><Text style={styles.sub}>Seleccione período y oferta</Text></View><Button title={syncing ? '...' : 'Actualizar'} disabled={syncing} onPress={sync} /></View><PeriodFilter periods={periods} periodId={periodId} selectPeriod={selectPeriod} /><FlatList data={offers} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No hay ofertas para el período seleccionado.</Text>} renderItem={({ item }) => <TouchableOpacity style={styles.card} onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.codigo} · {item.nivel_academico?.nombre || 'Oferta'}</Text><Text style={styles.muted}>{item.periodo_academico?.nombre} · {item.horario?.nombre || 'Sin horario'}</Text></TouchableOpacity>} /></SafeAreaView>; }
 const ATT_STATES = [
@@ -214,6 +261,30 @@ const buildAttendanceState = (studentsRows, saved = []) => {
   }));
 };
 const estadoBadge = (value) => { const item = estadoInfo(value); return { label: item.label, badge: { backgroundColor: item.color + '1a', color: item.color, borderColor: item.color } }; };
+const summarizePendingPayload = (operation) => {
+  try {
+    const data = JSON.parse(operation.datos || '{}');
+    if (operation.tipo === 'asistencia') {
+      return [
+        data.fecha ? `Fecha: ${data.fecha}` : null,
+        data.matricula_id ? `Matrícula: ${data.matricula_id}` : null,
+        data.estado ? `Estado: ${data.estado}` : null,
+      ].filter(Boolean).join(' · ');
+    }
+
+    if (operation.tipo === 'calificaciones') {
+      return [
+        data.estudiante_id ? `Estudiante: ${data.estudiante_id}` : null,
+        data.nota_final !== undefined && data.nota_final !== null ? `Nota: ${data.nota_final}` : 'Nota: sin asignar',
+        data.faltas !== undefined ? `Faltas: ${data.faltas}` : null,
+      ].filter(Boolean).join(' · ');
+    }
+  } catch (_) {
+    return 'No se pudo resumir el contenido local.';
+  }
+
+  return 'Operación pendiente';
+};
 
 function StudentList({ module, offer, students, attendance, setAttendance, grades, setGrades, date, setDate, online, saveAttendance, saveGrades, changeDate, back }) {
   const isAttendance = module === 'asistencia';

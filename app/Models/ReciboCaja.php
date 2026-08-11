@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 class ReciboCaja extends Model
 {
@@ -69,5 +70,35 @@ class ReciboCaja extends Model
     public function scopePorSucursal($query, int $sucursalId)
     {
         return $query->where('recibos_caja.sucursal_id', $sucursalId);
+    }
+
+    public function getFechaProcesoAttribute($value): ?Carbon
+    {
+        return $this->resolverFecha($value, 'fecha_recibo');
+    }
+
+    public function getFechaReciboAttribute($value): ?Carbon
+    {
+        return $this->resolverFecha($value, 'fecha_proceso');
+    }
+
+    private function resolverFecha(mixed $value, string $atributoAlterno): ?Carbon
+    {
+        if ($value) {
+            return $this->asDateTime($value);
+        }
+
+        $alterno = $this->getAttributeFromArray($atributoAlterno);
+        if ($alterno) {
+            return $this->asDateTime($alterno);
+        }
+
+        if ($this->pago?->fecha_proceso) {
+            return $this->pago->fecha_proceso;
+        }
+
+        $creadoEn = $this->getAttributeFromArray('creado_en');
+
+        return $creadoEn ? $this->asDateTime($creadoEn) : null;
     }
 }

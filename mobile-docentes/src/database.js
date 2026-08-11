@@ -51,6 +51,7 @@ export function cachedAttendance(offerId, fecha) { return parse(db.getAllSync('S
 export function queue(type, offerId, data) {
   const uuid = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   db.runSync('INSERT INTO cola_sincronizacion (uuid, tipo, oferta_id, datos, creado_en) VALUES (?, ?, ?, ?, ?)', [uuid, type, offerId, JSON.stringify(data), now()]);
+  return uuid;
 }
 export function pending() { return db.getAllSync('SELECT * FROM cola_sincronizacion ORDER BY creado_en'); }
 export function removePending(uuid) { db.runSync('DELETE FROM cola_sincronizacion WHERE uuid = ?', [uuid]); }

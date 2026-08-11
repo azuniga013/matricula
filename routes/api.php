@@ -1,49 +1,56 @@
 <?php
 
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\Seguridad\AuditoriaController;
-use App\Http\Controllers\Api\V1\Seguridad\ModuloController;
-use App\Http\Controllers\Api\V1\Seguridad\OpcionModuloController;
-use App\Http\Controllers\Api\V1\Seguridad\PermisoController;
-use App\Http\Controllers\Api\V1\Seguridad\RolController;
+use App\Http\Controllers\Api\V1\Academico\AsistenciaController;
 use App\Http\Controllers\Api\V1\Academico\AulaController;
+use App\Http\Controllers\Api\V1\Academico\CalificacionController;
 use App\Http\Controllers\Api\V1\Academico\DepartamentoAcademicoController;
+use App\Http\Controllers\Api\V1\Academico\DocenteMovilController;
 use App\Http\Controllers\Api\V1\Academico\DocenteController;
+use App\Http\Controllers\Api\V1\Academico\GrupoWhatsappController;
+use App\Http\Controllers\Api\V1\Academico\HistorialAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\HorarioController;
 use App\Http\Controllers\Api\V1\Academico\ModalidadController;
 use App\Http\Controllers\Api\V1\Academico\MonitorCuposController;
 use App\Http\Controllers\Api\V1\Academico\NivelAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\OfertaAcademicaController;
-use App\Http\Controllers\Api\V1\Academico\CalificacionController;
-use App\Http\Controllers\Api\V1\Academico\AsistenciaController;
-use App\Http\Controllers\Api\V1\Academico\HistorialAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\PeriodoAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\PlanCobroController;
 use App\Http\Controllers\Api\V1\Academico\PlanEstudioController;
 use App\Http\Controllers\Api\V1\Academico\VersionPlanEstudioController;
-use App\Http\Controllers\Api\V1\Academico\GrupoWhatsappController;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\Caja\CierreCajaController;
+use App\Http\Controllers\Api\V1\Caja\SesionCajaController;
 use App\Http\Controllers\Api\V1\Catalogos\ConceptoPagoController;
 use App\Http\Controllers\Api\V1\Catalogos\MetodoPagoController;
 use App\Http\Controllers\Api\V1\Catalogos\SucursalController;
+use App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController;
 use App\Http\Controllers\Api\V1\Estudiantes\EstudianteAuthController;
+use App\Http\Controllers\Api\V1\Estudiantes\ContactoResponsableEstudianteController;
 use App\Http\Controllers\Api\V1\Estudiantes\EstudianteController;
-use App\Http\Controllers\Api\V1\Estudiantes\PortalEstudianteController;
-use App\Http\Controllers\Api\V1\Matriculas\MatriculaController;
-use App\Http\Controllers\Api\V1\Matriculas\GestionMatriculaController;
-use App\Http\Controllers\Api\V1\Pagos\PagoController;
-use App\Http\Controllers\Api\V1\Pagos\ReciboCajaController;
-use App\Http\Controllers\Api\V1\Pagos\ProveedorPagoController;
 use App\Http\Controllers\Api\V1\Estudiantes\PagoTarjetaController;
-use App\Http\Controllers\Api\V1\Caja\SesionCajaController;
-use App\Http\Controllers\Api\V1\Caja\CierreCajaController;
-use App\Http\Controllers\Api\V1\ReporteController;
-use App\Http\Controllers\Api\V1\Seguridad\SesionController;
-use App\Http\Controllers\Api\V1\Seguridad\ConfiguracionFlujoMatriculaController;
-use App\Http\Controllers\Api\V1\Seguridad\ParametroGlobalController;
-use App\Http\Controllers\Api\V1\Seguridad\UsuarioController;
-use App\Http\Controllers\Api\V1\Seguridad\PublicacionApkDocenteController;
-use App\Http\Controllers\Api\V1\Inventario\LibroController;
+use App\Http\Controllers\Api\V1\Estudiantes\PortalEstudianteController;
 use App\Http\Controllers\Api\V1\Inventario\InventarioLibroController;
+use App\Http\Controllers\Api\V1\Inventario\LibroController;
+use App\Http\Controllers\Api\V1\Matriculas\GestionMatriculaController;
+use App\Http\Controllers\Api\V1\Matriculas\MatriculaController;
+use App\Http\Controllers\Api\V1\Pagos\EnlacePagoController;
+use App\Http\Controllers\Api\V1\Pagos\PagoController;
+use App\Http\Controllers\Api\V1\Pagos\ProveedorPagoController;
+use App\Http\Controllers\Api\V1\Pagos\ReciboCajaController;
+use App\Http\Controllers\Api\V1\ReporteController;
+use App\Http\Controllers\Api\V1\Seguridad\AuditoriaController;
+use App\Http\Controllers\Api\V1\Seguridad\ConfiguracionFlujoMatriculaController;
+use App\Http\Controllers\Api\V1\Seguridad\ModuloController;
+use App\Http\Controllers\Api\V1\Seguridad\OpcionModuloController;
+use App\Http\Controllers\Api\V1\Seguridad\ParametroGlobalController;
+use App\Http\Controllers\Api\V1\Seguridad\PermisoController;
+use App\Http\Controllers\Api\V1\Seguridad\PublicacionApkDocenteController;
+use App\Http\Controllers\Api\V1\Seguridad\RolController;
+use App\Http\Controllers\Api\V1\Seguridad\SesionController;
+use App\Http\Controllers\Api\V1\Seguridad\UsuarioController;
+use App\Models\CuentaBancaria;
+use App\Models\MetodoPago;
+use App\Models\Sucursal;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/v1/login', [AuthController::class, 'login'])
@@ -64,21 +71,21 @@ Route::prefix('v1/estudiantes')->group(function () {
         'resultado' => 'A',
         'codigo' => 0,
         'mensaje' => 'OK',
-        'data' => \App\Models\Sucursal::activos()->orderBy('nombre')->get(['id', 'codigo', 'nombre']),
+        'data' => Sucursal::activos()->orderBy('nombre')->get(['id', 'codigo', 'nombre']),
     ]));
 
     Route::get('/metodos-pago', fn () => response()->json([
         'resultado' => 'A',
         'codigo' => 0,
         'mensaje' => 'OK',
-        'data' => \App\Models\MetodoPago::disponiblesPortal()
+        'data' => MetodoPago::disponiblesPortal()
             ->with('proveedorPago:id,codigo,nombre')
             ->orderBy('nombre')
             ->get(['id', 'codigo', 'nombre', 'proveedor_pago_id']),
     ]));
 
     // Validación pública de certificados electrónicos (sin autenticación).
-    Route::get('/certificados/{token}', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'validar'])
+    Route::get('/certificados/{token}', [CertificadoElectronicoController::class, 'validar'])
         ->middleware('throttle:30,1');
 });
 
@@ -94,7 +101,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
         'resultado' => 'A',
         'codigo' => 0,
         'mensaje' => 'OK',
-        'data' => \App\Models\CuentaBancaria::activas()->orderBy('banco')->get(['id', 'codigo', 'nombre', 'banco', 'numero_cuenta', 'tipo_cuenta']),
+        'data' => CuentaBancaria::activas()->orderBy('banco')->get(['id', 'codigo', 'nombre', 'banco', 'numero_cuenta', 'tipo_cuenta']),
     ]));
     Route::post('/subir-comprobante', [PortalEstudianteController::class, 'subirComprobante']);
     Route::post('/confirmar-link-pago', [PortalEstudianteController::class, 'confirmarLinkPago']);
@@ -105,16 +112,16 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::get('/mi-nivel', [PortalEstudianteController::class, 'miNivel']);
     Route::get('/mis-calificaciones', [EstudianteAuthController::class, 'misCalificaciones']);
     Route::get('/mis-certificados', [PortalEstudianteController::class, 'misCertificados']);
-    Route::post('/certificados/electronicos', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'emitir']);
+    Route::post('/certificados/electronicos', [CertificadoElectronicoController::class, 'emitir']);
     Route::get('/whatsapp', [PortalEstudianteController::class, 'whatsapp']);
-        Route::get('/enlaces-pago', [PortalEstudianteController::class, 'enlacesPago']);
+    Route::get('/enlaces-pago', [PortalEstudianteController::class, 'enlacesPago']);
 
-    Route::post('/pago-tarjeta/iniciar', [\App\Http\Controllers\Api\V1\Estudiantes\PagoTarjetaController::class, 'iniciarPago']);
-    Route::post('/pago-tarjeta/retorno', [\App\Http\Controllers\Api\V1\Estudiantes\PagoTarjetaController::class, 'retorno']);
-    Route::post('/pago-tarjeta/cancelado', [\App\Http\Controllers\Api\V1\Estudiantes\PagoTarjetaController::class, 'cancelado']);
+    Route::post('/pago-tarjeta/iniciar', [PagoTarjetaController::class, 'iniciarPago']);
+    Route::post('/pago-tarjeta/retorno', [PagoTarjetaController::class, 'retorno']);
+    Route::post('/pago-tarjeta/cancelado', [PagoTarjetaController::class, 'cancelado']);
 });
 
-Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(function () {
+Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
@@ -280,6 +287,15 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
             ->name('ofertas.monitor');
     });
 
+    Route::prefix('docente-movil')->group(function () {
+        Route::get('/sincronizar', [DocenteMovilController::class, 'sincronizar'])
+            ->middleware('permission:asistencias.consultar');
+        Route::post('/sincronizar', [DocenteMovilController::class, 'aplicarCola'])
+            ->middleware('permission:asistencias.crear');
+        Route::get('/ofertas/{id}', [DocenteMovilController::class, 'oferta'])
+            ->middleware('permission:asistencias.consultar');
+    });
+
     Route::prefix('estudiantes')->group(function () {
 
         Route::get('/buscar-identidad', [EstudianteController::class, 'buscarPorIdentidad'])
@@ -287,6 +303,18 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
 
         Route::get('/{id}/plan-activo', [EstudianteController::class, 'planActivo'])
             ->middleware('permission:estudiantes.consultar');
+
+        Route::get('/{id}/contactos-responsable', [ContactoResponsableEstudianteController::class, 'index'])
+            ->middleware('permission:estudiantes.consultar');
+
+        Route::post('/{id}/contactos-responsable', [ContactoResponsableEstudianteController::class, 'store'])
+            ->middleware('permission:estudiantes.modificar');
+
+        Route::match(['PUT', 'PATCH', 'POST'], '/{id}/contactos-responsable/{contactoId}', [ContactoResponsableEstudianteController::class, 'update'])
+            ->middleware('permission:estudiantes.modificar');
+
+        Route::match(['DELETE', 'POST'], '/{id}/contactos-responsable/{contactoId}/desactivar', [ContactoResponsableEstudianteController::class, 'destroy'])
+            ->middleware('permission:estudiantes.modificar');
 
         Route::apiResourceProtegido('', EstudianteController::class, 'estudiantes', [
             'only' => ['index', 'store', 'show', 'update'],
@@ -370,30 +398,30 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
         'resultado' => 'A',
         'codigo' => 0,
         'mensaje' => 'OK',
-        'data' => \App\Models\CuentaBancaria::where('estado', 'activo')->orderBy('banco')->get(),
+        'data' => CuentaBancaria::where('estado', 'activo')->orderBy('banco')->get(),
     ]))->middleware('permission:pagos.consultar');
 
     Route::prefix('enlaces-pago')->group(function () {
 
-        Route::get('/', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'index'])
+        Route::get('/', [EnlacePagoController::class, 'index'])
             ->middleware('permission:pagos.consultar');
 
-        Route::get('/disponibles', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'disponibles'])
+        Route::get('/disponibles', [EnlacePagoController::class, 'disponibles'])
             ->middleware('permission:pagos.consultar');
 
-        Route::post('/', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'store'])
+        Route::post('/', [EnlacePagoController::class, 'store'])
             ->middleware('permission:pagos.crear');
 
-        Route::get('/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'show'])
+        Route::get('/{enlacePago}', [EnlacePagoController::class, 'show'])
             ->middleware('permission:pagos.consultar');
 
-        Route::match(['PUT', 'POST'], '/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'update'])
+        Route::match(['PUT', 'POST'], '/{enlacePago}', [EnlacePagoController::class, 'update'])
             ->middleware('permission:pagos.modificar');
 
-        Route::match(['DELETE', 'POST'], '/{enlacePago}', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'destroy'])
+        Route::match(['DELETE', 'POST'], '/{enlacePago}', [EnlacePagoController::class, 'destroy'])
             ->middleware('permission:pagos.eliminar');
 
-        Route::post('/{enlacePago}/usar', [\App\Http\Controllers\Api\V1\Pagos\EnlacePagoController::class, 'usar'])
+        Route::post('/{enlacePago}/usar', [EnlacePagoController::class, 'usar'])
             ->middleware('permission:pagos.crear');
     });
 
@@ -488,9 +516,9 @@ Route::middleware(['auth:sanctum', 'log.peticion'])->prefix('v1')->group(functio
     });
 
     Route::prefix('estudiantes/certificados')->group(function () {
-        Route::post('/electronicos/admin', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'emitirAdmin'])
+        Route::post('/electronicos/admin', [CertificadoElectronicoController::class, 'emitirAdmin'])
             ->middleware(['auth:sanctum', 'permission:calificaciones.modificar']);
-        Route::get('/estudiante/{estudianteId}', [App\Http\Controllers\Api\V1\Estudiantes\CertificadoElectronicoController::class, 'listarPorEstudiante'])
+        Route::get('/estudiante/{estudianteId}', [CertificadoElectronicoController::class, 'listarPorEstudiante'])
             ->middleware(['auth:sanctum', 'permission:estudiantes.consultar']);
     });
 

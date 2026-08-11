@@ -9,6 +9,7 @@ use App\Models\Calificacion;
 use App\Models\DepartamentoAcademico;
 use App\Models\Docente;
 use App\Models\Estudiante;
+use App\Models\HistorialAcademico;
 use App\Models\Horario;
 use App\Models\Modalidad;
 use App\Models\Modulo;
@@ -23,6 +24,9 @@ use App\Models\Rol;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VersionPlanEstudio;
+use App\Modules\Calificaciones\CasosUso\ActualizarCalificacion;
+use App\Modules\Calificaciones\CasosUso\RegistrarCalificaciones;
+use App\Modules\Comun\ContextoUsuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -572,5 +576,214 @@ class CalificacionTest extends TestCase
         ]);
 
         $response->assertStatus(403);
+    }
+
+    public function test_docente_solo_ve_calificaciones_de_sus_ofertas(): void
+    {
+        $matricula = \DB::table('matriculas')->first();
+
+        Calificacion::create([
+            'codigo' => 'CAL-DOC-001',
+            'matricula_id' => $matricula->id,
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nota_final' => 88.0,
+            'faltas' => 1,
+            'docente_id' => $this->docente->id,
+            'estado' => 'registrado',
+        ]);
+
+        $otroDocente = Docente::factory()->create(['codigo' => 'DOC999']);
+        $otraOferta = OfertaAcademica::create([
+            'codigo' => 'OF-OTRA-DOC',
+            'sucursal_id' => $this->sucursal->id,
+            'periodo_academico_id' => $this->periodo->id,
+            'nivel_academico_id' => $this->nivel->id,
+            'modalidad_id' => $this->modalidad->id,
+            'horario_id' => $this->horario->id,
+            'docente_id' => $otroDocente->id,
+            'aula_id' => $this->aula->id,
+            'plan_cobro_id' => $this->planCobro->id,
+            'cupo_maximo' => 25,
+            'cupos_reservados' => 0,
+            'cupos_matriculados' => 0,
+            'estado' => 'abierto',
+        ]);
+        $otroEstudiante = Estudiante::factory()->create(['sucursal_id' => $this->sucursal->id]);
+        $otraMatriculaId = \DB::table('matriculas')->insertGetId([
+            'codigo' => 'MAT-DOC-002',
+            'estudiante_id' => $otroEstudiante->id,
+            'oferta_academica_id' => $otraOferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+        Calificacion::create([
+            'codigo' => 'CAL-DOC-002',
+            'matricula_id' => $otraMatriculaId,
+            'estudiante_id' => $otroEstudiante->id,
+            'oferta_academica_id' => $otraOferta->id,
+            'nota_final' => 72.0,
+            'faltas' => 3,
+            'docente_id' => $otroDocente->id,
+            'estado' => 'registrado',
+        ]);
+
+        $rolDocente = Rol::create(['codigo' => 'DOC_SCOPE', 'nombre' => 'Docente Scope', 'estado' => 'activo']);
+        $rolDocente->permisos()->attach(
+            Permiso::where('codigo', 'calificaciones.consultar')->pluck('id')->toArray(),
+            ['estado' => 'activo'],
+        );
+        $usuarioDocente = User::create([
+            'name' => 'Docente Scope',
+            'email' => 'docente-scope@test.com',
+            'password' => bcrypt('password'),
+            'estado' => 'activo',
+            'docente_id' => $this->docente->id,
+        ]);
+        $usuarioDocente->roles()->attach($rolDocente->id, ['estado' => 'activo']);
+
+        $response = $this->getJson('/api/v1/calificaciones', [
+            'Authorization' => 'Bearer '.$usuarioDocente->createToken('test')->plainTextToken,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.codigo', 'CAL-DOC-001');
+    }
+
+    public function test_docente_no_puede_ver_calificacion_de_oferta_ajena(): void
+    {
+        $matricula = \DB::table('matriculas')->first();
+
+        $calificacion = Calificacion::create([
+            'codigo' => 'CAL-FORB-001',
+            'matricula_id' => $matricula->id,
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nota_final' => 84.0,
+            'faltas' => 1,
+            'docente_id' => $this->docente->id,
+            'estado' => 'registrado',
+        ]);
+
+        $rolDocente = Rol::create(['codigo' => 'DOC_FORBID', 'nombre' => 'Docente Ajeno', 'estado' => 'activo']);
+        $rolDocente->permisos()->attach(
+            Permiso::where('codigo', 'calificaciones.consultar')->pluck('id')->toArray(),
+            ['estado' => 'activo'],
+        );
+        $usuarioDocente = User::create([
+            'name' => 'Docente Ajeno',
+            'email' => 'docente-ajeno@test.com',
+            'password' => bcrypt('password'),
+            'estado' => 'activo',
+            'docente_id' => 999999,
+        ]);
+        $usuarioDocente->roles()->attach($rolDocente->id, ['estado' => 'activo']);
+
+        $response = $this->getJson('/api/v1/calificaciones/'.$calificacion->id, [
+            'Authorization' => 'Bearer '.$usuarioDocente->createToken('test')->plainTextToken,
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('codigo_error', '403_OFERTA_NO_ASIGNADA');
+    }
+
+    public function test_caso_uso_registrar_rechaza_oferta_no_asignada(): void
+    {
+        $contexto = new ContextoUsuario($this->admin->id);
+
+        $resultado = app(RegistrarCalificaciones::class)->ejecutar(
+            $this->oferta->id,
+            [['estudiante_id' => $this->estudiante->id, 'nota_final' => 85, 'faltas' => 0]],
+            99999,
+            $contexto,
+        );
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(403, $resultado->codigo());
+        $this->assertSame('403_OFERTA_NO_ASIGNADA', $resultado->codigoError());
+    }
+
+    public function test_caso_uso_registrar_ignora_estudiante_sin_matricula(): void
+    {
+        $contexto = new ContextoUsuario($this->admin->id);
+
+        $resultado = app(RegistrarCalificaciones::class)->ejecutar(
+            $this->oferta->id,
+            [['estudiante_id' => $this->estudiante->id, 'nota_final' => 85, 'faltas' => 0]],
+            null,
+            $contexto,
+        );
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame(200, $resultado->codigo());
+        $this->assertCount(1, $resultado->data()['calificaciones']);
+
+        $historial = HistorialAcademico::where('estudiante_id', $this->estudiante->id)->first();
+        $this->assertNotNull($historial);
+        $this->assertSame('aprobado', $historial->estado);
+    }
+
+    public function test_caso_uso_actualizar_marca_corregido_y_sincroniza_historial(): void
+    {
+        $contexto = new ContextoUsuario($this->admin->id);
+
+        $matricula = \DB::table('matriculas')->first();
+        $cal = Calificacion::create([
+            'codigo' => 'CAL-007',
+            'matricula_id' => $matricula->id,
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nota_final' => 90.0,
+            'faltas' => 2,
+            'docente_id' => $this->docente->id,
+            'estado' => 'registrado',
+        ]);
+
+        $resultado = app(ActualizarCalificacion::class)->ejecutar(
+            $cal->id,
+            ['nota_final' => 82, 'faltas' => 2],
+            null,
+            $contexto,
+        );
+
+        $this->assertTrue($resultado->ok());
+        $calificacion = $resultado->data()['calificacion'];
+        $this->assertSame('corregido', $calificacion->estado);
+        $this->assertSame(82.0, (float) $calificacion->nota_final);
+
+        $historial = HistorialAcademico::where('estudiante_id', $this->estudiante->id)->first();
+        $this->assertNotNull($historial);
+        $this->assertSame('aprobado', $historial->estado);
+    }
+
+    public function test_caso_uso_actualizar_rechaza_oferta_no_asignada(): void
+    {
+        $contexto = new ContextoUsuario($this->admin->id);
+
+        $matricula = \DB::table('matriculas')->first();
+        $cal = Calificacion::create([
+            'codigo' => 'CAL-008',
+            'matricula_id' => $matricula->id,
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'nota_final' => 90.0,
+            'faltas' => 2,
+            'docente_id' => $this->docente->id,
+            'estado' => 'registrado',
+        ]);
+
+        $resultado = app(ActualizarCalificacion::class)->ejecutar(
+            $cal->id,
+            ['nota_final' => 50],
+            99999,
+            $contexto,
+        );
+
+        $this->assertFalse($resultado->ok());
+        $this->assertSame(403, $resultado->codigo());
+        $this->assertSame('403_OFERTA_NO_ASIGNADA', $resultado->codigoError());
     }
 }

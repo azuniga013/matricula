@@ -61,30 +61,52 @@ export async function clearBiometricCredentials() {
 
 export async function currentUser() { return request('/me'); }
 export async function offers(periodId = null) {
-  const query = periodId ? `?periodo_academico_id=${encodeURIComponent(periodId)}` : '';
-  return request(`/asistencias/ofertas-disponibles${query}`);
+  const data = await request('/docente-movil/sincronizar');
+  const ofertas = data.ofertas || [];
+  return periodId
+    ? ofertas.filter((item) => String(item.periodo_academico_id || item.periodo_academico?.id) === String(periodId))
+    : ofertas;
 }
-export async function students(offerId) { return request(`/asistencias/estudiantes-por-oferta?oferta_academica_id=${offerId}`); }
+export async function students(offerId) {
+  const data = await request(`/docente-movil/ofertas/${offerId}`);
+  return data.alumnos || [];
+}
 
 export async function grades(offerId) {
-  const page = await request(`/calificaciones?oferta_academica_id=${offerId}&per_page=200`);
-  return page.data || [];
+  const data = await request(`/docente-movil/ofertas/${offerId}`);
+  return data.calificaciones || [];
 }
 
-export async function saveAttendance(offerId, date, attendances) {
-  return request('/asistencias/registrar', {
+export async function saveAttendance(uuid, offerId, date, attendance) {
+  return request('/docente-movil/sincronizar', {
     method: 'POST',
-    body: JSON.stringify({ oferta_academica_id: offerId, fecha: date, asistencias: attendances }),
+    body: JSON.stringify({
+      operaciones: [{
+        uuid,
+        tipo: 'asistencia',
+        oferta_academica_id: offerId,
+        fecha: date,
+        datos: attendance,
+      }],
+    }),
   });
 }
 
 export async function attendanceForOffer(offerId, date) {
-  return request(`/asistencias/por-oferta?oferta_academica_id=${offerId}&fecha=${encodeURIComponent(date)}`) || [];
+  const data = await request(`/docente-movil/ofertas/${offerId}`);
+  return (data.asistencias || []).filter((item) => item.fecha === date);
 }
 
-export async function saveGrades(offerId, calificaciones) {
-  return request('/calificaciones/registrar', {
+export async function saveGrades(uuid, offerId, calificacion) {
+  return request('/docente-movil/sincronizar', {
     method: 'POST',
-    body: JSON.stringify({ oferta_academica_id: offerId, calificaciones }),
+    body: JSON.stringify({
+      operaciones: [{
+        uuid,
+        tipo: 'calificacion',
+        oferta_academica_id: offerId,
+        datos: calificacion,
+      }],
+    }),
   });
 }

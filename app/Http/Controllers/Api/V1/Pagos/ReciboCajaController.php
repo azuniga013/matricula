@@ -3,14 +3,29 @@
 namespace App\Http\Controllers\Api\V1\Pagos;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccesoEstudiante;
 use App\Models\ReciboCaja;
+use App\Modules\Caja\CasosUso\AnularRecibo;
+use App\Modules\Caja\CasosUso\ReimprimirRecibo;
+use App\Modules\Comun\ContextoUsuario;
+use App\Services\ResolutorAlcanceDatos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ReciboCajaController extends Controller
 {
+    private function expresionFechaRecibo(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "COALESCE(recibos_caja.fecha_recibo, recibos_caja.fecha_proceso, recibos_caja.creado_en)",
+            'mysql', 'mariadb' => "COALESCE(recibos_caja.fecha_recibo, recibos_caja.fecha_proceso, recibos_caja.creado_en)",
+            default => "COALESCE(recibos_caja.fecha_recibo, recibos_caja.fecha_proceso, recibos_caja.creado_en)",
+        };
+    }
+
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -34,6 +49,7 @@ class ReciboCajaController extends Controller
             'metodoPago:id,codigo,nombre',
             'sucursal:id,codigo,nombre',
         ])->select(['recibos_caja.*']);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'recibos_caja');
 
         if ($request->filled('sucursal_id')) {
             $query->where('recibos_caja.sucursal_id', $request->sucursal_id);
@@ -57,10 +73,10 @@ class ReciboCajaController extends Controller
             $query->where('recibos_caja.estado', $request->estado);
         }
         if ($request->filled('fecha_desde')) {
-            $query->where('recibos_caja.creado_en', '>=', $request->fecha_desde);
+            $query->whereDate(DB::raw($this->expresionFechaRecibo()), '>=', $request->fecha_desde);
         }
         if ($request->filled('fecha_hasta')) {
-            $query->where('recibos_caja.creado_en', '<=', $request->fecha_hasta . ' 23:59:59');
+            $query->whereDate(DB::raw($this->expresionFechaRecibo()), '<=', $request->fecha_hasta);
         }
 
         if ($request->boolean('clasificar')) {
@@ -97,7 +113,7 @@ class ReciboCajaController extends Controller
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $recibo = ReciboCaja::with([
             'pago:id,codigo,estudiante_id,metodo_pago_id,monto,estado,referencia_externa,fecha_proceso,fecha_deposito,fecha_aprobacion,creado_en',
@@ -105,13 +121,11 @@ class ReciboCajaController extends Controller
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',
             'sucursal:id,codigo,nombre',
-        ])->findOrFail($id);
+        ]);
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($recibo, $request->user(), 'recibos_caja');
+        $recibo = $recibo->findOrFail($id);
 
         $recibo->setAttribute('codigo_pago', $recibo->pago?->codigo);
-
-        if (!$recibo->fecha_recibo) {
-            $recibo->setAttribute('fecha_recibo', $recibo->fecha_proceso ?? $recibo->pago?->fecha_proceso ?? $recibo->pago?->fecha_aprobacion ?? $recibo->pago?->creado_en ?? $recibo->creado_en);
-        }
 
         return response()->json([
             'resultado' => 'A',
@@ -123,58 +137,59 @@ class ReciboCajaController extends Controller
 
     public function reimprimir(int $id): JsonResponse
     {
-        $recibo = ReciboCaja::findOrFail($id);
+        $query = ReciboCaja::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, request()->user(), 'recibos_caja');
+        $query->findOrFail($id);
 
-        if ($recibo->estado === 'anulado') {
+        $resultado = app(ReimprimirRecibo::class)->ejecutar($id, ContextoUsuario::desdeRequest());
+
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'No se puede reimprimir un recibo anulado',
-            ], 422);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
-
-        $recibo->update([
-            'veces_reimpreso' => $recibo->veces_reimpreso + 1,
-            'actualizado_por' => auth()->id(),
-        ]);
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Reimpresión registrada',
-            'data' => $recibo,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['recibo'],
         ]);
     }
 
     public function anular(int $id, Request $request): JsonResponse
     {
+        $query = ReciboCaja::query();
+        app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'recibos_caja');
+        $query->findOrFail($id);
+
         $request->validate([
             'motivo_anulacion' => 'required|string|max:500',
         ]);
 
-        $recibo = ReciboCaja::findOrFail($id);
+        $resultado = app(AnularRecibo::class)->ejecutar(
+            $id,
+            $request->input('motivo_anulacion'),
+            ContextoUsuario::desdeRequest(),
+        );
 
-        if ($recibo->estado === 'anulado') {
+        if (! $resultado->ok()) {
             return response()->json([
                 'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'El recibo ya está anulado',
-            ], 422);
+                'codigo' => $resultado->codigo(),
+                'codigo_error' => $resultado->codigoError(),
+                'mensaje' => $resultado->mensaje(),
+            ], $resultado->codigo());
         }
-
-        $recibo->update([
-            'estado' => 'anulado',
-            'anulado_por' => auth()->id(),
-            'fecha_anulacion' => now(),
-            'motivo_anulacion' => $request->motivo_anulacion,
-            'actualizado_por' => auth()->id(),
-        ]);
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Recibo anulado',
-            'data' => $recibo,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $resultado->data()['recibo'],
         ]);
     }
 
@@ -197,12 +212,12 @@ class ReciboCajaController extends Controller
     public function imprimirEstudiante(int $id, Request $request)
     {
         $token = $request->query('token');
-        if (!$token) {
+        if (! $token) {
             abort(401, 'Token requerido');
         }
 
-        $acceso = \App\Models\AccesoEstudiante::where('token', hash('sha256', $token))->first();
-        if (!$acceso) {
+        $acceso = AccesoEstudiante::where('token', hash('sha256', $token))->first();
+        if (! $acceso) {
             abort(401, 'Token inválido');
         }
 
@@ -216,11 +231,12 @@ class ReciboCajaController extends Controller
             'pago.matricula.ofertaAcademica.docente',
             'pago.movimientosInventario.inventarioLibro.libro',
         ])->where('estudiante_id', $acceso->estudiante_id)
-          ->findOrFail($id);
+            ->findOrFail($id);
 
         if ($request->query('pdf') === '1') {
             $pdf = Pdf::loadView('partials.recibo_print', ['recibo' => $recibo]);
-            $nombreArchivo = 'recibo_' . $recibo->codigo . '.pdf';
+            $nombreArchivo = 'recibo_'.$recibo->codigo.'.pdf';
+
             return $pdf->download($nombreArchivo);
         }
 
