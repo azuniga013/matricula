@@ -132,6 +132,8 @@ function asistencias() {
         periodos: [], sucursales: [], niveles: [], ofertas: [], estudiantes: [],
         ofertaId: '', fecha: window.toLocalDateInput(),
         filtros: { periodo: '', sucursal: '', nivel: '' },
+        ofertasRequestId: 0,
+        estudiantesRequestId: 0,
 
         async init() {
             await this.cargarCatalogos();
@@ -157,6 +159,7 @@ function asistencias() {
         },
 
         async cargarOfertas() {
+            const requestId = ++this.ofertasRequestId;
             this.cargandoOfertas = true;
             this.errorCarga = '';
             try {
@@ -165,6 +168,7 @@ function asistencias() {
                 if (this.filtros.sucursal) url += `sucursal_id=${this.filtros.sucursal}&`;
                 if (this.filtros.nivel) url += `nivel_academico_id=${this.filtros.nivel}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                if (requestId !== this.ofertasRequestId) return;
                 if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
                 this.ofertas = data.data || [];
                 if (!this.ofertas.some(o => String(o.id) === String(this.ofertaId))) this.ofertaId = '';
@@ -172,11 +176,14 @@ function asistencias() {
                 if (this.ofertaId) await this.cargarEstudiantes();
                 else this.estudiantes = [];
             } catch(e) {
+                if (requestId !== this.ofertasRequestId) return;
                 this.ofertas = [];
                 this.estudiantes = [];
                 this.errorCarga = window.extractError(e, 'No fue posible cargar los grupos. Verifique sus permisos de asistencia.');
             }
-            finally { this.cargandoOfertas = false; }
+            finally {
+                if (requestId === this.ofertasRequestId) this.cargandoOfertas = false;
+            }
         },
 
         limpiarSeleccionGrupo() {
@@ -201,13 +208,16 @@ function asistencias() {
 
         async cargarEstudiantes() {
             if (!this.ofertaId) return;
+            const ofertaIdActual = this.ofertaId;
+            const requestId = ++this.estudiantesRequestId;
             this.loading = true;
             try {
                 const h = { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } };
                 const [listaRes, existentesRes] = await Promise.allSettled([
-                    window.axios.get(`/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=${this.ofertaId}`, h),
-                    this.fecha ? window.axios.get(`/api/v1/asistencias/por-oferta?oferta_academica_id=${this.ofertaId}&fecha=${this.fecha}`, h) : Promise.resolve({ data: { data: [] } }),
+                    window.axios.get(`/api/v1/asistencias/estudiantes-por-oferta?oferta_academica_id=${ofertaIdActual}`, h),
+                    this.fecha ? window.axios.get(`/api/v1/asistencias/por-oferta?oferta_academica_id=${ofertaIdActual}&fecha=${this.fecha}`, h) : Promise.resolve({ data: { data: [] } }),
                 ]);
+                if (requestId !== this.estudiantesRequestId || String(ofertaIdActual) !== String(this.ofertaId)) return;
 
                 const listaData = listaRes.status === 'fulfilled' ? listaRes.value.data : null;
                 if (!listaData) throw new Error('No se pudo cargar el listado de estudiantes');
@@ -225,10 +235,13 @@ function asistencias() {
 
                 this.estudiantes = estudiantes;
             } catch(e) {
+                if (requestId !== this.estudiantesRequestId || String(ofertaIdActual) !== String(this.ofertaId)) return;
                 this.estudiantes = [];
                 this.errorCarga = window.extractError(e, 'No fue posible cargar los estudiantes. Verifique sus permisos de asistencia.');
             }
-            finally { this.loading = false; }
+            finally {
+                if (requestId === this.estudiantesRequestId) this.loading = false;
+            }
         },
 
         async cargarAsistenciaExistente() {

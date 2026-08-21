@@ -11,173 +11,88 @@ use App\Models\OfertaAcademica;
 use App\Models\PeriodoAcademico;
 use App\Models\Sucursal;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class OfertaAcademicaSeeder extends Seeder
 {
     public function run(): void
     {
-        $sucursalSPS = Sucursal::where('codigo', 'SPS')->first();
-        $sucursalTGU = Sucursal::where('codigo', 'TGU')->first();
+        $periodo = PeriodoAcademico::query()
+            ->where('estado', 'activo')
+            ->orderByDesc('fecha_inicio')
+            ->first();
 
-        if (!$sucursalSPS || !$sucursalTGU) {
-            return;
-        }
-
-        $periodo = PeriodoAcademico::firstOrCreate(
-            ['codigo' => '2026-I'],
-            [
-                'nombre' => 'Primer Semestre 2026',
-                'fecha_inicio' => '2026-01-15',
-                'fecha_fin' => '2026-06-30',
-                'estado' => 'activo',
-            ]
-        );
-
-        $nivel1 = NivelAcademico::where('codigo', 'ING-1')->first();
-        $nivel2 = NivelAcademico::where('codigo', 'ING-2')->first();
-        $nivel3 = NivelAcademico::where('codigo', 'ING-3')->first();
-
-        if (!$nivel1) {
-            return;
-        }
-
-        $modalidadIntensivo = Modalidad::where('codigo', 'INT')->first();
-        $modalidadSemi = Modalidad::where('codigo', 'SEMI')->first();
-        $modalidadPresencial = Modalidad::where('codigo', 'PRES')->first();
-
-        $horarioMatutino = Horario::firstOrCreate(
-            ['codigo' => 'MAT-7AM'],
-            [
-                'nombre' => 'Matutino 7:00-9:00',
-                'hora_inicio' => '07:00',
-                'hora_fin' => '09:00',
-                'lunes' => true,
-                'miercoles' => true,
-                'viernes' => true,
-            ]
-        );
-
-        $horarioVespertino = Horario::firstOrCreate(
-            ['codigo' => 'VES-4PM'],
-            [
-                'nombre' => 'Vespertino 4:00-6:00',
-                'hora_inicio' => '16:00',
-                'hora_fin' => '18:00',
-                'martes' => true,
-                'jueves' => true,
-            ]
-        );
-
-        $docente1 = Docente::firstOrCreate(
-            ['codigo' => 'DOC001'],
-            [
-                'nombre' => 'María',
-                'apellido' => 'López',
-                'correo' => 'maria@svps.hn',
-                'estado' => 'activo',
-            ]
-        );
-
-        $docente2 = Docente::firstOrCreate(
-            ['codigo' => 'DOC002'],
-            [
-                'nombre' => 'Carlos',
-                'apellido' => 'Ramírez',
-                'correo' => 'carlos@svps.hn',
-                'estado' => 'activo',
-            ]
-        );
-
-        $aula1 = Aula::firstOrCreate(
-            ['codigo' => 'AUL-SPS-01'],
-            [
-                'sucursal_id' => $sucursalSPS->id,
-                'nombre' => 'Aula 1 SPS',
-                'capacidad' => 25,
-                'estado' => 'activo',
-            ]
-        );
-
-        $aula2 = Aula::firstOrCreate(
-            ['codigo' => 'AUL-TGU-01'],
-            [
-                'sucursal_id' => $sucursalTGU->id,
-                'nombre' => 'Aula 1 TGU',
-                'capacidad' => 25,
-                'estado' => 'activo',
-            ]
-        );
-
-        $ofertas = [
-            [
-                'sucursal_id' => $sucursalSPS->id,
-                'nivel_academico_id' => $nivel1->id,
-                'modalidad_id' => $modalidadPresencial?->id,
-                'horario_id' => $horarioMatutino->id,
-                'docente_id' => $docente1->id,
-                'aula_id' => $aula1->id,
-                'codigo' => 'SPS-2026I-ING1-INT-MAT',
-                'cupo_maximo' => 25,
-                'estado' => 'abierto',
-                'observaciones' => 'Inglés 1 Intensivo Matutino SPS',
-            ],
-            [
-                'sucursal_id' => $sucursalSPS->id,
-                'nivel_academico_id' => $nivel2->id,
-                'modalidad_id' => $modalidadPresencial?->id,
-                'horario_id' => $horarioMatutino->id,
-                'docente_id' => $docente1->id,
-                'aula_id' => $aula1->id,
-                'codigo' => 'SPS-2026I-ING2-INT-MAT',
-                'cupo_maximo' => 25,
-                'estado' => 'abierto',
-                'observaciones' => 'Inglés 2 Intensivo Matutino SPS',
-            ],
-            [
-                'sucursal_id' => $sucursalSPS->id,
-                'nivel_academico_id' => $nivel1->id,
-                'modalidad_id' => $modalidadPresencial?->id,
-                'horario_id' => $horarioVespertino->id,
-                'docente_id' => $docente2->id,
-                'aula_id' => $aula1->id,
-                'codigo' => 'SPS-2026I-ING1-SEMI-VES',
-                'cupo_maximo' => 25,
-                'estado' => 'abierto',
-                'observaciones' => 'Inglés 1 Semi Intensivo Vespertino SPS',
-            ],
-            [
-                'sucursal_id' => $sucursalTGU->id,
-                'nivel_academico_id' => $nivel1->id,
-                'modalidad_id' => $modalidadPresencial?->id,
-                'horario_id' => $horarioMatutino->id,
-                'docente_id' => $docente2->id,
-                'aula_id' => $aula2->id,
-                'codigo' => 'TGU-2026I-ING1-INT-MAT',
-                'cupo_maximo' => 25,
-                'estado' => 'abierto',
-                'observaciones' => 'Inglés 1 Intensivo Matutino TGU',
-            ],
-            [
-                'sucursal_id' => $sucursalTGU->id,
-                'nivel_academico_id' => $nivel3->id,
-                'modalidad_id' => $modalidadPresencial?->id,
-                'horario_id' => $horarioMatutino->id,
-                'docente_id' => $docente1->id,
-                'aula_id' => $aula2->id,
-                'codigo' => 'TGU-2026I-ING3-INT-MAT',
-                'cupo_maximo' => 25,
-                'estado' => 'borrador',
-                'observaciones' => 'Inglés 3 Intensivo Matutino TGU - Pendiente',
-            ],
-        ];
-
-        foreach ($ofertas as $oferta) {
-            OfertaAcademica::firstOrCreate(
-                ['codigo' => $oferta['codigo']],
-                array_merge($oferta, [
-                    'periodo_academico_id' => $periodo->id,
-                ])
+        if (! $periodo) {
+            $periodo = PeriodoAcademico::firstOrCreate(
+                ['codigo' => '2026-I'],
+                [
+                    'nombre' => 'Periodo Académico 2026-I',
+                    'fecha_inicio' => '2026-01-15',
+                    'fecha_fin' => '2026-06-30',
+                    'estado' => 'activo',
+                ]
             );
+        }
+
+        $modalidadAtencion = Modalidad::query()
+            ->where('tipo', 'atencion')
+            ->where('codigo', 'PRES')
+            ->first() ?? Modalidad::query()->where('tipo', 'atencion')->orderBy('id')->first();
+
+        $horarios = Horario::query()->activos()->ordenados()->get()->values();
+        $docentes = Docente::query()->where('estado', 'activo')->orderBy('id')->get()->values();
+        $sucursales = Sucursal::query()->where('estado', 'activo')->orderBy('id')->get();
+
+        if (! $modalidadAtencion || $horarios->isEmpty() || $docentes->isEmpty() || $sucursales->isEmpty()) {
+            return;
+        }
+
+        $niveles = NivelAcademico::query()
+            ->with(['versionPlanEstudio.planEstudio'])
+            ->where('estado', 'activo')
+            ->orderBy('version_plan_estudio_id')
+            ->orderBy('orden')
+            ->get();
+
+        foreach ($sucursales as $sucursal) {
+            $aulas = Aula::query()
+                ->where('sucursal_id', $sucursal->id)
+                ->where('estado', 'activo')
+                ->orderBy('id')
+                ->get()
+                ->values();
+
+            if ($aulas->isEmpty()) {
+                continue;
+            }
+
+            foreach ($niveles as $index => $nivel) {
+                $horario = $horarios[$index % $horarios->count()];
+                $docente = $docentes[$index % $docentes->count()];
+                $aula = $aulas[$index % $aulas->count()];
+                $planCodigo = $nivel->versionPlanEstudio?->planEstudio?->codigo ?? 'PLAN';
+                $periodoCodigo = Str::upper(str_replace(['-', ' '], '', $periodo->codigo));
+                $codigo = Str::upper($sucursal->codigo . '-' . $periodoCodigo . '-' . $planCodigo . '-N' . str_pad((string) $nivel->orden, 2, '0', STR_PAD_LEFT));
+
+                OfertaAcademica::updateOrCreate(
+                    ['codigo' => $codigo],
+                    [
+                        'sucursal_id' => $sucursal->id,
+                        'periodo_academico_id' => $periodo->id,
+                        'nivel_academico_id' => $nivel->id,
+                        'modalidad_id' => $modalidadAtencion->id,
+                        'horario_id' => $horario->id,
+                        'docente_id' => $docente->id,
+                        'aula_id' => $aula->id,
+                        'cupo_maximo' => 25,
+                        'cupos_reservados' => 0,
+                        'cupos_matriculados' => 0,
+                        'estado' => 'abierto',
+                        'acepta_cambios_horario' => true,
+                        'observaciones' => trim(($nivel->versionPlanEstudio?->planEstudio?->nombre ?? 'Plan') . ' · ' . $nivel->nombre),
+                    ]
+                );
+            }
         }
     }
 }

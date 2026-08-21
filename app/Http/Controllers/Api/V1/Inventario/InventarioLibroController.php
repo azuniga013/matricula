@@ -130,12 +130,16 @@ class InventarioLibroController extends Controller
     {
         $request->validate([
             'inventario_libro_id' => 'required|exists:inventario_libros,id',
+            'fecha_desde' => 'nullable|date',
         ]);
 
         $inventario = InventarioLibro::with([
             'libro:id,codigo,titulo',
             'sucursal:id,codigo,nombre',
-            'movimientos' => function ($q) {
+            'movimientos' => function ($q) use ($request) {
+                if ($request->filled('fecha_desde')) {
+                    $q->whereDate('movimientos_inventario_libros.creado_en', '>=', $request->input('fecha_desde'));
+                }
                 $q->orderByDesc('movimientos_inventario_libros.id');
             },
         ]);

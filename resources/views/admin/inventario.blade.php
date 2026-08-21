@@ -156,6 +156,15 @@
                             </template>
                         </select>
                     </div>
+                    <div>
+                        <label class="label">Desde fecha</label>
+                        <input x-model="kardexFechaDesde" @change="loadKardex()" type="date" class="input">
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <button type="button" @click="aplicarFiltroKardex('hoy')" class="btn btn-ghost btn-sm">Hoy</button>
+                            <button type="button" @click="aplicarFiltroKardex('mes')" class="btn btn-ghost btn-sm">Este mes</button>
+                            <button type="button" @click="aplicarFiltroKardex('todo')" class="btn btn-ghost btn-sm">Todo</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -301,7 +310,7 @@ function inventario() {
         libros: [], stock: [], sucursales: [],
         buscarLibro: '',
         filtroStockSucursal: '', filtroStockLibro: '', filtroStockBajo: false,
-        kardexInventarioId: '', kardexData: null,
+        kardexInventarioId: '', kardexData: null, kardexFechaDesde: '',
 
         showModalLibro: false, editandoLibro: false, savingLibro: false, errorLibro: '',
         formLibro: {},
@@ -359,7 +368,9 @@ function inventario() {
             if (!this.kardexInventarioId) { this.kardexData = null; return; }
             this.loadingKardex = true;
             try {
-                const { data } = await window.axios.get(`/api/v1/inventario/kardex?inventario_libro_id=${this.kardexInventarioId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                let url = `/api/v1/inventario/kardex?inventario_libro_id=${this.kardexInventarioId}`;
+                if (this.kardexFechaDesde) url += `&fecha_desde=${this.kardexFechaDesde}`;
+                const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 this.kardexData = data.data;
             } catch(e) { console.error(e); }
             finally { this.loadingKardex = false; }
@@ -367,6 +378,18 @@ function inventario() {
 
         selectKardex() {
             if (this.stock.length === 0) this.loadStock();
+        },
+
+        aplicarFiltroKardex(tipo) {
+            if (tipo === 'hoy') {
+                this.kardexFechaDesde = window.toLocalDateInput();
+            } else if (tipo === 'mes') {
+                const hoy = window.toLocalDateInput();
+                this.kardexFechaDesde = hoy.substring(0, 8) + '01';
+            } else {
+                this.kardexFechaDesde = '';
+            }
+            this.loadKardex();
         },
 
         openModalLibro() {

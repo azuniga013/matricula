@@ -15,6 +15,7 @@ use App\Modules\Inventario\CasosUso\AjustarExistencia;
 use App\Modules\Inventario\CasosUso\RegistrarInventario;
 use App\Modules\Inventario\CasosUso\VenderLibro;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class InventarioLibroTest extends TestCase
@@ -45,7 +46,7 @@ class InventarioLibroTest extends TestCase
         ]);
         $this->admin->roles()->attach($rol->id, ['estado' => 'activo']);
         $this->token = $this->admin->createToken('test')->plainTextToken;
-        \DB::table('alcances_usuario')->insert([
+        DB::table('alcances_usuario')->insert([
             'usuario_id' => $this->admin->id,
             'tipo' => 'global',
             'estado' => 'activo',
@@ -324,6 +325,40 @@ class InventarioLibroTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
             ->assertJsonCount(2, 'data.movimientos');
+    }
+
+    public function test_kardex_movimientos_filtra_desde_fecha(): void
+    {
+        $libro = Libro::create(['codigo' => 'LIB-010', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
+        $invData = $this->postJson('/api/v1/inventario/stock', [
+            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+            'existencia_actual' => 5,
+        ], $this->headers())->json('data');
+
+        $this->postJson("/api/v1/inventario/stock/{$invData['id']}/ajustar", [
+            'inventario_libro_id' => $invData['id'], 'cantidad' => 3, 'motivo' => '+3',
+        ], $this->headers());
+
+        $movimientoIds = DB::table('movimientos_inventario_libros')
+            ->where('inventario_libro_id', $invData['id'])
+            ->orderBy('id')
+            ->pluck('id')
+            ->values();
+
+        DB::table('movimientos_inventario_libros')
+            ->where('id', $movimientoIds[0])
+            ->update(['creado_en' => '2026-08-01 08:00:00']);
+
+        DB::table('movimientos_inventario_libros')
+            ->where('id', $movimientoIds[1])
+            ->update(['creado_en' => '2026-08-20 10:00:00']);
+
+        $response = $this->getJson('/api/v1/inventario/kardex?inventario_libro_id='.$invData['id'].'&fecha_desde=2026-08-15', $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data.movimientos')
+            ->assertJsonPath('data.movimientos.0.motivo', '+3');
     }
 
     public function test_registrar_inventario_mediante_caso_de_uso(): void

@@ -59,7 +59,7 @@
                                     <td class="text-gray-500 font-mono text-xs" x-text="m.oferta_academica?.codigo || '-'"></td>
                                     <td x-text="m.oferta_academica?.nivel_academico?.nombre || '-'"></td>
                                     <td x-text="m.oferta_academica?.horario?.nombre || '-'"></td>
-                                    <td class="text-gray-500 text-xs" x-text="m.fecha_confirmacion || m.created_at || '-'"></td>
+                                    <td class="text-gray-500 text-xs" x-text="formatFecha(m.fecha_confirmacion || m.fecha_reserva || m.created_at)"></td>
                                     <td><span :class="{
                                         'badge-success': m.estado === 'matriculado',
                                         'badge-warning': m.estado === 'reservada',
