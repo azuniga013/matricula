@@ -203,6 +203,26 @@ class EstudianteTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
+
+        $acceso = AccesoEstudiante::where('email', 'reenviar@test.com')->firstOrFail();
+        $bitacora = \App\Models\BitacoraCorreo::where('destinatario', 'reenviar@test.com')
+            ->where('tipo', 'reenvio')
+            ->latest('id')
+            ->firstOrFail();
+
+        preg_match_all('/<p style="font-size:16px;font-weight:600;color:#0f172a;margin:2px 0 0 0[^>]*">([^<]+)<\/p>/', $bitacora->cuerpo_html ?? '', $coincidencias);
+        $passwordReenviado = $coincidencias[1][2] ?? null;
+
+        $this->assertNotNull($passwordReenviado);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check($passwordReenviado, $acceso->password));
+
+        $login = $this->postJson('/api/v1/estudiantes/iniciar-sesion', [
+            'email' => 'reenviar@test.com',
+            'password' => $passwordReenviado,
+        ]);
+
+        $login->assertOk()
+            ->assertJsonPath('resultado', 'A');
     }
 
     public function test_activar_estudiante_inexistente(): void

@@ -268,7 +268,8 @@ class EstudianteAuthController extends Controller
         }
 
         $password = Str::random(10);
-        $acceso->update(['password' => $password]);
+        $acceso->password = $password;
+        $acceso->save();
 
         try {
             $mailable = new CredencialesEstudiante(
