@@ -92,6 +92,12 @@
                                         <template x-if="p.link_pago_estado">
                                             <p class="mt-1 text-[11px] text-gray-500" x-text="'Estado interno: ' + p.link_pago_estado"></p>
                                         </template>
+                                        <template x-if="p.estado === 'esperando_respuesta'">
+                                            <p class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                                Pendiente de confirmaci\u00f3n del estudiante
+                                            </p>
+                                        </template>
                                         <template x-if="p.link_pago_estado === 'ejecutado'">
                                             <p class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
@@ -113,7 +119,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="px-4 pb-4 text-xs text-gray-500">Se listan todos los pagos con estado <span class="font-medium">solicita_link</span>. Cuando el enlace está cargado, el pago pasa a <span class="font-medium">en_revision</span> y el estudiante puede continuar el flujo.</div>
+                <div class="px-4 pb-4 text-xs text-gray-500">Se listan los pagos con solicitud de link, incluyendo los que ya tienen enlace cargado y están pendientes de confirmación del estudiante. Solo después de esa confirmación pasan a <span class="font-medium">en_revision</span>.</div>
             </div>
 
             {{-- En Revisión --}}

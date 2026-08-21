@@ -41,7 +41,7 @@ final class EloquentPagoRepositorio implements PagoRepositorio
             'link_pago_url' => $link,
             'link_generado_por' => $usuarioId,
             'link_generado_en' => now(),
-            'estado' => 'solicita_link',
+            'estado' => 'esperando_respuesta',
             'actualizado_por' => $usuarioId,
         ];
 

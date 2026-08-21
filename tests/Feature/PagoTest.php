@@ -487,13 +487,15 @@ class PagoTest extends TestCase
 
         $actualizar->assertOk()
             ->assertJsonPath('data.link_pago_url', 'https://pago.ejemplo/test-link')
+            ->assertJsonPath('data.estado', 'esperando_respuesta')
             ->assertJsonPath('data.link_pago_estado', 'enviado');
 
         $this->assertDatabaseHas('pagos', [
             'id' => $pagoId,
-            'estado' => 'solicita_link',
+            'estado' => 'esperando_respuesta',
             'link_pago_url' => 'https://pago.ejemplo/test-link',
         ]);
+
     }
 
     public function test_listar_solicitudes_de_link_incluye_pagos_solicita_link(): void

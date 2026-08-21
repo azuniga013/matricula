@@ -26,7 +26,7 @@ class PagoController extends Controller
     {
         $request->validate([
             'sucursal_id' => 'nullable|exists:sucursales,id',
-            'estado' => 'nullable|in:pendiente,en_revision,solicita_link,aprobado,rechazado,cancelado',
+            'estado' => 'nullable|in:pendiente,en_revision,solicita_link,esperando_respuesta,aprobado,rechazado,cancelado',
             'clasificar' => 'nullable|boolean',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
             'estudiante_id' => 'nullable|exists:estudiantes,id',
@@ -53,7 +53,7 @@ class PagoController extends Controller
         }
         if ($request->filled('estado')) {
             if ($request->estado === 'solicita_link') {
-                $query->where('pagos.estado', 'solicita_link');
+                $query->whereIn('pagos.estado', ['solicita_link', 'esperando_respuesta']);
             } else {
                 $query->where('pagos.estado', $request->estado);
             }
@@ -71,7 +71,7 @@ class PagoController extends Controller
             $clasificados = [
                 'pagosPendientes' => $pagos->where('estado', 'pendiente')->values(),
                 'pagosEnRevision' => $pagos->where('estado', 'en_revision')->values(),
-                'pagosSolicitaLink' => $pagos->where('estado', 'solicita_link')->values(),
+                'pagosSolicitaLink' => $pagos->whereIn('estado', ['solicita_link', 'esperando_respuesta'])->values(),
                 'pagosAprobados' => $pagos->where('estado', 'aprobado')->values(),
                 'pagosRechazados' => $pagos->where('estado', 'rechazado')->values(),
             ];

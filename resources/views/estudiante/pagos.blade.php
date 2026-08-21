@@ -109,7 +109,7 @@
                                     </template>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
-                                    <template x-if="flujoPortal.habilita_solicitud_link && p.estado === 'esperando_respuesta'">
+                                    <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                         <button @click="confirmarLinkPago(p)" class="inline-flex items-center justify-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">Ya completé el pago</button>
                                     </template>
                                     <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
@@ -184,7 +184,7 @@
                                                         <p>La solicitud está en revisión. Contabilidad debe publicar el enlace.</p>
                                                     </div>
                                                 </template>
-                                                <template x-if="p.estado === 'esperando_respuesta'">
+                                                <template x-if="p.link_pago_url && p.estado === 'esperando_respuesta'">
                                                     <div class="mb-2 rounded-lg border border-purple-200 bg-white/70 p-3 text-xs text-purple-800">
                                                         <p class="font-semibold">Enlace disponible</p>
                                                         <p>Contabilidad ya publicó el enlace. Abra el link, complete el pago externo y confirme aquí.</p>
@@ -193,7 +193,7 @@
                                                 <template x-if="flujoPortal.habilita_carga_comprobante && (p.estado === 'pendiente' || p.estado === 'rechazado')">
                                                     <button @click="subirComprobantePago(p)" class="text-xs text-brand-600 font-medium hover:text-brand-700">Subir comprobante</button>
                                                 </template>
-                                                <template x-if="flujoPortal.habilita_solicitud_link && p.estado === 'esperando_respuesta'">
+                                                <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                                     <div class="space-y-1">
                                                         <a :href="p.link_pago_url" target="_blank" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Abrir link</a>
                                                         <button @click="copiarLinkPago(p)" class="text-xs text-gray-600 font-medium hover:text-gray-800">Copiar link</button>
@@ -217,7 +217,7 @@
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap">
                                             <div class="flex items-center gap-3">
-                                                <template x-if="flujoPortal.habilita_solicitud_link && p.estado === 'esperando_respuesta'">
+                                                <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                                     <button @click="confirmarLinkPago(p)" class="text-xs text-brand-600 font-medium hover:text-brand-700">Ya completé el pago</button>
                                                 </template>
                                                 <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
