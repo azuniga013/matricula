@@ -729,6 +729,15 @@ class PortalEstudianteController extends Controller
 
     public function eliminarPago(Request $request, Pago $pago): JsonResponse
     {
+        if (app()->environment('production')) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 403,
+                'codigo_error' => '403_ACCION_NO_DISPONIBLE',
+                'mensaje' => 'La eliminación de pagos desde el portal del estudiante está deshabilitada en producción.',
+            ], 403);
+        }
+
         $estudiante = $request->attributes->get('estudiante');
 
         if ((int) $pago->estudiante_id !== (int) $estudiante->id) {

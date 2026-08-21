@@ -115,7 +115,7 @@
                                     <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
                                         <button @click="verMotivoRechazo(p)" class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Ver motivo</button>
                                     </template>
-                                    <button @click="eliminarPago(p)" class="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700">Eliminar</button>
+                                    <button x-show="puedeEliminarPagos" @click="eliminarPago(p)" class="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700">Eliminar</button>
                                 </div>
                             </div>
                         </template>
@@ -223,7 +223,7 @@
                                                 <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
                                                     <button @click="verMotivoRechazo(p)" class="text-xs text-red-600 font-medium hover:text-red-700">Ver motivo</button>
                                                 </template>
-                                                <template x-if="true">
+                                                <template x-if="puedeEliminarPagos">
                                                     <button @click="eliminarPago(p)" class="text-xs text-red-600 font-medium hover:text-red-700">Eliminar</button>
                                                 </template>
                                             </div>
@@ -477,6 +477,7 @@ function fmtMonto(val) {
 
 function pagosView() {
     return {
+        puedeEliminarPagos: {{ app()->environment('production') ? 'false' : 'true' }},
         loading: true, pagos: [], tienePendientes: false,
         flujoPortal: { habilita_carga_comprobante: true, requiere_comprobante: true, habilita_solicitud_link: true },
 
@@ -880,6 +881,7 @@ function pagosView() {
 
 
         async eliminarPago(p) {
+            if (!this.puedeEliminarPagos) return;
             if (!confirm('¿Desea eliminar este pago? Esta acción no se puede deshacer.')) return;
             const token = this.token();
             try {
