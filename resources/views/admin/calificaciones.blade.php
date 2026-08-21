@@ -179,6 +179,15 @@ function calificaciones() {
                 // Precargar período activo (AGENTS §4.9.1)
                 const activo = this.periodos.find(x => x.estado === 'activo');
                 if (activo) { this.filtros.periodo_academico_id = activo.id; }
+                if (!this.filtros.nivel_academico_id && this.nivelesDisponibles.length > 0) {
+                    this.filtros.nivel_academico_id = this.nivelesDisponibles[0].id;
+                }
+                if (!this.filtros.oferta_academica_id && this.gruposDisponibles.length > 0) {
+                    this.filtros.oferta_academica_id = this.gruposDisponibles[0].id;
+                }
+                if (this.filtros.oferta_academica_id) {
+                    await this.cambioGrupo();
+                }
             } catch(e) {}
         },
 

@@ -284,7 +284,8 @@ function ofertas() {
         },
 
         async init() {
-            await Promise.all([this.loadOfertas(), this.loadCatalogs()]);
+            await this.loadCatalogs();
+            await this.loadOfertas();
         },
 
         async loadCatalogs() {

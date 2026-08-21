@@ -854,8 +854,16 @@ function pagos() {
             this.cuentasBancarias = cb.status === 'fulfilled' ? (cb.value.data.data || []) : [];
             this.periodosAcademicos = pa.status === 'fulfilled' ? (pa.value.data.data?.data || pa.value.data.data || []) : [];
             this.planesEstudio = pe.status === 'fulfilled' ? (pe.value.data.data?.data || pe.value.data.data || []) : [];
+            this.preseleccionarPeriodoRecibos();
+            await this.cargarOfertasRecibos();
             await this.load();
             this.pollingInterval = setInterval(() => this.load(), 30000);
+        },
+
+        preseleccionarPeriodoRecibos() {
+            if (this.filtroRecibos.periodo) return;
+            const activo = this.periodosAcademicos.find(periodo => periodo.estado === 'activo');
+            if (activo) this.filtroRecibos.periodo = activo.id;
         },
 
         get esVLI() {

@@ -168,8 +168,12 @@ function asistencias() {
                 if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
                 this.ofertas = data.data || [];
                 if (!this.ofertas.some(o => String(o.id) === String(this.ofertaId))) this.ofertaId = '';
+                if (!this.ofertaId && this.ofertas.length > 0) this.ofertaId = this.ofertas[0].id;
+                if (this.ofertaId) await this.cargarEstudiantes();
+                else this.estudiantes = [];
             } catch(e) {
                 this.ofertas = [];
+                this.estudiantes = [];
                 this.errorCarga = window.extractError(e, 'No fue posible cargar los grupos. Verifique sus permisos de asistencia.');
             }
             finally { this.cargandoOfertas = false; }

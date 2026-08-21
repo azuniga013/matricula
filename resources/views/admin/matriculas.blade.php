@@ -691,7 +691,12 @@ function matriculas() {
             this.metodosPago = mp.status === 'fulfilled' ? (mp.value.data.data?.data || mp.value.data.data || []) : [];
             this.planesEstudio = pe.status === 'fulfilled' ? (pe.value.data.data?.data || pe.value.data.data || []).filter(plan => plan.estado !== 'inactivo') : [];
             const activo = this.periodos.find(per => per.estado === 'activo');
-            if (activo) this.filtro.periodo = activo.id;
+            if (activo) {
+                this.filtro.periodo = activo.id;
+                this.filtroGestion.periodo = activo.id;
+                await this.cargarOfertasGestion();
+                await this.loadGestiones();
+            }
             await this.load();
             this.pollingInterval = setInterval(() => this.load(), 30000);
         },

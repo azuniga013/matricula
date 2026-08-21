@@ -309,6 +309,9 @@ function reportes() {
                 this.filtros.fecha_desde = fechaLocal.substring(0, 8) + '01';
                 this.filtros.fecha_hasta = fechaLocal;
             }
+            if (this.reporteActual && !this.reporteActual.oferta && !this.reporteActual.estudiante) {
+                await this.consultar();
+            }
         },
 
         cambiarCategoria(cat) {
