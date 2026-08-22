@@ -75,6 +75,9 @@ class FlujoMatriculaConfiguracionTest extends TestCase
             'seguridad.crear',
             'seguridad.modificar',
             'seguridad.eliminar',
+            'seguridad.flujos-matricula.crear',
+            'seguridad.flujos-matricula.modificar',
+            'seguridad.flujos-matricula.eliminar',
             'pagos.crear',
             'pagos.aprobar',
         ])->pluck('id')->all();
@@ -211,6 +214,17 @@ class FlujoMatriculaConfiguracionTest extends TestCase
             Permiso::create([
                 'opcion_modulo_id' => $opSeguridad->id,
                 'codigo' => 'seguridad.'.$accion,
+                'nombre' => ucfirst($accion),
+                'accion' => $accion,
+                'estado' => 'activo',
+            ]);
+        }
+
+        $opFlujos = OpcionModulo::create(['modulo_id' => $modSeguridad->id, 'codigo' => 'seguridad.flujos_matricula', 'nombre' => 'Flujo Matrícula', 'estado' => 'activo']);
+        foreach (['consultar', 'crear', 'modificar', 'eliminar'] as $accion) {
+            Permiso::create([
+                'opcion_modulo_id' => $opFlujos->id,
+                'codigo' => 'seguridad.flujos-matricula.'.$accion,
                 'nombre' => ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
@@ -516,6 +530,7 @@ class FlujoMatriculaConfiguracionTest extends TestCase
             'concepto_pago_id' => $this->conceptoMatId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 1200,
+            'monto_recibido' => 1200,
         ], $this->adminHeaders())
             ->assertStatus(422)
             ->assertJsonPath('codigo_error', '422_APROBACION_DESHABILITADA');
