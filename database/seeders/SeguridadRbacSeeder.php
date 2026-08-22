@@ -55,6 +55,46 @@ class SeguridadRbacSeeder extends Seeder
             }
         }
 
+        $rolAdminOperativo = Rol::where('codigo', 'ADMIN_OPERATIVO')->first();
+        if ($rolAdminOperativo) {
+            $permisosOperativos = Permiso::where(function ($q) {
+                $q->where('codigo', 'like', 'seguridad.usuarios.%')
+                  ->orWhere('codigo', 'like', 'estudiantes.%')
+                  ->orWhere('codigo', 'like', 'matriculas.%')
+                  ->orWhere('codigo', 'like', 'pagos.%')
+                  ->orWhere('codigo', 'like', 'caja.%')
+                  ->orWhere('codigo', 'like', 'reportes.%')
+                  ->orWhere('codigo', 'like', 'inventario.%')
+                  ->orWhere('codigo', 'calificaciones.consultar')
+                  ->orWhere('codigo', 'asistencias.consultar');
+            })->get();
+
+            foreach ($permisosOperativos as $permiso) {
+                RolPermiso::updateOrCreate(
+                    ['rol_id' => $rolAdminOperativo->id, 'permiso_id' => $permiso->id],
+                    ['estado' => 'activo']
+                );
+            }
+        }
+
+        $rolAdminAcademico = Rol::where('codigo', 'ADMIN_ACADEMICO')->first();
+        if ($rolAdminAcademico) {
+            $permisosAcademicos = Permiso::where(function ($q) {
+                $q->where('codigo', 'like', 'catalogos.%')
+                  ->orWhere('codigo', 'like', 'ofertas.%')
+                  ->orWhere('codigo', 'like', 'calificaciones.%')
+                  ->orWhere('codigo', 'like', 'asistencias.%')
+                  ->orWhere('codigo', 'like', 'reportes.academicos.%');
+            })->get();
+
+            foreach ($permisosAcademicos as $permiso) {
+                RolPermiso::updateOrCreate(
+                    ['rol_id' => $rolAdminAcademico->id, 'permiso_id' => $permiso->id],
+                    ['estado' => 'activo']
+                );
+            }
+        }
+
         // El docente gestiona únicamente sus ofertas asignadas; ese alcance se
         // valida además en los controladores académicos. Estos son los permisos
         // mínimos que necesita la APK y el pase de lista administrativo.

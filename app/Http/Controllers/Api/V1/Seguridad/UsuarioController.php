@@ -351,11 +351,22 @@ class UsuarioController extends Controller
             return null;
         }
 
-        $rolesProtegidos = ['SUPERADMIN', 'ADMIN_GENERAL'];
+        $rolesProtegidos = ['SUPERADMIN', 'ADMIN_GENERAL', 'ADMIN_OPERATIVO', 'ADMIN_ACADEMICO'];
         $rolesBloqueados = array_values(array_intersect($rolesProtegidos, $rolesSolicitados));
 
         if ($rolesBloqueados === []) {
-            return null;
+            $actorEsAdminOperativo = $actor->roles()->where('roles.codigo', 'ADMIN_OPERATIVO')->exists();
+            if (! $actorEsAdminOperativo) {
+                return null;
+            }
+
+            $rolesPermitidos = ['CAJA', 'MATRICULA', 'DOCENTE', 'AUDITORIA', 'ADMIN_SUCURSAL'];
+            $rolesFueraDeCatalogo = array_values(array_diff($rolesSolicitados, $rolesPermitidos));
+            if ($rolesFueraDeCatalogo === []) {
+                return null;
+            }
+
+            return 'El rol ADMIN_OPERATIVO solo puede asignar: '.implode(', ', $rolesPermitidos).'.';
         }
 
         return 'Solo un SUPERADMIN puede asignar los roles protegidos: '.implode(', ', $rolesBloqueados).'.';
