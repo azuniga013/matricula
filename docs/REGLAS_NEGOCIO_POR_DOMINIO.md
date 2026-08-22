@@ -410,6 +410,17 @@ integridad transaccional.
 
 - Solo se trabaja con estudiantes cuya matrícula está `matriculado` en la
   oferta consultada.
+- El grupo de WhatsApp se maneja en dos niveles:
+  - `grupos_whatsapp` como catálogo lógico reutilizable (`codigo`, `nombre`,
+    `sucursal`), y
+  - el link operativo del período en la oferta académica.
+- El docente responsable de la oferta puede actualizar el link de WhatsApp del
+  período desde su flujo operativo (por ejemplo, al pasar lista), sin recrear
+  el código del grupo lógico.
+- Administración conserva el grupo lógico; el docente mantiene el enlace real
+  vigente de cada oferta/período.
+- El portal del estudiante debe resolver primero el link del período de la
+  oferta y solo usar el link base del grupo como respaldo histórico.
 - Una asistencia identifica matrícula, oferta y fecha de clase. Solo puede
   existir una por matrícula y fecha; un nuevo registro corrige el anterior.
 - Los estados de asistencia son `presente`, `falta`, `justificada` y

@@ -27,6 +27,7 @@ class OfertaAcademica extends Model
         'estado',
         'acepta_cambios_horario',
         'grupo_whatsapp_id',
+        'whatsapp_link_periodo',
         'plan_cobro_id',
         'observaciones',
         'codigo',

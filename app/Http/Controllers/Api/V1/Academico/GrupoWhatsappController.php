@@ -4,15 +4,18 @@ namespace App\Http\Controllers\Api\V1\Academico;
 
 use App\Http\Controllers\Controller;
 use App\Models\GrupoWhatsapp;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class GrupoWhatsappController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
         $query = GrupoWhatsapp::ordenados()->with('sucursal');
+        if ($request->user()) {
+            app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'grupos_whatsapp');
+        }
 
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
@@ -20,6 +23,14 @@ class GrupoWhatsappController extends Controller
                 $q->where('codigo', 'like', "%{$buscar}%")
                     ->orWhere('nombre', 'like', "%{$buscar}%");
             });
+        }
+
+        if ($request->filled('sucursal_id')) {
+            $query->where('sucursal_id', $request->sucursal_id);
+        }
+
+        if ($request->filled('periodo_academico_id')) {
+            $query->whereHas('ofertasAcademicas', fn ($q) => $q->where('periodo_academico_id', $request->periodo_academico_id));
         }
 
         $grupos = $query->get();
@@ -38,7 +49,7 @@ class GrupoWhatsappController extends Controller
             'sucursal_id' => 'required|exists:sucursales,id',
             'codigo' => 'required|string|max:50|unique:grupos_whatsapp,codigo',
             'nombre' => 'required|string|max:150',
-            'link' => 'required|string|max:500',
+            'link' => 'nullable|string|max:500',
             'estado' => 'sometimes|string|in:activo,inactivo',
         ]);
 
@@ -73,7 +84,7 @@ class GrupoWhatsappController extends Controller
             'sucursal_id' => 'sometimes|exists:sucursales,id',
             'codigo' => 'sometimes|string|max:50|unique:grupos_whatsapp,codigo,' . $grupoWhatsapp->id,
             'nombre' => 'sometimes|string|max:150',
-            'link' => 'sometimes|string|max:500',
+            'link' => 'nullable|string|max:500',
             'estado' => 'sometimes|string|in:activo,inactivo',
         ]);
 

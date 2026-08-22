@@ -282,6 +282,8 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
             'parameters' => ['academicas' => 'ofertaAcademica'],
         ]);
 
+        Route::post('/academicas/{ofertaAcademica}/whatsapp-periodo', [OfertaAcademicaController::class, 'actualizarWhatsappPeriodo']);
+
         Route::get('/monitor', [MonitorCuposController::class, 'index'])
             ->middleware('permission:ofertas.consultar')
             ->name('ofertas.monitor');

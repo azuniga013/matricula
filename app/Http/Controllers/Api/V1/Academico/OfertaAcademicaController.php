@@ -83,6 +83,7 @@ class OfertaAcademicaController extends Controller
             'cupo_maximo' => 'nullable|integer|min:1',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
+            'whatsapp_link_periodo' => 'nullable|string|max:500',
             'observaciones' => 'nullable|string',
             'codigo' => 'nullable|string|max:50|unique:ofertas_academicas,codigo',
         ]);
@@ -148,6 +149,7 @@ class OfertaAcademicaController extends Controller
             'plan_cobro_id' => 'sometimes|required|exists:planes_cobro,id',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
+            'whatsapp_link_periodo' => 'nullable|string|max:500',
             'cupo_maximo' => 'nullable|integer|min:1',
             'estado' => 'sometimes|string|in:borrador,abierto,cerrado,cancelado',
         ]);
@@ -211,5 +213,59 @@ class OfertaAcademicaController extends Controller
             'cerrado' => ['cancelado'],
             'cancelado' => [],
         ];
+    }
+
+    public function actualizarWhatsappPeriodo(Request $request, OfertaAcademica $ofertaAcademica): JsonResponse
+    {
+        $usuario = $request->user();
+        $permisos = collect($usuario->permisosEfectivos())->pluck('codigo')->all();
+        $puedeAdministrarOferta = in_array('ofertas.academicas.modificar', $permisos, true);
+        $puedeDocente = $usuario->docente_id
+            && $ofertaAcademica->docente_id === $usuario->docente_id
+            && (in_array('asistencias.crear', $permisos, true) || in_array('calificaciones.modificar', $permisos, true));
+
+        if (! $puedeAdministrarOferta && ! $puedeDocente) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 403,
+                'mensaje' => 'No tiene permiso para actualizar el link de WhatsApp de esta oferta.',
+            ], 403);
+        }
+
+        $datos = $request->validate([
+            'whatsapp_link_periodo' => 'nullable|string|max:500',
+        ]);
+
+        if (! $ofertaAcademica->grupo_whatsapp_id) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'Debe asignar primero un grupo lógico de WhatsApp a la oferta.',
+            ], 422);
+        }
+
+        $link = trim((string) ($datos['whatsapp_link_periodo'] ?? ''));
+        if ($link !== '' && ! preg_match('/^https?:\/\//i', $link)) {
+            $link = 'https://' . $link;
+        }
+        if ($link !== '' && ! filter_var($link, FILTER_VALIDATE_URL)) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'El link de WhatsApp no tiene un formato válido.',
+            ], 422);
+        }
+
+        $ofertaAcademica->update([
+            'whatsapp_link_periodo' => $link !== '' ? $link : null,
+            'actualizado_por' => $usuario->id,
+        ]);
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 200,
+            'mensaje' => 'Link de WhatsApp del período actualizado correctamente.',
+            'data' => $ofertaAcademica->fresh(),
+        ]);
     }
 }

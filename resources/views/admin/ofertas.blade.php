@@ -226,6 +226,11 @@
                             <template x-for="gw in gruposWhatsapp" :key="gw.id"><option :value="gw.id" x-text="gw.codigo + ' · ' + gw.nombre"></option></template>
                         </select>
                     </div>
+                    <div class="col-span-3">
+                        <label class="label">Link WhatsApp del período</label>
+                        <input x-model="form.whatsapp_link_periodo" type="text" class="input" placeholder="https://chat.whatsapp.com/...">
+                        <p class="mt-1 text-xs text-gray-500">El código de grupo puede reutilizarse. Este link corresponde solo al período de la oferta.</p>
+                    </div>
                     <div>
                         <label class="label">Estado</label>
                         <select x-model="form.estado" class="input">
@@ -352,7 +357,7 @@ function ofertas() {
 
         async openModal() {
             this.editing = false; this.editId = null; this.error = '';
-            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', grupo_whatsapp_id: '', cupo_maximo: 25, estado: 'borrador' };
+            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', grupo_whatsapp_id: '', whatsapp_link_periodo: '', cupo_maximo: 25, estado: 'borrador' };
             this.showModal = false;
             await this.$nextTick();
             this.showModal = true;
@@ -364,7 +369,7 @@ function ofertas() {
                 codigo: o.codigo, sucursal_id: o.sucursal_id, periodo_academico_id: o.periodo_academico_id,
                 version_plan_estudio_id: o.nivel_academico?.version_plan_estudio_id || '',
                 nivel_academico_id: o.nivel_academico_id, modalidad_id: o.modalidad_id, horario_id: o.horario_id,
-                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', grupo_whatsapp_id: o.grupo_whatsapp_id || '',
+                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', grupo_whatsapp_id: o.grupo_whatsapp_id || '', whatsapp_link_periodo: o.whatsapp_link_periodo || '',
                 estado: o.estado,
             };
             this.showModal = false;

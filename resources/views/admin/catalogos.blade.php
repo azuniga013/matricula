@@ -599,6 +599,8 @@ function catalogos() {
         error: '',
         items: [],
         planFiltroId: '',
+        grupoWhatsappFiltroSucursal: '',
+        grupoWhatsappFiltroPeriodo: '',
         formData: {},
         editId: null,
 
@@ -783,7 +785,7 @@ function catalogos() {
                     { key: 'sucursal_id', label: 'Sucursal', type: 'select', required: true, optionsEndpoint: 'sucursales', optionLabel: 'nombre', optionValue: 'id' },
                     { key: 'codigo', label: 'Código', type: 'text', required: true },
                     { key: 'nombre', label: 'Nombre', type: 'text', required: true },
-                    { key: 'link', label: 'Link de WhatsApp', type: 'text', required: true },
+                    { key: 'link', label: 'Link base (opcional)', type: 'text', required: false },
                     { key: 'estado', label: 'Estado', type: 'select', required: false, options: [
                         { value: 'activo', label: 'Activo' },
                         { value: 'inactivo', label: 'Inactivo' },
@@ -813,7 +815,7 @@ function catalogos() {
                 aulas: ['sucursales'],
                 conceptos: [],
                 metodos: [],
-                'grupos-whatsapp': ['sucursales'],
+                'grupos-whatsapp': ['sucursales', 'periodos-academicos'],
             };
             return map[tabId] || [];
         },
@@ -871,7 +873,14 @@ function catalogos() {
             this.items = [];
             try {
                 const token = localStorage.getItem('auth_token');
-                const { data } = await window.axios.get(`/api/v1/catalogos-academicos/${this.currentTab.endpoint}`, {
+                let url = `/api/v1/catalogos-academicos/${this.currentTab.endpoint}`;
+                const params = new URLSearchParams();
+                if (this.activeTab === 'grupos-whatsapp') {
+                    if (this.grupoWhatsappFiltroSucursal) params.set('sucursal_id', this.grupoWhatsappFiltroSucursal);
+                    if (this.grupoWhatsappFiltroPeriodo) params.set('periodo_academico_id', this.grupoWhatsappFiltroPeriodo);
+                }
+                if (params.toString()) url += `?${params.toString()}`;
+                const { data } = await window.axios.get(url, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (data.resultado === 'A') {

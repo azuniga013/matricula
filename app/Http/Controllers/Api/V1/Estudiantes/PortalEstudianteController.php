@@ -706,8 +706,8 @@ class PortalEstudianteController extends Controller
                 'motivo_rechazo' => $p->motivo_rechazo,
                 'link_pago_url' => $p->link_pago_url,
                 'link_pago_estado' => $p->link_pago_estado,
-                'whatsapp_link' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica?->grupoWhatsapp
-                    ? $p->matricula->ofertaAcademica->grupoWhatsapp->link : null,
+                'whatsapp_link' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica
+                    ? ($p->matricula->ofertaAcademica->whatsapp_link_periodo ?: $p->matricula->ofertaAcademica->grupoWhatsapp?->link) : null,
                 'whatsapp_grupo' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica?->grupoWhatsapp
                     ? $p->matricula->ofertaAcademica->grupoWhatsapp->nombre : null,
                 'recibo_id' => $p->reciboCaja?->id,
@@ -1115,7 +1115,7 @@ class PortalEstudianteController extends Controller
             'codigo' => 0,
             'mensaje' => 'OK',
             'data' => [
-                'whatsapp_link' => $habilitaWhatsapp ? $matricula->ofertaAcademica->grupoWhatsapp->link : null,
+                'whatsapp_link' => $habilitaWhatsapp ? ($matricula->ofertaAcademica->whatsapp_link_periodo ?: $matricula->ofertaAcademica->grupoWhatsapp->link) : null,
             ],
         ]);
     }
