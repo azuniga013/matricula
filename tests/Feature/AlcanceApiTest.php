@@ -187,6 +187,34 @@ class AlcanceApiTest extends TestCase
             ->assertJsonPath('data.0.id', $this->ofertaSPS->id);
     }
 
+    public function test_catalogo_sucursales_respeta_alcance_del_usuario(): void
+    {
+        $moduloCatalogos = Modulo::create(['codigo' => 'catalogos_academicos', 'nombre' => 'Catálogos', 'estado' => 'activo', 'orden' => 2]);
+        $opcionSucursal = OpcionModulo::create(['modulo_id' => $moduloCatalogos->id, 'codigo' => 'catalogos.sucursales', 'nombre' => 'Sucursales', 'estado' => 'activo']);
+        $permisoSucursal = Permiso::create([
+            'opcion_modulo_id' => $opcionSucursal->id,
+            'codigo' => 'catalogos_academicos.consultar',
+            'nombre' => 'Consultar catálogos académicos',
+            'accion' => 'consultar',
+            'estado' => 'activo',
+        ]);
+
+        $usuario = $this->crearUsuarioConRol('Solo SPS Catalogo', 'solo-sps-catalogo@test.com');
+        $usuario->sucursales()->attach($this->sucursalSPS->id, ['estado' => 'activo']);
+        $this->rol->permisos()->attach($permisoSucursal->id, ['estado' => 'activo']);
+
+        $token = $usuario->createToken('test')->plainTextToken;
+
+        $response = $this->getJson('/api/v1/catalogos-academicos/sucursales', [
+            'Authorization' => "Bearer {$token}",
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->sucursalSPS->id);
+    }
+
     public function test_usuario_sin_alcance_no_ve_ofertas(): void
     {
         $usuario = $this->crearUsuarioConRol('Sin Alcance', 'sin-alcance@test.com');

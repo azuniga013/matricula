@@ -20,6 +20,10 @@ class ResolutorAlcanceDatos
 
         $idsSucursales = $user->idsSucursalesAsignadas();
 
+        if (!empty($idsSucursales) && $entidad === 'sucursales') {
+            return $query->whereIn($entidad . '.id', $idsSucursales);
+        }
+
         if (!empty($idsSucursales) && $this->entidadTieneSucursal($entidad)) {
             return $query->whereIn($entidad . '.sucursal_id', $idsSucursales);
         }

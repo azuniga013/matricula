@@ -70,3 +70,24 @@ solicita_link -> esperando_respuesta -> en_revision -> aprobado
 - Si tiene varias sucursales asignadas, el resolutor de alcance permite ver los
   registros de todas ellas.
 - Si solo tiene una, queda restringido a esa sucursal.
+
+## Roles operativos recomendados
+
+| Rol | Enfoque | Sí puede | No debe poder |
+|---|---|---|---|
+| `SUPERADMIN` | Control total | Todo el sistema, RBAC, parámetros, flujos, usuarios y configuración | Sin restricciones funcionales ordinarias |
+| `ADMIN_GENERAL` | Administración amplia | Operación general, pagos, reportes, inventario, configuración de pagos y parámetros globales | No es la opción recomendada para delegación operativa si se quiere evitar cambios sensibles |
+| `ADMIN_OPERATIVO` | Operación diaria | Usuarios operativos, estudiantes, matrículas, pagos, caja, inventario y reportes | No asigna roles protegidos ni modifica RBAC, parámetros, flujos o proveedores |
+| `ADMIN_ACADEMICO` | Configuración académica | Catálogos académicos, ofertas, monitor, planes de cobro, asistencias, calificaciones y reportes académicos | No administra RBAC sensible, caja ni pagos operativos |
+| `ADMIN_SUCURSAL` | Gestión local | Operación limitada a sus sucursales asignadas | No debe tener alcance global ni configuración sensible |
+| `CAJA` | Cobro y recibos | Sesiones de caja, recibos y cierre según permisos | No configura catálogo académico ni seguridad |
+| `MATRICULA` | Proceso académico-administrativo | Reservas, confirmaciones y gestiones de matrícula | No configura RBAC ni pagos sensibles fuera de su alcance |
+| `DOCENTE` | Ejecución académica | Asistencias y calificaciones de sus ofertas | No administra usuarios, caja ni configuración |
+| `AUDITORIA` | Consulta | Reportes y consulta según permisos | No crea, modifica, aprueba ni configura |
+
+### Regla de asignación de roles protegidos
+
+- Solo `SUPERADMIN` puede asignar `SUPERADMIN`, `ADMIN_GENERAL`,
+  `ADMIN_OPERATIVO` y `ADMIN_ACADEMICO`.
+- `ADMIN_OPERATIVO` solo puede asignar roles operativos del catálogo permitido:
+  `CAJA`, `MATRICULA`, `DOCENTE`, `AUDITORIA` y `ADMIN_SUCURSAL`.

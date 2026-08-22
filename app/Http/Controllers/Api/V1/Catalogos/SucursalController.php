@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Catalogos;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sucursal;
+use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,6 +13,9 @@ class SucursalController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Sucursal::query()->orderBy('codigo');
+        if ($request->user()) {
+            app(ResolutorAlcanceDatos::class)->aplicarAlcance($query, $request->user(), 'sucursales');
+        }
 
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
