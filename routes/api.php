@@ -128,82 +128,82 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
 
     Route::prefix('seguridad')->group(function () {
 
-        Route::apiResourceProtegido('modulos', ModuloController::class, 'seguridad', [
+        Route::apiResourceProtegido('modulos', ModuloController::class, 'seguridad.modulos', [
             'only' => ['index', 'store', 'show', 'update', 'destroy'],
         ]);
 
-        Route::apiResourceProtegido('opciones', OpcionModuloController::class, 'seguridad', [
+        Route::apiResourceProtegido('opciones', OpcionModuloController::class, 'seguridad.modulos', [
             'only' => ['index', 'store', 'show', 'update', 'destroy'],
             'parameters' => ['opciones' => 'opcionModulo'],
         ]);
 
-        Route::apiResourceProtegido('permisos', PermisoController::class, 'seguridad', [
+        Route::apiResourceProtegido('permisos', PermisoController::class, 'seguridad.permisos', [
             'only' => ['index', 'store', 'show', 'update', 'destroy'],
         ]);
 
-        Route::apiResourceProtegido('roles', RolController::class, 'seguridad', [
+        Route::apiResourceProtegido('roles', RolController::class, 'seguridad.roles', [
             'only' => ['index', 'store', 'show', 'update'],
             'parameters' => ['roles' => 'rol'],
         ]);
 
         Route::get('/configuraciones-flujo-matricula', [ConfiguracionFlujoMatriculaController::class, 'index'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.flujos-matricula.consultar');
 
         Route::post('/configuraciones-flujo-matricula', [ConfiguracionFlujoMatriculaController::class, 'store'])
-            ->middleware('permission:seguridad.crear');
+            ->middleware('permission:seguridad.flujos-matricula.crear');
 
         Route::match(['PUT', 'PATCH', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
-            ->middleware('permission:seguridad.modificar');
+            ->middleware('permission:seguridad.flujos-matricula.modificar');
 
         Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'destroy'])
-            ->middleware('permission:seguridad.eliminar');
+            ->middleware('permission:seguridad.flujos-matricula.eliminar');
 
         Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}/forzar', [ConfiguracionFlujoMatriculaController::class, 'forceDestroy'])
-            ->middleware('permission:seguridad.eliminar');
+            ->middleware('permission:seguridad.flujos-matricula.eliminar');
 
         Route::get('/roles/{rol}/permisos', [RolController::class, 'permisos'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.roles.consultar');
 
         Route::post('/roles/{rol}/permisos', [RolController::class, 'asignarPermisos'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.roles.configurar');
 
         Route::post('/roles/{rolOrigen}/copiar-permisos', [RolController::class, 'copiarPermisos'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.roles.configurar');
 
-        Route::apiResourceProtegido('usuarios', UsuarioController::class, 'seguridad', [
+        Route::apiResourceProtegido('usuarios', UsuarioController::class, 'seguridad.usuarios', [
             'only' => ['index', 'store', 'show', 'update'],
         ]);
 
         Route::post('/usuarios/{usuario}/roles', [UsuarioController::class, 'asignarRoles'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.usuarios.configurar');
 
         Route::post('/usuarios/{usuario}/sucursales', [UsuarioController::class, 'asignarSucursales'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.usuarios.configurar');
 
         Route::post('/usuarios/{usuario}/restablecer-contrasena', [UsuarioController::class, 'restablecerContrasena'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.usuarios.configurar');
 
         Route::get('/sesiones', [SesionController::class, 'index'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.sesiones.consultar');
 
         Route::match(['DELETE', 'POST'], '/sesiones/{sesionId}', [SesionController::class, 'revocar'])
-            ->middleware('permission:seguridad.configurar');
+            ->middleware('permission:seguridad.sesiones.configurar');
 
         Route::get('/auditoria/peticiones', [AuditoriaController::class, 'peticiones'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.auditoria.consultar');
 
         Route::get('/auditoria/seguridad', [AuditoriaController::class, 'seguridad'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.auditoria.consultar');
 
         Route::get('/auditoria/correos', [AuditoriaController::class, 'correos'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.auditoria.consultar');
 
-        Route::apiResourceProtegido('parametros-globales', ParametroGlobalController::class, 'seguridad', [
+        Route::apiResourceProtegido('parametros-globales', ParametroGlobalController::class, 'seguridad.parametros', [
             'only' => ['index', 'store', 'update', 'destroy'],
             'parameters' => ['parametros-globales' => 'parametroGlobal'],
         ]);
         Route::get('/parametros-globales/grupos', [ParametroGlobalController::class, 'grupos'])
-            ->middleware('permission:seguridad.consultar');
+            ->middleware('permission:seguridad.parametros.consultar');
     });
 
     Route::prefix('catalogos-academicos')->group(function () {

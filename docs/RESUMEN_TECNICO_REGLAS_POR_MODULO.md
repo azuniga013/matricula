@@ -78,7 +78,7 @@ solicita_link -> esperando_respuesta -> en_revision -> aprobado
 | `SUPERADMIN` | Control total | Todo el sistema, RBAC, parámetros, flujos, usuarios y configuración | Sin restricciones funcionales ordinarias |
 | `ADMIN_GENERAL` | Administración amplia | Operación general, pagos, reportes, inventario, configuración de pagos y parámetros globales | No es la opción recomendada para delegación operativa si se quiere evitar cambios sensibles |
 | `ADMIN_OPERATIVO` | Operación diaria | Usuarios operativos, estudiantes, matrículas, pagos, caja, inventario y reportes | No asigna roles protegidos ni modifica RBAC, parámetros, flujos o proveedores |
-| `ADMIN_ACADEMICO` | Configuración académica | Catálogos académicos, ofertas, monitor, planes de cobro, asistencias, calificaciones y reportes académicos | No administra RBAC sensible, caja ni pagos operativos |
+| `ADMIN_ACADEMICO` | Configuración académica | Catálogos académicos, ofertas, monitor, planes de cobro, asistencias, calificaciones y reportes académicos | No administra usuarios, RBAC sensible, caja ni pagos operativos |
 | `ADMIN_SUCURSAL` | Gestión local | Operación limitada a sus sucursales asignadas | No debe tener alcance global ni configuración sensible |
 | `CAJA` | Cobro y recibos | Sesiones de caja, recibos y cierre según permisos | No configura catálogo académico ni seguridad |
 | `MATRICULA` | Proceso académico-administrativo | Reservas, confirmaciones y gestiones de matrícula | No configura RBAC ni pagos sensibles fuera de su alcance |
@@ -91,3 +91,32 @@ solicita_link -> esperando_respuesta -> en_revision -> aprobado
   `ADMIN_OPERATIVO` y `ADMIN_ACADEMICO`.
 - `ADMIN_OPERATIVO` solo puede asignar roles operativos del catálogo permitido:
   `CAJA`, `MATRICULA`, `DOCENTE`, `AUDITORIA` y `ADMIN_SUCURSAL`.
+- `ADMIN_ACADEMICO` no debe recibir permisos de `seguridad.usuarios.*`,
+  `seguridad.roles.*`, `seguridad.permisos.*`, `seguridad.modulos.*`,
+  `seguridad.flujos-matricula.*`, `seguridad.parametros.*`,
+  `configuracion.pagos.*` ni `distribucion_apk.*`.
+
+## Asignación sugerida por puesto
+
+| Puesto real | Rol recomendado | Alcance sugerido | Comentario |
+|---|---|---|---|
+| Dirección / dueño del sistema | `SUPERADMIN` | Global | Control total, solo para muy pocos usuarios de confianza. |
+| Administración general con configuración sensible | `ADMIN_GENERAL` | Global o multi-sucursal | Úselo solo si necesita operación amplia más configuración no académica. |
+| Jefatura operativa / secretaría general | `ADMIN_OPERATIVO` | Una o varias sucursales | Puede crear usuarios operativos y manejar la operación diaria sin escalar privilegios. |
+| Coordinación académica | `ADMIN_ACADEMICO` | Una o varias sucursales | Maneja catálogos, ofertas, planes de cobro, asistencias y calificaciones. |
+| Encargado de sede | `ADMIN_SUCURSAL` | Una sucursal | Operación local acotada a su sede. |
+| Cajero | `CAJA` | Una sucursal | Sesión de caja, pagos, recibos y cierre. |
+| Encargado de matrícula | `MATRICULA` | Una o varias sucursales | Reservas, confirmaciones y gestiones de matrícula. |
+| Docente | `DOCENTE` | Propias ofertas | Solo asistencia y calificaciones de sus grupos. |
+| Auditor interno / consulta | `AUDITORIA` | Global o multi-sucursal | Consulta y reportes sin operación transaccional. |
+
+### Combinaciones útiles
+
+- `ADMIN_OPERATIVO` + `CAJA`
+  Para una jefatura operativa que además registra cobros.
+- `ADMIN_OPERATIVO` + `MATRICULA`
+  Para una secretaría que crea usuarios operativos y también tramita matrículas.
+- `ADMIN_ACADEMICO` + `DOCENTE`
+  Para coordinación académica que además imparte clases o supervisa grupos propios.
+- `ADMIN_SUCURSAL` + `CAJA`
+  Para una sede pequeña donde la misma persona opera caja y administración local.
