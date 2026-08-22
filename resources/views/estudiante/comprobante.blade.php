@@ -127,7 +127,7 @@
                             </select>
                         </div>
                         <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id)">
-                            <div x-show="flujoPortal?.habilita_carga_comprobante">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Referencia
                                     <span x-show="esMetodoValidable(form.metodo_pago_id)" class="text-red-500">*</span>
