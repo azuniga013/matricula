@@ -25,7 +25,7 @@ class UsuarioController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $usuarios = User::with(['roles', 'sucursales', 'docente'])
+        $usuarios = User::with(['roles.alcances', 'sucursales', 'docente', 'alcances'])
             ->withCount(['roles' => fn ($q) => $q->where('usuario_roles.estado', 'activo')])
             ->addSelect(['ultimo_acceso' => SesionUsuario::query()
                 ->selectRaw('MAX(ultimo_acceso)')
@@ -62,6 +62,8 @@ class UsuarioController extends Controller
             'sucursales' => 'nullable|array',
             'sucursales.*' => 'exists:sucursales,codigo',
         ]);
+
+        $usuario = null;
 
         DB::transaction(function () use ($datos, $request, &$usuario) {
             $usuario = User::create([
@@ -101,6 +103,14 @@ class UsuarioController extends Controller
                 }
             }
         });
+
+        if (! $usuario) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 500,
+                'mensaje' => 'No se pudo crear el usuario',
+            ], 500);
+        }
 
         $usuario->load(['roles', 'sucursales', 'docente']);
 

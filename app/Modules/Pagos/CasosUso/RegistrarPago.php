@@ -89,7 +89,7 @@ final class RegistrarPago
                 if (! $solicitaLink && ! $this->efectos->obtenerSesionCajaAbierta((int) $estudiante->sucursal_id, $usuarioId)) {
                     return ResultadoCasoUso::error(
                         422,
-                        'Debe abrir una sesión de caja antes de registrar pagos administrativos.',
+                        $this->efectos->mensajeSesionCajaRequerida((int) $estudiante->sucursal_id, $usuarioId, 'registrar pagos administrativos'),
                         '422_SESION_CAJA_REQUERIDA'
                     );
                 }

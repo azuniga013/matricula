@@ -10,6 +10,7 @@ use App\Models\ObligacionPagoEstudiante;
 use App\Models\OfertaAcademica;
 use App\Models\Pago;
 use App\Models\SesionCaja;
+use App\Models\Sucursal;
 use App\Modules\Pagos\Exceptions\InventarioInsuficienteException;
 
 final class AplicadorEfectosPago
@@ -21,6 +22,31 @@ final class AplicadorEfectosPago
             ->where('estado', 'abierta')
             ->latest('id')
             ->first();
+    }
+
+    public function mensajeSesionCajaRequerida(int $sucursalId, int $usuarioId, string $accion): string
+    {
+        $sucursal = Sucursal::find($sucursalId);
+        $sesionOtraSucursal = SesionCaja::where('usuario_cajero_id', $usuarioId)
+            ->where('estado', 'abierta')
+            ->where('sucursal_id', '!=', $sucursalId)
+            ->latest('id')
+            ->first();
+
+        $nombreSucursal = $sucursal?->codigo
+            ? $sucursal->codigo . ' · ' . $sucursal->nombre
+            : ($sucursal?->nombre ?? 'la sucursal correspondiente');
+
+        if ($sesionOtraSucursal) {
+            $sucursalSesion = Sucursal::find($sesionOtraSucursal->sucursal_id);
+            $nombreSesion = $sucursalSesion?->codigo
+                ? $sucursalSesion->codigo . ' · ' . $sucursalSesion->nombre
+                : ($sucursalSesion?->nombre ?? 'otra sucursal');
+
+            return "Debe abrir una sesión de caja en {$nombreSucursal} para {$accion}. Su sesión abierta actual pertenece a {$nombreSesion}.";
+        }
+
+        return "Debe abrir una sesión de caja en {$nombreSucursal} antes de {$accion}.";
     }
 
     public function asignarSesionCajaSiHaceFalta(Pago $pago, int $usuarioId): void

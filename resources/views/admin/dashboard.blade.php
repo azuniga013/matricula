@@ -186,8 +186,8 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span>Inicio: <strong x-text="stats.periodo.fecha_inicio"></strong></span>
-                                    <span>Fin: <strong x-text="stats.periodo.fecha_fin"></strong></span>
+                                    <span>Inicio: <strong x-text="formatearFecha(stats.periodo.fecha_inicio)"></strong></span>
+                                    <span>Fin: <strong x-text="formatearFecha(stats.periodo.fecha_fin)"></strong></span>
                                 </div>
                             </div>
                         </template>
@@ -291,6 +291,11 @@ function dashboard() {
 
         formatNumber(num) {
             return new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num || 0);
+        },
+
+        formatearFecha(fecha) {
+            if (!fecha) return '-';
+            return window.formatDateLocal(fecha);
         }
     }
 }

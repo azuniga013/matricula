@@ -34,7 +34,7 @@ final class AprobarPago
             if (! $this->efectos->obtenerSesionCajaAbierta((int) $pago->sucursal_id, $usuarioId)) {
                 return ResultadoCasoUso::error(
                     422,
-                    'Debe abrir una sesión de caja antes de aprobar pagos administrativos.',
+                    $this->efectos->mensajeSesionCajaRequerida((int) $pago->sucursal_id, $usuarioId, 'aprobar pagos administrativos'),
                     '422_SESION_CAJA_REQUERIDA'
                 );
             }
