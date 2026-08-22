@@ -64,6 +64,16 @@ class UsuarioController extends Controller
         ]);
 
         $usuario = null;
+        $actor = $request->user() ?: auth('sanctum')->user();
+
+        if ($error = $this->validarAsignacionRolesProtegidos($actor, $datos['roles'])) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_ROL_PROTEGIDO',
+                'mensaje' => $error,
+            ], 422);
+        }
 
         DB::transaction(function () use ($datos, $request, &$usuario) {
             $usuario = User::create([
@@ -208,6 +218,17 @@ class UsuarioController extends Controller
             ], 422);
         }
 
+        $actor = $request->user() ?: auth('sanctum')->user();
+
+        if ($error = $this->validarAsignacionRolesProtegidos($actor, $datos['roles'])) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'codigo_error' => '422_ROL_PROTEGIDO',
+                'mensaje' => $error,
+            ], 422);
+        }
+
         DB::transaction(function () use ($usuario, $datos, $request) {
             $usuario->roles()->detach();
 
@@ -318,5 +339,25 @@ class UsuarioController extends Controller
         return User::where('estado', 'activo')
             ->whereHas('roles', fn ($q) => $q->where('roles.codigo', 'SUPERADMIN'))
             ->count() <= 1;
+    }
+
+    protected function validarAsignacionRolesProtegidos(?User $actor, array $rolesSolicitados): ?string
+    {
+        if (! $actor) {
+            return 'No se pudo validar el usuario autenticado para asignar roles.';
+        }
+
+        if ($actor->roles()->where('roles.codigo', 'SUPERADMIN')->exists()) {
+            return null;
+        }
+
+        $rolesProtegidos = ['SUPERADMIN', 'ADMIN_GENERAL'];
+        $rolesBloqueados = array_values(array_intersect($rolesProtegidos, $rolesSolicitados));
+
+        if ($rolesBloqueados === []) {
+            return null;
+        }
+
+        return 'Solo un SUPERADMIN puede asignar los roles protegidos: '.implode(', ', $rolesBloqueados).'.';
     }
 }

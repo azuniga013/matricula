@@ -592,7 +592,7 @@
                     <div><label class="label">Contraseña</label><input x-model="userForm.password" type="password" :required="!editingUser" minlength="8" class="input" :placeholder="editingUser ? 'Usar restablecer contraseña para cambiarla' : 'Mínimo 8 caracteres'"></div>
                     <div><label class="label">Confirmar contraseña</label><input x-model="userForm.password_confirmation" type="password" :required="!editingUser" minlength="8" class="input"></div>
                     <div class="col-span-2"><label class="label">Docente vinculado</label><select x-model="userForm.docente_id" class="input"><option value="">Usuario administrativo sin vínculo docente</option><template x-for="d in docentesDisponiblesParaUsuario()" :key="d.id"><option :value="d.id" x-text="d.codigo + ' · ' + d.nombre + ' ' + d.apellido"></option></template></select><p class="mt-1 text-xs text-gray-500">Primero cree la ficha del docente en Catálogos. Un docente solo puede tener una cuenta.</p></div>
-                    <div class="col-span-2"><label class="label">Roles *</label><div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-gray-200 p-3 max-h-40 overflow-y-auto"><template x-for="rol in roles" :key="rol.id"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" :value="rol.codigo" x-model="userForm.roles" class="rounded border-gray-300 text-brand-600"><span x-text="rol.nombre + ' (' + rol.codigo + ')'"></span></label></template><p x-show="roles.length === 0" class="text-sm text-amber-700">No hay roles disponibles o no tiene permiso para consultarlos.</p></div></div>
+                    <div class="col-span-2"><label class="label">Roles *</label><div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-gray-200 p-3 max-h-40 overflow-y-auto"><template x-for="rol in rolesDisponiblesParaAsignar()" :key="rol.id"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" :value="rol.codigo" x-model="userForm.roles" class="rounded border-gray-300 text-brand-600"><span x-text="rol.nombre + ' (' + rol.codigo + ')'"></span></label></template><p x-show="rolesDisponiblesParaAsignar().length === 0" class="text-sm text-amber-700">No hay roles disponibles o no tiene permiso para consultarlos.</p></div></div>
                     <div class="col-span-2"><label class="label">Sucursales con acceso</label><div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-gray-200 p-3 max-h-40 overflow-y-auto"><template x-for="sucursal in sucursalesCatalogo" :key="sucursal.id"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" :value="sucursal.codigo" x-model="userForm.sucursales" class="rounded border-gray-300 text-brand-600"><span x-text="sucursal.codigo + ' · ' + sucursal.nombre"></span></label></template><p x-show="sucursalesCatalogo.length === 0" class="text-sm text-amber-700">No hay sucursales disponibles o no tiene permiso para consultarlas.</p></div><p class="mt-1 text-xs text-gray-500">Puede asignar una o varias sucursales. Eso define qué información por sucursal podrá consultar el usuario.</p></div>
                     <div><label class="label">Estado</label><select x-model="userForm.estado" class="input"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
                 </div>
@@ -1159,6 +1159,15 @@ function seguridad() {
 
         docentesDisponiblesParaUsuario() {
             return this.docentes.filter(d => !this.usuarios.some(u => Number(u.docente_id) === Number(d.id) && u.id !== this.editUserId));
+        },
+
+        esSuperadminActual() {
+            return (window.api.user?.roles || []).some(r => r.codigo === 'SUPERADMIN');
+        },
+
+        rolesDisponiblesParaAsignar() {
+            if (this.esSuperadminActual()) return this.roles;
+            return this.roles.filter(r => !['SUPERADMIN', 'ADMIN_GENERAL'].includes(r.codigo));
         },
 
         resumenAlcanceUsuario(u) {
