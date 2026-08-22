@@ -414,11 +414,14 @@ integridad transaccional.
   - `grupos_whatsapp` como catálogo lógico reutilizable (`codigo`, `nombre`,
     `sucursal`), y
   - el link operativo del período en la oferta académica.
-- El docente responsable de la oferta puede actualizar el link de WhatsApp del
+- La pantalla de Ofertas solo parametriza el grupo lógico. No debe capturar el
+  link operativo del período como parte del alta o edición académica normal.
+- El docente responsable de la oferta es quien actualiza el link de WhatsApp del
   período desde su flujo operativo (por ejemplo, al pasar lista), sin recrear
   el código del grupo lógico.
 - Administración conserva el grupo lógico; el docente mantiene el enlace real
-  vigente de cada oferta/período.
+  vigente de cada oferta/período. Un `SUPERADMIN` puede corregirlo de forma
+  excepcional.
 - El portal del estudiante debe resolver primero el link del período de la
   oferta y solo usar el link base del grupo como respaldo histórico.
 - Una asistencia identifica matrícula, oferta y fecha de clase. Solo puede

@@ -83,7 +83,6 @@ class OfertaAcademicaController extends Controller
             'cupo_maximo' => 'nullable|integer|min:1',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
-            'whatsapp_link_periodo' => 'nullable|string|max:500',
             'observaciones' => 'nullable|string',
             'codigo' => 'nullable|string|max:50|unique:ofertas_academicas,codigo',
         ]);
@@ -149,7 +148,6 @@ class OfertaAcademicaController extends Controller
             'plan_cobro_id' => 'sometimes|required|exists:planes_cobro,id',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
-            'whatsapp_link_periodo' => 'nullable|string|max:500',
             'cupo_maximo' => 'nullable|integer|min:1',
             'estado' => 'sometimes|string|in:borrador,abierto,cerrado,cancelado',
         ]);
@@ -219,16 +217,16 @@ class OfertaAcademicaController extends Controller
     {
         $usuario = $request->user();
         $permisos = collect($usuario->permisosEfectivos())->pluck('codigo')->all();
-        $puedeAdministrarOferta = in_array('ofertas.academicas.modificar', $permisos, true);
+        $esSuperadmin = $usuario->roles()->where('roles.codigo', 'SUPERADMIN')->exists();
         $puedeDocente = $usuario->docente_id
             && $ofertaAcademica->docente_id === $usuario->docente_id
             && (in_array('asistencias.crear', $permisos, true) || in_array('calificaciones.modificar', $permisos, true));
 
-        if (! $puedeAdministrarOferta && ! $puedeDocente) {
+        if (! $esSuperadmin && ! $puedeDocente) {
             return response()->json([
                 'resultado' => 'R',
                 'codigo' => 403,
-                'mensaje' => 'No tiene permiso para actualizar el link de WhatsApp de esta oferta.',
+                'mensaje' => 'Solo el docente responsable o un SUPERADMIN puede actualizar el link de WhatsApp de esta oferta.',
             ], 403);
         }
 
