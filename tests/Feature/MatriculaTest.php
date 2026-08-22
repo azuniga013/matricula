@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Aula;
+use App\Models\HistorialAcademico;
 use App\Models\DepartamentoAcademico;
 use App\Models\Docente;
 use App\Models\Estudiante;
@@ -26,6 +27,7 @@ use App\Modules\Matriculas\CasosUso\CancelarMatricula;
 use App\Modules\Matriculas\CasosUso\ConfirmarMatricula;
 use App\Modules\Matriculas\CasosUso\ReservarMatricula;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class MatriculaTest extends TestCase
@@ -137,12 +139,12 @@ class MatriculaTest extends TestCase
             'capacidad' => 25,
         ]);
 
-        $matId = \DB::table('conceptos_pago')->insertGetId([
+        $matId = DB::table('conceptos_pago')->insertGetId([
             'codigo' => 'MAT', 'nombre' => 'Matrícula', 'tipo_monto' => 'por_oferta',
             'requiere_autorizacion_monto' => false, 'estado' => 'activo',
             'creado_en' => now(), 'actualizado_en' => now(),
         ]);
-        $cuoId = \DB::table('conceptos_pago')->insertGetId([
+        $cuoId = DB::table('conceptos_pago')->insertGetId([
             'codigo' => 'CUO', 'nombre' => 'Cuota', 'tipo_monto' => 'por_oferta',
             'requiere_autorizacion_monto' => false, 'estado' => 'activo',
             'creado_en' => now(), 'actualizado_en' => now(),
@@ -154,7 +156,7 @@ class MatriculaTest extends TestCase
             'estado' => 'activo',
         ]);
 
-        \DB::table('detalle_plan_cobro')->insert([
+        DB::table('detalle_plan_cobro')->insert([
             ['plan_cobro_id' => $this->planCobro->id, 'concepto_pago_id' => $matId, 'numero_cuota' => 0, 'nombre_cargo' => 'Matrícula', 'monto' => 1200.00, 'dias_vencimiento' => 0, 'estado' => 'activo', 'creado_en' => now(), 'actualizado_en' => now()],
             ['plan_cobro_id' => $this->planCobro->id, 'concepto_pago_id' => $cuoId, 'numero_cuota' => 1, 'nombre_cargo' => 'Cuota 1', 'monto' => 1100.00, 'dias_vencimiento' => 30, 'estado' => 'activo', 'creado_en' => now(), 'actualizado_en' => now()],
         ]);
@@ -267,6 +269,160 @@ class MatriculaTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonPath('resultado', 'R');
+    }
+
+    public function test_no_reserva_siguiente_nivel_solo_por_tener_matricula_previa_sin_aprobacion_academica(): void
+    {
+        $nivel2 = NivelAcademico::create([
+            'version_plan_estudio_id' => $this->nivel->versionPlanEstudio->id,
+            'regimen_academico_id' => $this->regimen->id,
+            'codigo' => 'ING-2',
+            'nombre' => 'Inglés 2',
+            'orden' => 2,
+            'nota_minima_aprobar' => 80,
+            'faltas_maximas_permitidas' => 7,
+        ]);
+        $nivel2->prerrequisitos()->sync([$this->nivel->id]);
+
+        $oferta2 = OfertaAcademica::create([
+            'sucursal_id' => $this->sucursal->id,
+            'periodo_academico_id' => $this->periodo->id,
+            'nivel_academico_id' => $nivel2->id,
+            'modalidad_id' => $this->modalidad->id,
+            'horario_id' => $this->horario->id,
+            'docente_id' => $this->docente->id,
+            'aula_id' => $this->aula->id,
+            'plan_cobro_id' => $this->planCobro->id,
+            'codigo' => 'SPS-2026I-ING2-INT-MAT',
+            'cupo_maximo' => 25,
+            'estado' => 'abierto',
+        ]);
+
+        DB::table('matriculas')->insert([
+            'codigo' => 'MAT-PREVIA-001',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'fecha_reserva' => now(),
+            'fecha_confirmacion' => now(),
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $oferta2->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
+        ], $this->headers());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('mensaje', 'Debe aprobar primero los siguientes niveles: Inglés 1');
+    }
+
+    public function test_no_reservar_si_oferta_no_tiene_plan_de_cobro_activo_con_detalles(): void
+    {
+        $ofertaSinPlan = OfertaAcademica::create([
+            'sucursal_id' => $this->sucursal->id,
+            'periodo_academico_id' => $this->periodo->id,
+            'nivel_academico_id' => $this->nivel->id,
+            'modalidad_id' => $this->modalidad->id,
+            'horario_id' => $this->horario->id,
+            'docente_id' => $this->docente->id,
+            'aula_id' => $this->aula->id,
+            'plan_cobro_id' => null,
+            'codigo' => 'SPS-2026I-ING1-SIN-PLAN',
+            'cupo_maximo' => 25,
+            'estado' => 'abierto',
+        ]);
+
+        $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $ofertaSinPlan->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('mensaje', 'La oferta no tiene un plan de cobro activo con detalles configurados');
+
+        $this->assertDatabaseMissing('matriculas', [
+            'oferta_academica_id' => $ofertaSinPlan->id,
+            'estudiante_id' => $this->estudiante->id,
+        ]);
+    }
+
+    public function test_no_reserva_siguiente_nivel_si_prerrequisito_esta_aprobado_pero_no_pagado(): void
+    {
+        $nivel2 = NivelAcademico::create([
+            'version_plan_estudio_id' => $this->nivel->versionPlanEstudio->id,
+            'regimen_academico_id' => $this->regimen->id,
+            'codigo' => 'ING-2B',
+            'nombre' => 'Inglés 2B',
+            'orden' => 2,
+            'nota_minima_aprobar' => 80,
+            'faltas_maximas_permitidas' => 7,
+        ]);
+        $nivel2->prerrequisitos()->sync([$this->nivel->id]);
+
+        $oferta2 = OfertaAcademica::create([
+            'sucursal_id' => $this->sucursal->id,
+            'periodo_academico_id' => $this->periodo->id,
+            'nivel_academico_id' => $nivel2->id,
+            'modalidad_id' => $this->modalidad->id,
+            'horario_id' => $this->horario->id,
+            'docente_id' => $this->docente->id,
+            'aula_id' => $this->aula->id,
+            'plan_cobro_id' => $this->planCobro->id,
+            'codigo' => 'SPS-2026I-ING2B-INT-MAT',
+            'cupo_maximo' => 25,
+            'estado' => 'abierto',
+        ]);
+
+        $matriculaPreviaId = DB::table('matriculas')->insertGetId([
+            'codigo' => 'MAT-PREVIA-002',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'fecha_reserva' => now(),
+            'fecha_confirmacion' => now(),
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        HistorialAcademico::create([
+            'codigo' => 'HIST-PRER-001',
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $matriculaPreviaId,
+            'oferta_academica_id' => $this->oferta->id,
+            'nivel_academico_id' => $this->nivel->id,
+            'periodo_academico_id' => $this->periodo->id,
+            'nota_final' => 90,
+            'faltas' => 0,
+            'estado' => 'aprobado',
+        ]);
+
+        ObligacionPagoEstudiante::create([
+            'matricula_id' => $matriculaPreviaId,
+            'concepto_pago_id' => DB::table('conceptos_pago')->where('codigo', 'CUO')->value('id'),
+            'numero_cuota' => 1,
+            'nombre_cargo' => 'Cuota pendiente',
+            'monto' => 700,
+            'monto_pagado' => 0,
+            'fecha_vencimiento' => now()->toDateString(),
+            'estado' => 'pendiente',
+        ]);
+
+        $response = $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $oferta2->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
+        ], $this->headers());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('mensaje', 'Debe finalizar administrativamente y pagar los siguientes niveles: Inglés 1');
     }
 
     public function test_confirmar_matricula_genera_obligaciones(): void

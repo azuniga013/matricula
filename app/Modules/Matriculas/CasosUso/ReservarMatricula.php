@@ -53,6 +53,12 @@ final class ReservarMatricula
                 return ResultadoCasoUso::error(422, 'El estudiante ya tiene una matrícula activa en esta oferta');
             }
 
+            $oferta->loadMissing('planCobro.detalles');
+            $detallesActivos = $oferta->planCobro?->detalles?->where('estado', 'activo') ?? collect();
+            if (! $oferta->planCobro || $oferta->planCobro->estado !== 'activo' || $detallesActivos->isEmpty()) {
+                return ResultadoCasoUso::error(422, 'La oferta no tiene un plan de cobro activo con detalles configurados');
+            }
+
             $planNuevoId = $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
             if ($planNuevoId && $this->repositorio->tienePlanActivoDiferente($estudianteId, $planNuevoId)) {
                 return ResultadoCasoUso::error(422, 'El estudiante ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.');

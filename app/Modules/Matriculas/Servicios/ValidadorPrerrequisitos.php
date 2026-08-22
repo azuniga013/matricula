@@ -41,21 +41,22 @@ final class ValidadorPrerrequisitos
 
         $idsCumplidos = array_unique(array_merge($idsCumplidos, $idsCumplidosPorCalificacion));
 
-        $matriculasActivas = Matricula::where('estudiante_id', $estudianteId)
-            ->whereIn('estado', ['reservada', 'en_revision', 'matriculado'])
+        $idsCumplidosAdministrativamente = Matricula::where('estudiante_id', $estudianteId)
             ->whereHas('ofertaAcademica', fn ($q) => $q->whereIn('nivel_academico_id', $prerrequisitosIds))
+            ->whereHas('obligaciones')
+            ->whereDoesntHave('obligaciones', fn ($q) => $q->whereIn('estado', ['pendiente', 'parcial']))
             ->get()
             ->pluck('ofertaAcademica.nivel_academico_id')
+            ->filter()
+            ->unique()
             ->toArray();
 
-        $idsCumplidos = array_unique(array_merge($idsCumplidos, $matriculasActivas));
+        $faltantesAcademicos = [];
+        $faltantesAdministrativos = [];
 
-        $faltantes = $nivel->prerrequisitos->filter(function ($prerrequisito) use ($idsCumplidos, $nivelacionesAprobadas, $nivel) {
-            if (in_array($prerrequisito->id, $idsCumplidos)) {
-                return false;
-            }
-
-            return ! $nivelacionesAprobadas->contains(function ($nivelacion) use ($prerrequisito, $nivel) {
+        foreach ($nivel->prerrequisitos as $prerrequisito) {
+            $cumplePorHistorialOCalificacion = in_array($prerrequisito->id, $idsCumplidos, true);
+            $cumplePorNivelacion = $nivelacionesAprobadas->contains(function ($nivelacion) use ($prerrequisito, $nivel) {
                 $nivelNivelacion = $nivelacion->nivelAcademico;
                 if (! $nivelNivelacion) {
                     return false;
@@ -64,14 +65,25 @@ final class ValidadorPrerrequisitos
                 return $nivelNivelacion->version_plan_estudio_id === $nivel->version_plan_estudio_id
                     && $nivelNivelacion->orden >= $prerrequisito->orden;
             });
-        });
 
-        if ($faltantes->isEmpty()) {
+            if (! $cumplePorHistorialOCalificacion && ! $cumplePorNivelacion) {
+                $faltantesAcademicos[] = $prerrequisito->nombre;
+                continue;
+            }
+
+            if (! $cumplePorNivelacion && ! in_array($prerrequisito->id, $idsCumplidosAdministrativamente, true)) {
+                $faltantesAdministrativos[] = $prerrequisito->nombre;
+            }
+        }
+
+        if (empty($faltantesAcademicos) && empty($faltantesAdministrativos)) {
             return null;
         }
 
-        $nombres = $faltantes->pluck('nombre')->implode(', ');
+        if (! empty($faltantesAcademicos)) {
+            return 'Debe aprobar primero los siguientes niveles: '.implode(', ', $faltantesAcademicos);
+        }
 
-        return "Debe aprobar primero los siguientes niveles: {$nombres}";
+        return 'Debe finalizar administrativamente y pagar los siguientes niveles: '.implode(', ', $faltantesAdministrativos);
     }
 }

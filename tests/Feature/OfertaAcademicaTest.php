@@ -13,6 +13,7 @@ use App\Models\OpcionModulo;
 use App\Models\OfertaAcademica;
 use App\Models\Permiso;
 use App\Models\PeriodoAcademico;
+use App\Models\PlanCobro;
 use App\Models\PlanEstudio;
 use App\Models\Rol;
 use App\Models\Sucursal;
@@ -35,6 +36,7 @@ class OfertaAcademicaTest extends TestCase
     private Horario $horario;
     private Docente $docente;
     private Aula $aula;
+    private PlanCobro $planCobro;
 
     protected function setUp(): void
     {
@@ -114,6 +116,12 @@ class OfertaAcademicaTest extends TestCase
             'nombre' => 'Aula 1',
             'capacidad' => 25,
         ]);
+
+        $this->planCobro = PlanCobro::create([
+            'codigo' => 'PLN-TEST',
+            'nombre' => 'Plan Test',
+            'estado' => 'activo',
+        ]);
     }
 
     private function crearPermisosBase(): void
@@ -147,6 +155,7 @@ class OfertaAcademicaTest extends TestCase
             'horario_id' => $this->horario->id,
             'docente_id' => $this->docente->id,
             'aula_id' => $this->aula->id,
+            'plan_cobro_id' => $this->planCobro->id,
             'codigo' => 'SPS-2026I-ING1-INT-MAT',
             'cupo_maximo' => 25,
         ], $extra);
@@ -162,6 +171,17 @@ class OfertaAcademicaTest extends TestCase
             ->assertJsonPath('data.cupo_maximo', 25);
 
         $this->assertDatabaseHas('ofertas_academicas', ['codigo' => 'SPS-2026I-ING1-INT-MAT']);
+    }
+
+    public function test_crear_oferta_academica_requiere_plan_cobro(): void
+    {
+        $datos = $this->ofertaData();
+        unset($datos['plan_cobro_id']);
+
+        $this->postJson('/api/v1/ofertas/academicas', $datos, $this->headers())
+            ->assertStatus(422);
+
+        $this->assertDatabaseMissing('ofertas_academicas', ['codigo' => $datos['codigo']]);
     }
 
     public function test_listar_ofertas_academicas(): void

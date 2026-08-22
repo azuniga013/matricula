@@ -5,6 +5,7 @@ namespace App\Modules\Matriculas\Servicios;
 use App\Models\Matricula;
 use App\Models\ObligacionPagoEstudiante;
 use App\Models\OfertaAcademica;
+use Illuminate\Support\Facades\Auth;
 
 final class GeneradorObligacionesMatricula
 {
@@ -17,13 +18,14 @@ final class GeneradorObligacionesMatricula
         }
 
         $oferta->loadMissing('planCobro.detalles');
+        $detallesActivos = $oferta->planCobro?->detalles?->where('estado', 'activo') ?? collect();
 
-        if (! $oferta->planCobro || $oferta->planCobro->detalles->isEmpty()) {
+        if (! $oferta->planCobro || $oferta->planCobro->estado !== 'activo' || $detallesActivos->isEmpty()) {
             return;
         }
 
         $obligaciones = [];
-        foreach ($oferta->planCobro->detalles as $detalle) {
+        foreach ($detallesActivos as $detalle) {
             $obligaciones[] = [
                 'matricula_id' => $matricula->id,
                 'concepto_pago_id' => $detalle->concepto_pago_id,
@@ -33,7 +35,7 @@ final class GeneradorObligacionesMatricula
                 'monto_pagado' => 0,
                 'fecha_vencimiento' => $detalle->dias_vencimiento > 0 ? now()->addDays($detalle->dias_vencimiento) : now(),
                 'estado' => 'pendiente',
-                'creado_por' => $usuarioId ?? auth()->id(),
+                'creado_por' => $usuarioId ?? Auth::id(),
             ];
         }
 
