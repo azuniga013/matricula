@@ -59,6 +59,7 @@ class SeguridadRbacSeeder extends Seeder
         if ($rolAdminOperativo) {
             $permisosOperativos = Permiso::where(function ($q) {
                 $q->where('codigo', 'catalogos_academicos.consultar')
+                  ->orWhere('codigo', 'seguridad.roles.consultar')
                   ->orWhere('codigo', 'like', 'seguridad.usuarios.%')
                   ->orWhere('codigo', 'like', 'estudiantes.%')
                   ->orWhere('codigo', 'like', 'matriculas.%')
