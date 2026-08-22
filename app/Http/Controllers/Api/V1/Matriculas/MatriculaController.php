@@ -164,7 +164,7 @@ class MatriculaController extends Controller
             'estudiante:id,codigo,nombre,apellido,correo,telefono',
             'ofertaAcademica:id,codigo,nivel_academico_id,periodo_academico_id,horario_id,docente_id,sucursal_id,plan_cobro_id',
             'sucursal:id,codigo,nombre',
-            'obligaciones:id,concepto_pago_id,numero_cuota,nombre_cargo,monto,monto_pagado,fecha_vencimiento,estado',
+            'obligaciones:id,matricula_id,concepto_pago_id,numero_cuota,nombre_cargo,monto,monto_pagado,fecha_vencimiento,estado',
         ]);
         app(ResolutorAlcanceDatos::class)->aplicarAlcance($matricula, $request->user(), 'matriculas');
         $matricula = $matricula->findOrFail($id);
