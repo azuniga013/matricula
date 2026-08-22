@@ -22,6 +22,7 @@ use App\Models\Pago;
 use App\Models\PeriodoAcademico;
 use App\Services\DetectorPagoDuplicado;
 use App\Services\Pagos\ValidadorReglasPago;
+use App\Modules\Matriculas\Servicios\ValidadorPrerrequisitos as ValidadorPrerrequisitosMatricula;
 use App\Services\ResolutorFlujoMatricula;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
@@ -234,9 +235,16 @@ class PortalEstudianteController extends Controller
                 ->response($request);
         }
 
-        $prerrequisitos = $this->validarPrerrequisitos($estudiante->id, $oferta->id);
+        $prerrequisitos = app(ValidadorPrerrequisitosMatricula::class)->validar($estudiante->id, $oferta->id);
         if ($prerrequisitos) {
             return RespuestaError::make('422_PRERREQUISITOS_NO_CUMPLIDOS', 422, $prerrequisitos)
+                ->response($request);
+        }
+
+        $oferta->loadMissing('planCobro.detalles');
+        $detallesActivos = $oferta->planCobro?->detalles?->where('estado', 'activo') ?? collect();
+        if (! $oferta->planCobro || $oferta->planCobro->estado !== 'activo' || $detallesActivos->isEmpty()) {
+            return RespuestaError::make('422_PLAN_COBRO_REQUERIDO', 422, 'La oferta no tiene un plan de cobro activo con detalles configurados')
                 ->response($request);
         }
 
@@ -246,7 +254,7 @@ class PortalEstudianteController extends Controller
                 ->response($request);
         }
 
-        $matriculaResultado = DB::transaction(function () use ($estudiante, $oferta, $matriculaExistente) {
+        $matriculaResultado = DB::transaction(function () use ($estudiante, $oferta, $matriculaExistente, $detallesActivos) {
             if ($matriculaExistente && in_array($matriculaExistente->estado, ['cancelado', 'rechazado'])) {
                 $matriculaExistente = Matricula::lockForUpdate()->find($matriculaExistente->id);
                 $tienePagos = $matriculaExistente->obligaciones()
@@ -295,20 +303,17 @@ class PortalEstudianteController extends Controller
 
             $oferta->increment('cupos_reservados');
 
-            if ($oferta->planCobro) {
-                $detalles = $oferta->planCobro->detalles()->get();
-                foreach ($detalles as $detalle) {
-                    ObligacionPagoEstudiante::create([
-                        'matricula_id' => $matricula->id,
-                        'concepto_pago_id' => $detalle->concepto_pago_id,
-                        'numero_cuota' => $detalle->numero_cuota,
-                        'nombre_cargo' => $detalle->nombre_cargo,
-                        'monto' => $detalle->monto,
-                        'monto_pagado' => 0,
-                        'fecha_vencimiento' => now()->addDays($detalle->dias_vencimiento)->toDateString(),
-                        'estado' => 'pendiente',
-                    ]);
-                }
+            foreach ($detallesActivos as $detalle) {
+                ObligacionPagoEstudiante::create([
+                    'matricula_id' => $matricula->id,
+                    'concepto_pago_id' => $detalle->concepto_pago_id,
+                    'numero_cuota' => $detalle->numero_cuota,
+                    'nombre_cargo' => $detalle->nombre_cargo,
+                    'monto' => $detalle->monto,
+                    'monto_pagado' => 0,
+                    'fecha_vencimiento' => now()->addDays($detalle->dias_vencimiento)->toDateString(),
+                    'estado' => 'pendiente',
+                ]);
             }
 
             return $matricula;
