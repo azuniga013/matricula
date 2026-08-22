@@ -473,12 +473,22 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div class="col-span-2">
                                 <label class="label">Método de Pago</label>
-                                <select x-model="pagoForm.metodo_pago_id" required class="input">
+                                <select x-model="pagoForm.metodo_pago_id" @change="onPagoMetodoChange()" required class="input">
                                     <option value="">Seleccionar...</option>
                                     <template x-for="m in metodosPago" :key="m.id">
                                         <option :value="m.id" x-text="m.nombre"></option>
                                     </template>
                                 </select>
+                            </div>
+                            <div class="col-span-2" x-show="requiereCuentaBancaria(pagoForm.metodo_pago_id)">
+                                <label class="label">Cuenta bancaria donde se realizó el pago *</label>
+                                <select x-model="pagoForm.cuenta_bancaria_id" :required="requiereCuentaBancaria(pagoForm.metodo_pago_id)" class="input">
+                                    <option value="">Seleccionar...</option>
+                                    <template x-for="cuenta in cuentasBancarias" :key="cuenta.id">
+                                        <option :value="cuenta.id" x-text="cuenta.banco + ' — ' + cuenta.numero_cuenta + ' (' + cuenta.tipo_cuenta + ')' "></option>
+                                    </template>
+                                </select>
+                                <p x-show="cuentasBancarias.length === 0" class="mt-1 text-xs text-amber-700">No hay cuentas bancarias activas configuradas.</p>
                             </div>
                             <div class="col-span-2">
                                 <label class="label">Referencia</label>
@@ -590,7 +600,7 @@ function matriculas() {
         // Pago desde matrícula
         showModalPago: false, savingPago: false, errorPago: '',
         pagoMatricula: null, pagoObligacionesIds: [],
-        pagoForm: { metodo_pago_id: '', referencia_externa: '' },
+        pagoForm: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '' },
         flujoPagoMatricula: null,
         metodosPago: [],
 
@@ -858,7 +868,7 @@ function matriculas() {
             if (!this.flujo.habilita_revision_contable) return;
             this.pagoMatricula = null;
             this.pagoObligacionesIds = [];
-            this.pagoForm = { metodo_pago_id: '', referencia_externa: '' };
+            this.pagoForm = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '' };
             this.errorPago = '';
             this.flujoPagoMatricula = null;
             this.showModalPago = true;
@@ -899,6 +909,18 @@ function matriculas() {
             this.pagoObligacionesIds = (this.pagoMatricula?.obligaciones || []).map(o => o.id);
         },
 
+        onPagoMetodoChange() {
+            if (!this.requiereCuentaBancaria(this.pagoForm.metodo_pago_id)) {
+                this.pagoForm.cuenta_bancaria_id = '';
+            }
+            this.cargarFlujoPagoMatricula();
+        },
+
+        requiereCuentaBancaria(id) {
+            const metodo = this.metodosPago.find(x => x.id == id);
+            return ['DEP', 'TRA'].includes(metodo?.codigo);
+        },
+
         async registrarPagoMatricula() {
             if (this.savingPago || this.pagoObligacionesIds.length === 0) return;
             if (this.flujoPagoMatricula && !this.flujoPagoMatricula.habilita_aprobacion_pago && !this.flujoPagoMatricula.habilita_solicitud_link) {
@@ -921,6 +943,7 @@ function matriculas() {
                         ? (this.pagoMatricula.obligaciones?.find(o => o.id === this.pagoObligacionesIds[0])?.concepto_pago_id || '')
                         : '',
                     metodo_pago_id: this.pagoForm.metodo_pago_id,
+                    cuenta_bancaria_id: this.pagoForm.cuenta_bancaria_id || null,
                     monto: montoTotal,
                     fecha_proceso: window.toLocalDateInput(),
                     referencia_externa: this.pagoForm.referencia_externa || '',
