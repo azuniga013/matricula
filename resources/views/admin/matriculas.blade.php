@@ -603,6 +603,7 @@ function matriculas() {
         pagoForm: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '' },
         flujoPagoMatricula: null,
         metodosPago: [],
+        cuentasBancarias: [],
 
         // Nueva matrícula modal
         filtroNuevo: { periodo_id: '', plan_id: '', nivel_id: '' },
@@ -685,13 +686,14 @@ function matriculas() {
         async init() {
             const token = localStorage.getItem('auth_token');
             const h = { headers: { Authorization: `Bearer ${token}` } };
-            const [f, p, s, t, mp, pe] = await Promise.allSettled([
+            const [f, p, s, t, mp, pe, cb] = await Promise.allSettled([
                 window.axios.get('/api/v1/seguridad/configuraciones-flujo-matricula', h),
                 window.axios.get('/api/v1/catalogos-academicos/periodos-academicos', h),
                 window.axios.get('/api/v1/catalogos-academicos/sucursales', h),
                 window.axios.get('/api/v1/gestiones-matricula/tipos', h),
                 window.axios.get('/api/v1/catalogos-academicos/metodos-pago', h),
                 window.axios.get('/api/v1/catalogos-academicos/planes-estudio', h),
+                window.axios.get('/api/v1/cuentas-bancarias', h).catch(() => ({ data: { data: [] } })),
             ]);
             const flujos = f.status === 'fulfilled' ? (f.value.data.data?.data || f.value.data.data || []) : [];
             this.flujo = flujos.find(c => c.origen === 'portal_administrativo' && c.estado === 'activo') || this.flujo;
@@ -700,6 +702,7 @@ function matriculas() {
             this.tiposGestion = t.status === 'fulfilled' ? (t.value.data.data || []) : [];
             this.metodosPago = mp.status === 'fulfilled' ? (mp.value.data.data?.data || mp.value.data.data || []) : [];
             this.planesEstudio = pe.status === 'fulfilled' ? (pe.value.data.data?.data || pe.value.data.data || []).filter(plan => plan.estado !== 'inactivo') : [];
+            this.cuentasBancarias = cb.status === 'fulfilled' ? (cb.value.data.data || []) : [];
             const activo = this.periodos.find(per => per.estado === 'activo');
             if (activo) {
                 this.filtro.periodo = activo.id;
