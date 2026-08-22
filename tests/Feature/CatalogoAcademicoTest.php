@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\DepartamentoAcademico;
-use App\Models\GrupoWhatsapp;
 use App\Models\Modalidad;
 use App\Models\Modulo;
 use App\Models\OpcionModulo;
@@ -220,44 +219,6 @@ class CatalogoAcademicoTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('data.codigo', '2026-I');
-    }
-
-    public function test_crear_grupo_whatsapp(): void
-    {
-        $sucursal = Sucursal::factory()->create();
-
-        $payload = [
-            'sucursal_id' => $sucursal->id,
-            'codigo' => 'GRP-001',
-            'nombre' => 'Inglés Básico Matutino',
-            'link' => 'https://chat.whatsapp.com/example',
-        ];
-
-        $response = $this->postJson('/api/v1/catalogos-academicos/grupos-whatsapp', $payload, $this->headers());
-
-        $response->assertCreated()
-            ->assertJsonPath('resultado', 'A')
-            ->assertJsonPath('data.codigo', 'GRP-001');
-    }
-
-    public function test_eliminar_grupo_whatsapp(): void
-    {
-        $sucursal = Sucursal::factory()->create();
-        $grupo = GrupoWhatsapp::create([
-            'sucursal_id' => $sucursal->id,
-            'codigo' => 'GRP-002',
-            'nombre' => 'Grupo Test',
-            'link' => 'https://chat.whatsapp.com/test',
-            'creado_por' => $this->admin->id,
-        ]);
-
-        $response = $this->deleteJson("/api/v1/catalogos-academicos/grupos-whatsapp/{$grupo->id}", [], $this->headers());
-
-        $response->assertOk()
-            ->assertJsonPath('resultado', 'A')
-            ->assertJsonPath('mensaje', 'Grupo de WhatsApp desactivado correctamente.');
-
-        $this->assertDatabaseHas('grupos_whatsapp', ['id' => $grupo->id, 'estado' => 'inactivo']);
     }
 
     public function test_requiere_permiso_para_crear(): void

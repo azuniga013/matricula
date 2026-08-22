@@ -82,6 +82,55 @@ class DocenteMovilController extends Controller
         ]);
     }
 
+    public function actualizarWhatsappPeriodo(Request $request, int $id): JsonResponse
+    {
+        $usuario = $request->user();
+        if (! $usuario?->docente_id) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 403,
+                'mensaje' => 'La cuenta no esta vinculada a un docente',
+            ], 403);
+        }
+
+        $oferta = OfertaAcademica::where('docente_id', $usuario->docente_id)->findOrFail($id);
+        $datos = $request->validate([
+            'whatsapp_link_periodo' => 'nullable|string|max:500',
+        ]);
+
+        if (! $oferta->whatsapp_grupo_nombre) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'La oferta no tiene nombre de grupo de WhatsApp configurado.',
+            ], 422);
+        }
+
+        $link = trim((string) ($datos['whatsapp_link_periodo'] ?? ''));
+        if ($link !== '' && ! preg_match('/^https?:\/\//i', $link)) {
+            $link = 'https://' . $link;
+        }
+        if ($link !== '' && ! filter_var($link, FILTER_VALIDATE_URL)) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'El link de WhatsApp no tiene un formato válido.',
+            ], 422);
+        }
+
+        $oferta->update([
+            'whatsapp_link_periodo' => $link !== '' ? $link : null,
+            'actualizado_por' => $usuario->id,
+        ]);
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 200,
+            'mensaje' => 'Link de WhatsApp actualizado correctamente.',
+            'data' => $this->mapearOferta($oferta->fresh(['periodoAcademico:id,codigo,nombre','nivelAcademico:id,codigo,nombre','horario:id,codigo,nombre,hora_inicio,hora_fin','modalidad:id,codigo,nombre'])),
+        ]);
+    }
+
     public function aplicarCola(Request $request): JsonResponse
     {
         $usuario = $request->user();
@@ -161,6 +210,8 @@ class DocenteMovilController extends Controller
             'id' => $oferta->id,
             'codigo' => $oferta->codigo,
             'estado' => $oferta->estado,
+            'whatsapp_grupo_nombre' => $oferta->whatsapp_grupo_nombre,
+            'whatsapp_link_periodo' => $oferta->whatsapp_link_periodo,
             'periodo_academico_id' => $oferta->periodo_academico_id,
             'periodo_academico' => $oferta->periodoAcademico,
             'nivel_academico_id' => $oferta->nivel_academico_id,

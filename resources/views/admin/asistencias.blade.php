@@ -82,25 +82,6 @@
         <div class="card"><div class="card-body text-center text-gray-400 py-12"><p>No hay estudiantes matriculados en este grupo</p></div></div>
     </template>
 
-    <template x-if="ofertaSeleccionada">
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div class="flex-1">
-                        <label class="label">Link WhatsApp del período</label>
-                        <input x-model="whatsappLinkPeriodo" type="text" class="input" placeholder="https://chat.whatsapp.com/...">
-                        <p class="mt-1 text-xs text-gray-500">Actualice aquí el link vigente del grupo para esta oferta y período.</p>
-                    </div>
-                    <div>
-                        <button x-show="api.hasPermission('asistencias.crear')" @click="guardarWhatsappPeriodo()" :disabled="guardandoWhatsapp" class="btn btn-outline">
-                            <span x-text="guardandoWhatsapp ? 'Guardando...' : 'Guardar link WhatsApp'"></span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
-
     <template x-if="estudiantes.length > 0">
         <div class="card">
             <div class="card-body border-b flex items-center justify-between">
@@ -153,11 +134,7 @@ function asistencias() {
         filtros: { periodo: '', sucursal: '', nivel: '' },
         ofertasRequestId: 0,
         estudiantesRequestId: 0,
-        whatsappLinkPeriodo: '', guardandoWhatsapp: false,
-
-        get ofertaSeleccionada() {
-            return this.ofertas.find(o => String(o.id) === String(this.ofertaId)) || null;
-        },
+        ofertaPreseleccionada: new URLSearchParams(window.location.search).get('oferta') || '',
 
         async init() {
             await this.cargarCatalogos();
@@ -195,9 +172,11 @@ function asistencias() {
                 if (requestId !== this.ofertasRequestId) return;
                 if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
                 this.ofertas = data.data || [];
-                if (!this.ofertas.some(o => String(o.id) === String(this.ofertaId))) this.ofertaId = '';
+                if (this.ofertaPreseleccionada && this.ofertas.some(o => String(o.id) === String(this.ofertaPreseleccionada))) {
+                    this.ofertaId = this.ofertaPreseleccionada;
+                    this.ofertaPreseleccionada = '';
+                } else if (!this.ofertas.some(o => String(o.id) === String(this.ofertaId))) this.ofertaId = '';
                 if (!this.ofertaId && this.ofertas.length > 0) this.ofertaId = this.ofertas[0].id;
-                this.whatsappLinkPeriodo = this.ofertaSeleccionada?.whatsapp_link_periodo || '';
                 if (this.ofertaId) await this.cargarEstudiantes();
                 else this.estudiantes = [];
             } catch(e) {
@@ -228,27 +207,7 @@ function asistencias() {
 
         onOfertaChange() {
             if (!this.ofertaId) return;
-            this.whatsappLinkPeriodo = this.ofertaSeleccionada?.whatsapp_link_periodo || '';
             this.cargarEstudiantes();
-        },
-
-        async guardarWhatsappPeriodo() {
-            if (!this.ofertaId) return;
-            this.guardandoWhatsapp = true;
-            try {
-                const { data } = await window.axios.post(`/api/v1/ofertas/academicas/${this.ofertaId}/whatsapp-periodo`, {
-                    whatsapp_link_periodo: this.whatsappLinkPeriodo || null,
-                }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
-                if (data.resultado === 'A') {
-                    const oferta = this.ofertas.find(o => String(o.id) === String(this.ofertaId));
-                    if (oferta) oferta.whatsapp_link_periodo = data.data?.whatsapp_link_periodo || null;
-                    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.mensaje || 'Link actualizado', type: 'success' } }));
-                }
-            } catch(e) {
-                window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: window.extractError(e, 'No se pudo guardar el link de WhatsApp'), type: 'error' } }));
-            } finally {
-                this.guardandoWhatsapp = false;
-            }
         },
 
         async cargarEstudiantes() {

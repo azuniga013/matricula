@@ -707,9 +707,9 @@ class PortalEstudianteController extends Controller
                 'link_pago_url' => $p->link_pago_url,
                 'link_pago_estado' => $p->link_pago_estado,
                 'whatsapp_link' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica
-                    ? ($p->matricula->ofertaAcademica->whatsapp_link_periodo ?: $p->matricula->ofertaAcademica->grupoWhatsapp?->link) : null,
-                'whatsapp_grupo' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica?->grupoWhatsapp
-                    ? $p->matricula->ofertaAcademica->grupoWhatsapp->nombre : null,
+                    ? $this->resolverWhatsappLinkOferta($p->matricula->ofertaAcademica) : null,
+                'whatsapp_grupo' => $p->estado === 'aprobado' && $p->matricula?->ofertaAcademica
+                    ? $this->resolverWhatsappNombreOferta($p->matricula->ofertaAcademica) : null,
                 'recibo_id' => $p->reciboCaja?->id,
                 'numero_recibo' => $p->reciboCaja?->numero_recibo,
                 'fecha_recibo' => $p->reciboCaja?->fecha_recibo?->format('d/m/Y H:i'),
@@ -1078,7 +1078,7 @@ class PortalEstudianteController extends Controller
             ->latest('fecha_confirmacion')
             ->first();
 
-        if (! $matricula || ! $matricula->ofertaAcademica || ! $matricula->ofertaAcademica->grupoWhatsapp) {
+        if (! $matricula || ! $matricula->ofertaAcademica || ! $this->resolverWhatsappLinkOferta($matricula->ofertaAcademica)) {
             return response()->json([
                 'resultado' => 'A',
                 'codigo' => 0,
@@ -1115,9 +1115,19 @@ class PortalEstudianteController extends Controller
             'codigo' => 0,
             'mensaje' => 'OK',
             'data' => [
-                'whatsapp_link' => $habilitaWhatsapp ? ($matricula->ofertaAcademica->whatsapp_link_periodo ?: $matricula->ofertaAcademica->grupoWhatsapp->link) : null,
+                'whatsapp_link' => $habilitaWhatsapp ? $this->resolverWhatsappLinkOferta($matricula->ofertaAcademica) : null,
             ],
         ]);
+    }
+
+    private function resolverWhatsappLinkOferta($oferta): ?string
+    {
+        return $oferta?->whatsapp_link_periodo ?: $oferta?->grupoWhatsapp?->link;
+    }
+
+    private function resolverWhatsappNombreOferta($oferta): ?string
+    {
+        return $oferta?->whatsapp_grupo_nombre ?: $oferta?->grupoWhatsapp?->nombre;
     }
 
     public function misCertificados(Request $request): JsonResponse

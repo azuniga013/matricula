@@ -12,7 +12,6 @@ use App\Models\DepartamentoAcademico;
 use App\Models\DetallePlanCobro;
 use App\Models\Docente;
 use App\Models\Estudiante;
-use App\Models\GrupoWhatsapp;
 use App\Models\Horario;
 use App\Models\Matricula;
 use App\Models\MetodoPago;
@@ -180,13 +179,6 @@ class FlujoMatriculaConfiguracionTest extends TestCase
         $horario->update(['lunes' => true]);
         $docente = Docente::factory()->create(['codigo' => 'DOC001']);
         $aula = Aula::create(['sucursal_id' => $this->sucursal->id, 'codigo' => 'AUL-01', 'nombre' => 'Aula 1', 'capacidad' => 25]);
-        $grupo = GrupoWhatsapp::create([
-            'sucursal_id' => $this->sucursal->id,
-            'codigo' => 'GWA-01',
-            'nombre' => 'Grupo Test',
-            'link' => 'https://chat.whatsapp.com/test',
-            'estado' => 'activo',
-        ]);
         $periodo = PeriodoAcademico::create([
             'codigo' => '2026-I',
             'nombre' => 'Semestre 1',
@@ -203,7 +195,7 @@ class FlujoMatriculaConfiguracionTest extends TestCase
             'horario_id' => $horario->id,
             'docente_id' => $docente->id,
             'aula_id' => $aula->id,
-            'grupo_whatsapp_id' => $grupo->id,
+            'whatsapp_grupo_nombre' => 'Grupo Test',
             'plan_cobro_id' => $planCobro->id,
             'codigo' => 'SPS-2026I-ING1-INT-MAT',
             'cupo_maximo' => 25,

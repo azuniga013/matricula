@@ -1,8 +1,9 @@
 # Avance - Plataforma Cursos San Vicente de Paúl
 
-> Nota 2026-08-10: este archivo es solo historial puntual de cambios y no debe
-> usarse como plan vigente. La lista canónica de trabajo está en
-> `docs/PENDIENTES.md`.
+> Nota 2026-08-22: este archivo es solo historial puntual de cambios y no debe
+> usarse como plan vigente. Puede mencionar rutas, catálogos o flujos ya
+> retirados, incluyendo referencias históricas a `grupos_whatsapp`. La lista
+> canónica de trabajo está en `docs/PENDIENTES.md`.
 
 ## 2026-07-28
 

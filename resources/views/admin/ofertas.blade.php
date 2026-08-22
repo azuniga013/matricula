@@ -220,11 +220,9 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label">Grupo WhatsApp</label>
-                        <select x-model="form.grupo_whatsapp_id" class="input">
-                            <option value="">Sin grupo...</option>
-                            <template x-for="gw in gruposWhatsapp" :key="gw.id"><option :value="gw.id" x-text="gw.codigo + ' · ' + gw.nombre"></option></template>
-                        </select>
+                        <label class="label">Nombre del Grupo WhatsApp</label>
+                        <input x-model="form.whatsapp_grupo_nombre" type="text" class="input" placeholder="Ej. Inglés 1 Intensivo Matutino SPS">
+                        <p class="mt-1 text-xs text-gray-500">El link vigente del período se administra desde <a href="/admin/mis-grupos" class="text-brand-600 hover:text-brand-700">Mis Grupos</a>.</p>
                     </div>
                     <div>
                         <label class="label">Estado</label>
@@ -258,7 +256,7 @@
 function ofertas() {
     return {
         loading: true, showModal: false, editing: false, saving: false, error: '',
-        ofertas: [], periodos: [], sucursales: [], niveles: [], versiones: [], modalidades: [], horarios: [], docentes: [], aulas: [], planesCobro: [], gruposWhatsapp: [],
+        ofertas: [], periodos: [], sucursales: [], niveles: [], versiones: [], modalidades: [], horarios: [], docentes: [], aulas: [], planesCobro: [],
         filtro: { periodo: '', sucursal: '', version_plan_estudio_id: '', nivel_academico_id: '', estado: '' },
         form: {}, editId: null,
 
@@ -314,7 +312,7 @@ function ofertas() {
         async loadCatalogs() {
             const token = localStorage.getItem('auth_token');
             const h = { headers: { Authorization: `Bearer ${token}` } };
-            const [p, s, n, v, m, ho, d, a, pc, gw] = await Promise.allSettled([
+            const [p, s, n, v, m, ho, d, a, pc] = await Promise.allSettled([
                 window.axios.get('/api/v1/catalogos-academicos/periodos-academicos', h),
                 window.axios.get('/api/v1/catalogos-academicos/sucursales', h),
                 window.axios.get('/api/v1/catalogos-academicos/niveles-academicos', h),
@@ -324,11 +322,10 @@ function ofertas() {
                 window.axios.get('/api/v1/catalogos-academicos/docentes', h),
                 window.axios.get('/api/v1/catalogos-academicos/aulas', h),
                 window.axios.get('/api/v1/catalogos-academicos/planes-cobro', h),
-                window.axios.get('/api/v1/catalogos-academicos/grupos-whatsapp', h),
             ]);
             const extract = r => r.status === 'fulfilled' ? (r.value.data.data?.data || r.value.data.data || []) : [];
             this.periodos = extract(p); this.sucursales = extract(s); this.niveles = extract(n); this.versiones = extract(v);
-            this.modalidades = extract(m); this.horarios = extract(ho); this.docentes = extract(d); this.aulas = extract(a); this.planesCobro = extract(pc); this.gruposWhatsapp = extract(gw);
+            this.modalidades = extract(m); this.horarios = extract(ho); this.docentes = extract(d); this.aulas = extract(a); this.planesCobro = extract(pc);
             const activo = this.periodos.find(per => per.estado === 'activo');
             if (activo) this.filtro.periodo = activo.id;
         },
@@ -352,7 +349,7 @@ function ofertas() {
 
         async openModal() {
             this.editing = false; this.editId = null; this.error = '';
-            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', grupo_whatsapp_id: '', cupo_maximo: 25, estado: 'borrador' };
+            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', whatsapp_grupo_nombre: '', cupo_maximo: 25, estado: 'borrador' };
             this.showModal = false;
             await this.$nextTick();
             this.showModal = true;
@@ -364,7 +361,7 @@ function ofertas() {
                 codigo: o.codigo, sucursal_id: o.sucursal_id, periodo_academico_id: o.periodo_academico_id,
                 version_plan_estudio_id: o.nivel_academico?.version_plan_estudio_id || '',
                 nivel_academico_id: o.nivel_academico_id, modalidad_id: o.modalidad_id, horario_id: o.horario_id,
-                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', grupo_whatsapp_id: o.grupo_whatsapp_id || '',
+                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', whatsapp_grupo_nombre: o.whatsapp_grupo_nombre || o.grupo_whatsapp?.nombre || '',
                 estado: o.estado,
             };
             this.showModal = false;

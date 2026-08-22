@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Academico;
 
 use App\Http\Controllers\Controller;
+use App\Models\GrupoWhatsapp;
 use App\Models\OfertaAcademica;
 use App\Models\Sucursal;
 use App\Services\ServicioNomenclatura;
@@ -83,9 +84,12 @@ class OfertaAcademicaController extends Controller
             'cupo_maximo' => 'nullable|integer|min:1',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
+            'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'observaciones' => 'nullable|string',
             'codigo' => 'nullable|string|max:50|unique:ofertas_academicas,codigo',
         ]);
+
+        $datos = $this->normalizarWhatsappOferta($datos);
 
         if (empty($datos['codigo'])) {
             $anio = date('Y');
@@ -148,9 +152,12 @@ class OfertaAcademicaController extends Controller
             'plan_cobro_id' => 'sometimes|required|exists:planes_cobro,id',
             'acepta_cambios_horario' => 'nullable|boolean',
             'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
+            'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'cupo_maximo' => 'nullable|integer|min:1',
             'estado' => 'sometimes|string|in:borrador,abierto,cerrado,cancelado',
         ]);
+
+        $datos = $this->normalizarWhatsappOferta($datos);
 
         $datos['actualizado_por'] = $request->user()->id;
 
@@ -234,14 +241,6 @@ class OfertaAcademicaController extends Controller
             'whatsapp_link_periodo' => 'nullable|string|max:500',
         ]);
 
-        if (! $ofertaAcademica->grupo_whatsapp_id) {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'Debe asignar primero un grupo lógico de WhatsApp a la oferta.',
-            ], 422);
-        }
-
         $link = trim((string) ($datos['whatsapp_link_periodo'] ?? ''));
         if ($link !== '' && ! preg_match('/^https?:\/\//i', $link)) {
             $link = 'https://' . $link;
@@ -265,5 +264,19 @@ class OfertaAcademicaController extends Controller
             'mensaje' => 'Link de WhatsApp del período actualizado correctamente.',
             'data' => $ofertaAcademica->fresh(),
         ]);
+    }
+
+    private function normalizarWhatsappOferta(array $datos): array
+    {
+        if (array_key_exists('whatsapp_grupo_nombre', $datos)) {
+            $nombre = trim((string) ($datos['whatsapp_grupo_nombre'] ?? ''));
+            $datos['whatsapp_grupo_nombre'] = $nombre !== '' ? $nombre : null;
+        }
+
+        if (! empty($datos['grupo_whatsapp_id']) && empty($datos['whatsapp_grupo_nombre'])) {
+            $datos['whatsapp_grupo_nombre'] = GrupoWhatsapp::where('id', $datos['grupo_whatsapp_id'])->value('nombre');
+        }
+
+        return $datos;
     }
 }

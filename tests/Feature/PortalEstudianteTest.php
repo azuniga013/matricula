@@ -632,7 +632,10 @@ class PortalEstudianteTest extends TestCase
 
     public function test_whatsapp_sin_pago(): void
     {
-        $this->oferta->update(['grupo_whatsapp' => 'https://chat.whatsapp.com/test']);
+        $this->oferta->update([
+            'whatsapp_grupo_nombre' => 'Grupo Test',
+            'whatsapp_link_periodo' => 'https://chat.whatsapp.com/test',
+        ]);
 
         $this->postJson('/api/v1/estudiantes/reservar-matricula', [
             'oferta_academica_id' => $this->oferta->id,

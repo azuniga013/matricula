@@ -15,6 +15,7 @@ Route::get('/admin/monitor', fn () => view('admin.monitor', ['title' => 'Monitor
 Route::get('/admin/estudiantes', fn () => view('admin.estudiantes', ['title' => 'Estudiantes']))->name('admin.estudiantes');
 Route::get('/admin/matriculas', fn () => view('admin.matriculas', ['title' => 'Matrícula']))->name('admin.matriculas');
 Route::get('/admin/calificaciones', fn () => view('admin.calificaciones', ['title' => 'Calificaciones']))->name('admin.calificaciones');
+Route::get('/admin/mis-grupos', fn () => view('admin.mis-grupos', ['title' => 'Mis Grupos']))->name('admin.mis-grupos');
 Route::get('/admin/asistencias', fn () => view('admin.asistencias', ['title' => 'Asistencias']))->name('admin.asistencias');
 Route::get('/admin/inventario', fn () => view('admin.inventario', ['title' => 'Inventario y Libros']))->name('admin.inventario');
 Route::get('/admin/pagos', fn () => view('admin.pagos', ['title' => 'Pagos']))->name('admin.pagos');

@@ -380,37 +380,6 @@
                 </div>
             </div>
 
-            {{-- Grupos WhatsApp --}}
-            <div x-show="activeTab === 'grupos-whatsapp'" class="space-y-4">
-                <div class="flex justify-end">
-                    <button x-show="api.hasPermission('catalogos.grupos-whatsapp.crear')" @click="openModal('grupoWhatsapp')" class="btn btn-primary">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                        Nuevo Grupo
-                    </button>
-                </div>
-                <div class="card">
-                    <div class="table-container">
-                        <table class="table">
-                            <thead><tr><th>Código</th><th>Nombre</th><th>Sucursal</th><th>Link</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
-                            <tbody>
-                                <template x-for="item in items" :key="item.id">
-                                    <tr>
-                                        <td class="font-mono text-xs font-semibold text-brand-600" x-text="item.codigo"></td>
-                                        <td class="font-medium" x-text="item.nombre"></td>
-                                        <td class="text-gray-500" x-text="item.sucursal?.nombre || '-'"></td>
-                                        <td class="text-sm text-gray-500 max-w-[200px] truncate"><a :href="item.link" target="_blank" class="text-brand-600 hover:underline" x-text="item.link"></a></td>
-                                        <td><span :class="item.estado === 'activo' ? 'badge-success' : 'badge-danger'" class="badge" x-text="item.estado"></span></td>
-                                        <td class="text-right whitespace-nowrap">
-                                            <button x-show="canEdit()" @click="editItem(item)" class="btn btn-ghost btn-sm">Editar</button>
-                                            <button x-show="canDelete()" @click="deleteItem(item)" class="btn btn-ghost btn-sm text-red-500">Eliminar</button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
     </template>
 
@@ -599,8 +568,6 @@ function catalogos() {
         error: '',
         items: [],
         planFiltroId: '',
-        grupoWhatsappFiltroSucursal: '',
-        grupoWhatsappFiltroPeriodo: '',
         formData: {},
         editId: null,
 
@@ -616,7 +583,6 @@ function catalogos() {
             periodos: 'ofertas.periodos',
             conceptos: 'catalogos.conceptos',
             metodos: 'catalogos.metodos',
-            'grupos-whatsapp': 'catalogos.grupos-whatsapp',
         },
 
         canCreate() {
@@ -653,7 +619,6 @@ function catalogos() {
             { id: 'periodos', label: 'Períodos', endpoint: 'periodos-academicos' },
             { id: 'conceptos', label: 'Conceptos de Pago', endpoint: 'conceptos-pago' },
             { id: 'metodos', label: 'Métodos de Pago', endpoint: 'metodos-pago' },
-            { id: 'grupos-whatsapp', label: 'Grupos WhatsApp', endpoint: 'grupos-whatsapp' },
         ],
 
         dynamicOptions: {},
@@ -781,16 +746,6 @@ function catalogos() {
                         { value: 'inactivo', label: 'Inactivo' },
                     ]},
                 ],
-                'grupos-whatsapp': [
-                    { key: 'sucursal_id', label: 'Sucursal', type: 'select', required: true, optionsEndpoint: 'sucursales', optionLabel: 'nombre', optionValue: 'id' },
-                    { key: 'codigo', label: 'Código', type: 'text', required: true },
-                    { key: 'nombre', label: 'Nombre', type: 'text', required: true },
-                    { key: 'link', label: 'Link base (opcional)', type: 'text', required: false },
-                    { key: 'estado', label: 'Estado', type: 'select', required: false, options: [
-                        { value: 'activo', label: 'Activo' },
-                        { value: 'inactivo', label: 'Inactivo' },
-                    ]},
-                ],
             };
             return fields[this.activeTab] || [];
         },
@@ -815,7 +770,6 @@ function catalogos() {
                 aulas: ['sucursales'],
                 conceptos: [],
                 metodos: [],
-                'grupos-whatsapp': ['sucursales', 'periodos-academicos'],
             };
             return map[tabId] || [];
         },
@@ -875,10 +829,6 @@ function catalogos() {
                 const token = localStorage.getItem('auth_token');
                 let url = `/api/v1/catalogos-academicos/${this.currentTab.endpoint}`;
                 const params = new URLSearchParams();
-                if (this.activeTab === 'grupos-whatsapp') {
-                    if (this.grupoWhatsappFiltroSucursal) params.set('sucursal_id', this.grupoWhatsappFiltroSucursal);
-                    if (this.grupoWhatsappFiltroPeriodo) params.set('periodo_academico_id', this.grupoWhatsappFiltroPeriodo);
-                }
                 if (params.toString()) url += `?${params.toString()}`;
                 const { data } = await window.axios.get(url, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -978,10 +928,7 @@ function catalogos() {
         },
 
         async deleteItem(item) {
-            const msgs = {
-                'grupos-whatsapp': '¿Está seguro de eliminar este grupo de WhatsApp?',
-            };
-            const msg = msgs[this.activeTab] || '¿Está seguro de eliminar este registro?';
+            const msg = '¿Está seguro de eliminar este registro?';
             if (!confirm(msg)) return;
             try {
                 const token = localStorage.getItem('auth_token');

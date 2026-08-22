@@ -464,12 +464,14 @@ class EstudianteAuthController extends Controller
             ]);
 
         $whatsapp = null;
-        if ($ofertaActual && $ofertaActual->grupoWhatsapp) {
+        $whatsappLink = $ofertaActual?->whatsapp_link_periodo ?: $ofertaActual?->grupoWhatsapp?->link;
+        $whatsappGrupo = $ofertaActual?->whatsapp_grupo_nombre ?: $ofertaActual?->grupoWhatsapp?->nombre;
+        if ($ofertaActual) {
             $whatsapp = [
                 'periodo_id' => $ofertaActual->periodo_academico_id,
                 'periodo' => $ofertaActual->periodoAcademico->nombre ?? null,
-                'link' => $ofertaActual->grupoWhatsapp->link,
-                'grupo' => $ofertaActual->grupoWhatsapp->nombre,
+                'link' => $whatsappLink,
+                'grupo' => $whatsappGrupo,
                 'nivel' => $ofertaActual->nivelAcademico->nombre ?? null,
                 'horario' => $ofertaActual->horario
                     ? $ofertaActual->horario->hora_inicio . ' - ' . $ofertaActual->horario->hora_fin

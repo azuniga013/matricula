@@ -77,6 +77,13 @@ export async function grades(offerId) {
   return data.calificaciones || [];
 }
 
+export async function updateWhatsappPeriodLink(offerId, whatsapp_link_periodo) {
+  return request(`/docente-movil/ofertas/${offerId}/whatsapp-periodo`, {
+    method: 'POST',
+    body: JSON.stringify({ whatsapp_link_periodo }),
+  });
+}
+
 export async function saveAttendance(uuid, offerId, date, attendance) {
   return request('/docente-movil/sincronizar', {
     method: 'POST',

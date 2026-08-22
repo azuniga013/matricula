@@ -1,10 +1,10 @@
 # New session - 2026-07-24T20:09:55.090Z
 
-> Nota 2026-08-10: archivo histórico de trabajo y trazas de edición. No usar
+> Nota 2026-08-22: archivo histórico de trabajo y trazas de edición. No usar
 > como especificación vigente ni como lista activa de tareas. Puede contener
-> referencias obsoletas a `backend/`, `frontend/`, React u otros artefactos ya
-> descartados. Contrastar siempre con `docs/PENDIENTES.md`, `AGENTS.md` y los
-> documentos de patrón actuales.
+> referencias obsoletas a `backend/`, `frontend/`, React, `grupos_whatsapp` u
+> otros artefactos ya descartados. Contrastar siempre con `docs/PENDIENTES.md`,
+> `AGENTS.md` y los documentos de patrón actuales.
 
 **Session ID:** ses_06a40516dffeNa6Mdzs2GbnvvR
 **Created:** 24/7/2026, 14:09:55

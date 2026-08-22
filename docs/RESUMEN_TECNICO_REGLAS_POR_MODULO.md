@@ -28,6 +28,10 @@
   - `cerrado -> cancelado`
 - No se permite reabrir manualmente una oferta `cerrado -> abierto` ni
   `cancelado -> abierto`.
+- La oferta guarda directamente `whatsapp_grupo_nombre` como identidad funcional
+  del grupo y `whatsapp_link_periodo` como link vigente del período.
+- El nombre se edita en `Ofertas`; el link operativo se administra desde
+  `Mis Grupos`.
 
 ## Pagos Administrativos
 

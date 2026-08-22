@@ -47,7 +47,6 @@ return [
                 'catalogos.conceptos' => ['nombre' => 'Conceptos de Pago', 'ruta' => '/catalogos/conceptos'],
                 'catalogos.metodos' => ['nombre' => 'Métodos de Pago', 'ruta' => '/catalogos/metodos'],
                 'catalogos.planes-cobro' => ['nombre' => 'Planes de Cobro', 'ruta' => '/catalogos/planes-cobro'],
-                'catalogos.grupos-whatsapp' => ['nombre' => 'Grupos WhatsApp', 'ruta' => '/catalogos/grupos-whatsapp'],
             ],
             'acciones' => ['consultar', 'crear', 'modificar', 'eliminar'],
         ],

@@ -26,7 +26,6 @@ class DatabaseSeeder extends Seeder
             EnlacePagoSeeder::class,
             ReglaAprobacionSeeder::class,
             LibroSeeder::class,
-            GrupoWhatsappSeeder::class,
             ConfiguracionFlujoMatriculaSeeder::class,
             ParametroGlobalSeeder::class,
         ]);

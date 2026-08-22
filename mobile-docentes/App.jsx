@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Button, FlatList, KeyboardAvoidingView, Platf
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
-import { attendanceForOffer, clearBiometricCredentials, currentUser, grades, loadBiometricCredentials, login, logout, offers, saveAttendance, saveBiometricCredentials, saveGrades, students } from './src/api';
+import { attendanceForOffer, clearBiometricCredentials, currentUser, grades, loadBiometricCredentials, login, logout, offers, saveAttendance, saveBiometricCredentials, saveGrades, students, updateWhatsappPeriodLink } from './src/api';
 import { cachedAttendance, cachedGrades, cachedOffers, cachedStudents, clearLocalData, initDatabase, markError, pending, queue, removePending, replaceAttendance, replaceGrades, replaceOffers, replaceStudents } from './src/database';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -245,7 +245,30 @@ function SyncQueueScreen({ pendingRows, online, syncing, syncSummary, synchroniz
   return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>Sincronización</Text><Text style={styles.sub}>{online ? 'Con conexión disponible' : 'Sin conexión'} · {pendingRows.length} pendiente(s)</Text></View><Button title={syncing ? '...' : 'Reintentar'} disabled={syncing || !pendingRows.length} onPress={retryNow} /></View><ScrollView contentContainerStyle={styles.list}>{syncSummary ? <View style={styles.card}><Text style={styles.cardTitle}>Último resultado</Text><Text style={styles.muted}>{syncSummary.message}</Text></View> : null}{!pendingRows.length ? <View style={styles.card}><Text style={styles.cardTitle}>Sin pendientes</Text><Text style={styles.muted}>No hay operaciones locales esperando sincronización.</Text></View> : null}{pendingRows.map((item) => <View key={item.uuid} style={styles.card}><Text style={styles.cardTitle}>{item.tipo === 'asistencia' ? 'Asistencia' : 'Calificación'}</Text><Text style={styles.muted}>Resumen: {summarizePendingPayload(item)}</Text><Text style={styles.muted}>UUID: {item.uuid}</Text><Text style={styles.muted}>Oferta: {item.oferta_id}</Text><Text style={styles.muted}>Creado: {item.creado_en}</Text><Text style={styles.muted}>Reintentos: {item.reintentos}</Text><Text style={styles.muted}>Estado: {item.ultimo_error ? (String(item.ultimo_error).toLowerCase().includes('conflicto') ? 'Conflicto' : 'Con error') : 'Pendiente'}</Text>{item.ultimo_error ? <Text style={styles.muted}>Detalle: {item.ultimo_error}</Text> : null}<View style={styles.pendingActions}><Button title="Descartar" color="#b91c1c" onPress={() => discardPending(item)} /></View></View>)}</ScrollView></SafeAreaView>;
 }
 function PeriodFilter({ periods, periodId, selectPeriod }) { return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><TouchableOpacity style={[styles.chip, !periodId && styles.chipOn]} onPress={() => selectPeriod(null)}><Text>Todos</Text></TouchableOpacity>{periods.map((period) => <TouchableOpacity key={period.id} style={[styles.chip, String(periodId) === String(period.id) && styles.chipOn]} onPress={() => selectPeriod(period.id)}><Text>{period.codigo || period.nombre}</Text></TouchableOpacity>)}</ScrollView>; }
-function OfferList({ module, offers, periods, periodId, selectPeriod, open, back, sync, syncing }) { return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{module.title}</Text><Text style={styles.sub}>Seleccione período y oferta</Text></View><Button title={syncing ? '...' : 'Actualizar'} disabled={syncing} onPress={sync} /></View><PeriodFilter periods={periods} periodId={periodId} selectPeriod={selectPeriod} /><FlatList data={offers} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No hay ofertas para el período seleccionado.</Text>} renderItem={({ item }) => <TouchableOpacity style={styles.card} onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.codigo} · {item.nivel_academico?.nombre || 'Oferta'}</Text><Text style={styles.muted}>{item.periodo_academico?.nombre} · {item.horario?.nombre || 'Sin horario'}</Text></TouchableOpacity>} /></SafeAreaView>; }
+function OfferList({ module, offers, periods, periodId, selectPeriod, open, back, sync, syncing }) {
+  const [links, setLinks] = useState({});
+  const [savingId, setSavingId] = useState(null);
+
+  useEffect(() => {
+    setLinks(Object.fromEntries(offers.map((offer) => [offer.id, offer.whatsapp_link_periodo || ''])));
+  }, [offers]);
+
+  async function saveWhatsappLink(offer) {
+    setSavingId(offer.id);
+    try {
+      const updated = await updateWhatsappPeriodLink(offer.id, links[offer.id] || null);
+      offer.whatsapp_link_periodo = updated?.whatsapp_link_periodo || null;
+      setLinks((prev) => ({ ...prev, [offer.id]: offer.whatsapp_link_periodo || '' }));
+      Alert.alert('WhatsApp', 'Link del período guardado correctamente.');
+    } catch (error) {
+      Alert.alert('No se pudo guardar', error.message || 'Inténtelo de nuevo.');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{module.title}</Text><Text style={styles.sub}>Seleccione período y oferta</Text></View><Button title={syncing ? '...' : 'Actualizar'} disabled={syncing} onPress={sync} /></View><PeriodFilter periods={periods} periodId={periodId} selectPeriod={selectPeriod} /><FlatList data={offers} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No hay ofertas para el período seleccionado.</Text>} renderItem={({ item }) => <View style={styles.card}><TouchableOpacity onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.codigo} · {item.nivel_academico?.nombre || 'Oferta'}</Text><Text style={styles.muted}>{item.periodo_academico?.nombre} · {item.horario?.nombre || 'Sin horario'}</Text></TouchableOpacity>{module?.id === 'ofertas' ? <View style={styles.whatsappBox}><Text style={styles.fieldLabel}>Grupo WhatsApp</Text><Text style={styles.muted}>{item.whatsapp_grupo_nombre || 'Sin nombre configurado'}</Text><Text style={styles.fieldLabel}>Link WhatsApp del período</Text><TextInput style={styles.input} placeholder="https://chat.whatsapp.com/..." value={links[item.id] || ''} onChangeText={(value) => setLinks((prev) => ({ ...prev, [item.id]: value }))} autoCapitalize="none" autoCorrect={false} /><Button title={savingId === item.id ? 'Guardando...' : 'Guardar link'} disabled={savingId === item.id || !item.whatsapp_grupo_nombre} onPress={() => saveWhatsappLink(item)} />{!item.whatsapp_grupo_nombre ? <Text style={styles.muted}>La oferta no tiene nombre de grupo configurado.</Text> : null}</View> : null}</View>} /></SafeAreaView>;
+}
 const ATT_STATES = [
   { value: 'presente', label: 'Presente', note: 'Asistió normalmente', color: '#16a34a' },
   { value: 'falta', label: 'Falta', note: 'No asistió', color: '#dc2626' },

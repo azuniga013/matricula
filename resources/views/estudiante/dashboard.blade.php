@@ -121,7 +121,8 @@
                             <p class="font-semibold text-gray-900" x-text="'Grupo WhatsApp: ' + (portal.whatsapp.grupo || '')"></p>
                             <p class="text-sm text-gray-500" x-text="(portal.whatsapp.periodo || '') + ' · ' + (portal.whatsapp.nivel || '') + (portal.whatsapp.horario ? ' · ' + portal.whatsapp.horario : '')"></p>
                         </div>
-                        <a :href="portal.whatsapp.link" target="_blank" class="ml-auto inline-flex items-center gap-1 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors">Unirme al grupo</a>
+                        <a x-show="portal.whatsapp.link" :href="portal.whatsapp.link" target="_blank" class="ml-auto inline-flex items-center gap-1 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors">Unirme al grupo</a>
+                        <span x-show="!portal.whatsapp.link" class="ml-auto inline-flex items-center gap-1 bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm font-medium">Link no configurado</span>
                     </div>
                 </div>
             </template>

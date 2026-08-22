@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\V1\Academico\CalificacionController;
 use App\Http\Controllers\Api\V1\Academico\DepartamentoAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\DocenteMovilController;
 use App\Http\Controllers\Api\V1\Academico\DocenteController;
-use App\Http\Controllers\Api\V1\Academico\GrupoWhatsappController;
 use App\Http\Controllers\Api\V1\Academico\HistorialAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\HorarioController;
 use App\Http\Controllers\Api\V1\Academico\ModalidadController;
@@ -269,10 +268,6 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
             'parameters' => ['planes-cobro' => 'planCobro'],
         ]);
 
-        Route::apiResourceProtegido('grupos-whatsapp', GrupoWhatsappController::class, 'catalogos_academicos', [
-            'only' => ['index', 'store', 'show', 'update', 'destroy'],
-            'parameters' => ['grupos-whatsapp' => 'grupoWhatsapp'],
-        ]);
     });
 
     Route::prefix('ofertas')->group(function () {
@@ -296,6 +291,8 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
             ->middleware('permission:asistencias.crear');
         Route::get('/ofertas/{id}', [DocenteMovilController::class, 'oferta'])
             ->middleware('permission:asistencias.consultar');
+        Route::post('/ofertas/{id}/whatsapp-periodo', [DocenteMovilController::class, 'actualizarWhatsappPeriodo'])
+            ->middleware('permission:asistencias.crear');
     });
 
     Route::prefix('estudiantes')->group(function () {

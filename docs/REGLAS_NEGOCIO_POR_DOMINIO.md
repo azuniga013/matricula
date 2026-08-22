@@ -164,7 +164,7 @@ Una oferta académica es la combinación operativa de:
 
 ```text
 sucursal + periodo + plan/versión + nivel + modalidad + horario
-+ docente + aula + cupo + plan de cobro + grupo de WhatsApp
++ docente + aula + cupo + plan de cobro + identidad/link de WhatsApp
 ```
 
 - La matrícula siempre apunta a `ofertas_academicas`, nunca directamente a un
@@ -410,20 +410,15 @@ integridad transaccional.
 
 - Solo se trabaja con estudiantes cuya matrícula está `matriculado` en la
   oferta consultada.
-- El grupo de WhatsApp se maneja en dos niveles:
-  - `grupos_whatsapp` como catálogo lógico reutilizable (`codigo`, `nombre`,
-    `sucursal`), y
-  - el link operativo del período en la oferta académica.
-- La pantalla de Ofertas solo parametriza el grupo lógico. No debe capturar el
-  link operativo del período como parte del alta o edición académica normal.
+- La oferta académica conserva directamente el nombre funcional del grupo de
+  WhatsApp (`whatsapp_grupo_nombre`) y el link operativo del período
+  (`whatsapp_link_periodo`).
+- La pantalla de Ofertas define el nombre funcional del grupo. El link vigente
+  del período se administra en el flujo operativo `Mis Grupos`.
 - El docente responsable de la oferta es quien actualiza el link de WhatsApp del
-  período desde su flujo operativo (por ejemplo, al pasar lista), sin recrear
-  el código del grupo lógico.
-- Administración conserva el grupo lógico; el docente mantiene el enlace real
-  vigente de cada oferta/período. Un `SUPERADMIN` puede corregirlo de forma
+  período desde su flujo operativo; un `SUPERADMIN` puede corregirlo de forma
   excepcional.
-- El portal del estudiante debe resolver primero el link del período de la
-  oferta y solo usar el link base del grupo como respaldo histórico.
+- El portal del estudiante solo resuelve los datos directos de la oferta.
 - Una asistencia identifica matrícula, oferta y fecha de clase. Solo puede
   existir una por matrícula y fecha; un nuevo registro corrige el anterior.
 - Los estados de asistencia son `presente`, `falta`, `justificada` y
