@@ -58,6 +58,12 @@ El permiso funcional se complementa con un alcance calculado:
 - Propio: se filtra por `creado_por` o propietario funcional.
 - Alumno: se filtra por estudiante asociado al acceso autenticado.
 - Docente: se filtra por `ofertas_academicas.docente_id` del usuario.
+- Un usuario administrativo puede tener una o varias sucursales asignadas. Si
+  tiene varias, el alcance efectivo es la unión de esas sucursales; si tiene
+  una sola, queda limitado a esa sucursal.
+- La parametrización operativa de sucursales por usuario se realiza desde
+  Seguridad y persiste en `usuario_sucursales`. No debe usarse `users.sucursal_id`
+  como sustituto del alcance efectivo.
 
 El alcance se resuelve en un servicio central y nunca se delega al frontend. El rol `SUPERVISOR` es un rol inicial con permisos y alcance global configurables; no debe existir una excepción fija por nombre de rol.
 

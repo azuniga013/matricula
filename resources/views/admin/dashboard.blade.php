@@ -249,7 +249,7 @@ function dashboard() {
                 const headers = { Authorization: `Bearer ${token}` };
 
                 const [matRes, ofertasRes, pagosRes, periodosRes, sucRes] = await Promise.allSettled([
-                    window.axios.get('/api/v1/matriculas', { headers }),
+                    window.axios.get('/api/v1/matriculas?estado=matriculado&per_page=1', { headers }),
                     window.axios.get('/api/v1/ofertas/academicas', { headers }),
                     window.axios.get('/api/v1/pagos?estado=pendiente', { headers }),
                     window.axios.get('/api/v1/catalogos-academicos/periodos-academicos', { headers }),
@@ -257,7 +257,11 @@ function dashboard() {
                 ]);
 
                 if (matRes.status === 'fulfilled' && matRes.value.data.resultado === 'A') {
-                    this.stats.matriculados = matRes.value.data.data.total || matRes.value.data.data.length || 0;
+                    const matriculas = matRes.value.data.data;
+                    const items = matriculas.data || matriculas || [];
+                    this.stats.matriculados = Number.isInteger(matriculas.total)
+                        ? matriculas.total
+                        : items.filter(m => m.estado === 'matriculado').length;
                 }
                 if (ofertasRes.status === 'fulfilled' && ofertasRes.value.data.resultado === 'A') {
                     const ofertas = ofertasRes.value.data.data.data || ofertasRes.value.data.data || [];

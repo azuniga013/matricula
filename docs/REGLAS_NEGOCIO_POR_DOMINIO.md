@@ -171,6 +171,16 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
   nivel, horario o modalidad.
 - Una oferta debe estar en estado `abierto` para admitir matrícula.
 - Una oferta llena no se muestra como disponible ni admite nuevas reservas.
+- Los estados funcionales de la oferta son `borrador`, `abierto`, `lleno`,
+  `cerrado` y `cancelado`.
+- `lleno` es un estado automático: no debe asignarse manualmente desde la
+  operación normal. Se produce cuando el cupo disponible llega a `0` y puede
+  volver a `abierto` al liberarse cupo.
+- Las transiciones manuales permitidas son: `borrador -> abierto`,
+  `borrador -> cancelado`, `abierto -> cerrado`, `abierto -> cancelado`,
+  `lleno -> cerrado`, `lleno -> cancelado` y `cerrado -> cancelado`.
+- No se debe reabrir manualmente una oferta `cerrado -> abierto` ni permitir
+  `cancelado -> abierto` como operación ordinaria.
 - El cupo disponible se calcula como:
 
   ```text
@@ -202,9 +212,21 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
   matrícula. No se guarda un plan directo en el estudiante.
 - Antes de reservar o confirmar validar oferta abierta, cupo, prerrequisitos y
   conflictos de horario.
+- Para reservar el siguiente nivel no basta con haber tenido matrícula previa.
+  El prerrequisito solo se considera cumplido cuando el nivel anterior está
+  aprobado académicamente (`historial_academico` aprobado, calificación
+  aprobada real o nivelación aprobada) y, cuando aplica, también finalizado
+  administrativamente.
+- Finalización administrativa significa que la matrícula del nivel previo ya no
+  tiene obligaciones en estado `pendiente` o `parcial`. Haber pagado solo una
+  parte, o estar únicamente `matriculado`, no habilita el avance.
 - La reserva crea las obligaciones de pago a partir del plan de cobro de la
   oferta. Si no hay plan o detalles activos cuando el flujo lo exige, la
   operación no debe dejar una reserva incompleta.
+- Una oferta académica no debe crearse ni mantenerse operativa sin
+  `plan_cobro_id`. Si el plan de cobro no está activo o no tiene detalles
+  activos, la reserva debe rechazarse antes de crear matrícula, cupo u
+  obligaciones.
 - Las obligaciones conservan una fotografía histórica del concepto, nombre del
   cargo, monto, número de cuota, vencimiento y estado inicial.
 - La combinación matrícula + número de cuota es única. Reintentar una reserva
@@ -248,6 +270,14 @@ Seleccionar estudiante y oferta
   inmediatamente. En ese caso aplica el pago a obligaciones, confirma la
   matrícula si corresponde, mueve el cupo reservado a matriculado y genera el
   recibo si `habilita_generacion_recibo` está activo.
+- **Sesión de caja obligatoria para administración:** ningún pago aprobado
+  desde el Portal Académico puede registrarse o aprobarse si el usuario no
+  tiene una sesión de caja `abierta` en la misma sucursal del pago. Tener una
+  sesión abierta en otra sucursal no satisface la regla.
+- **Efectivo en administración:** para método `EFE`, el sistema debe pedir el
+  total a pagar, el `monto_recibido` y calcular el `vuelto`. El monto recibido
+  no puede ser menor al total y ambos valores deben quedar persistidos para
+  auditoría y consulta posterior.
 - **Aprobación posterior:** requiere `pagos.aprobar` y
   `habilita_aprobacion_pago`. Se usa para pagos que están `pendiente` o
   `en_revision` y completa los mismos efectos contables y académicos del flujo.
@@ -334,6 +364,10 @@ integridad transaccional.
   matrícula es obligatoria cuando el concepto se aplica a una matrícula.
 - Los estados de pago usados por el flujo son `pendiente`, `en_revision`,
   `solicita_link`, `aprobado`, `rechazado` y `cancelado`.
+- El flujo de link usa la secuencia `solicita_link -> esperando_respuesta ->
+  en_revision -> aprobado`. Cargar el enlace no debe mover el pago
+  directamente a revisión: primero debe quedar pendiente de confirmación del
+  estudiante.
 - Un pago en revisión necesita comprobante cuando la configuración del flujo lo
   exige. Contabilidad puede aprobarlo o rechazarlo con motivo.
 - Al aprobar un pago se aplican sus importes a obligaciones pendientes, se
@@ -349,6 +383,8 @@ integridad transaccional.
   no debe convertirse silenciosamente en aprobación.
 - Todo pago por depósito o transferencia debe indicar una cuenta bancaria activa
   de la institución; el pago conserva esa cuenta para su revisión y auditoría.
+- Todo pago en efectivo registrado desde administración debe conservar también
+  `monto_recibido` y `vuelto` cuando aplique.
 - Un recibo emitido no se edita directamente. Las correcciones usan anulación,
   reversión o ajuste autorizado.
 - Los únicos estados de recibo son `emitido`, `anulado` y `reversado`.
@@ -453,12 +489,17 @@ registros asociados al estudiante identificado por `auth.estudiante`.
 - No permitir pagar una obligación que no pertenezca a la matrícula indicada ni
   a la cuenta del estudiante autenticado.
 - Validar método de pago, referencia, fecha y reglas específicas del método.
+- Para `DEP` y `TRA`, el portal y la administración deben exigir referencia,
+  fecha de pago y una cuenta bancaria activa de la institución.
 - Evitar solicitudes duplicadas para las mismas obligaciones cuando ya exista
   una solicitud activa (`solicita_link`, `esperando_respuesta` o `en_revision`).
 - Los comprobantes aceptan JPG, JPEG, PNG o PDF, con máximo de 10 MB, según la
   validación actual. Al cargarlos, el pago pasa a `en_revision`.
 - El estudiante puede eliminar o corregir un pago propio únicamente mientras
   el flujo lo permita; nunca puede borrar pagos aprobados ni recibos emitidos.
+- En producción, la eliminación de pagos desde el portal del estudiante puede
+  deshabilitarse completamente por política operativa, aunque el flujo exista
+  en otros entornos de validación.
 - La aprobación la realiza el Portal Académico. El estudiante no puede cambiar
   estados contables, aplicar pagos manualmente ni emitir recibos.
 

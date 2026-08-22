@@ -249,6 +249,20 @@ class OfertaAcademicaTest extends TestCase
             ->assertJsonPath('resultado', 'R');
     }
 
+    public function test_no_permite_reabrir_manual_una_oferta_cerrada(): void
+    {
+        $oferta = OfertaAcademica::create($this->ofertaData([
+            'estado' => 'cerrado',
+        ]));
+
+        $this->postJson("/api/v1/ofertas/academicas/{$oferta->id}", [
+            'estado' => 'abierto',
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('mensaje', 'No se permite cambiar una oferta en estado cerrado a abierto manualmente.');
+    }
+
     public function test_monitor_cupos(): void
     {
         OfertaAcademica::create($this->ofertaData([

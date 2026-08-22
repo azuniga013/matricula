@@ -74,3 +74,26 @@ Las pruebas fuerzan SQLite en memoria, `RefreshDatabase`, cola síncrona y corre
 - `docs/API_*.md`: contratos funcionales de cada módulo.
 - `docs/PRUEBAS_ACEPTACION_RESPONSIVE.md`: criterios de aceptación de interfaz.
 - `docs/DESPLIEGUE_SMARTERASP.md` contiene referencias antiguas a `backend/`/React; verificar siempre la configuración y los workflows antes de seguir esas rutas literalmente.
+
+## Orden de consulta documental
+
+Usar este orden para resolver dudas antes de cambiar código:
+
+1. `docs/REGLAS_NEGOCIO_POR_DOMINIO.md`
+   Regla funcional principal. Si una decisión afecta matrícula, pagos, ofertas,
+   portal, caja o reportes, confirmar aquí primero.
+2. `docs/RESUMEN_TECNICO_REGLAS_POR_MODULO.md`
+   Resumen rápido por módulo de las reglas ya cerradas e implementadas.
+3. `docs/ARQUITECTURA_RBAC.md`
+   Fuente de verdad para permisos, alcance, multi-sucursal y denegación por
+   defecto.
+4. `docs/OBLIGACIONES_PAGO_MATRICULA.md`
+   Fuente puntual para plan de cobro, generación de obligaciones y reservas.
+5. `docs/API_PAGOS.md`
+   Fuente puntual para pagos administrativos, efectivo, link de pago y sesión
+   de caja.
+6. `docs/PENDIENTES.md`
+   Registro operativo de fixes recientes, decisiones vigentes y evidencia.
+
+No usar como fuente principal `docs/avance.md`, `docs/spec-feed-planCobro.md`
+ni documentos históricos fechados; sirven solo como contexto o auditoría.

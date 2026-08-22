@@ -4,6 +4,9 @@ Al crear por primera vez una reserva mediante `POST /api/v1/matriculas/reservar`
 
 La generación ocurre dentro de la misma transacción que reserva el cupo. Si el plan de cobro no está activo o no tiene detalles activos, la reserva se revierte.
 
+La oferta académica debe tener `plan_cobro_id` configurado. No debe admitirse
+una reserva sobre una oferta sin plan de cobro operativo.
+
 Por cada detalle activo del plan se conserva en `obligaciones_pago_estudiante`:
 
 - Concepto de pago.

@@ -167,6 +167,17 @@ class OfertaAcademicaController extends Controller
             }
         }
 
+        if (isset($datos['estado']) && $datos['estado'] !== $ofertaAcademica->estado) {
+            $permitidos = $this->transicionesManualesPermitidas()[$ofertaAcademica->estado] ?? [];
+            if (! in_array($datos['estado'], $permitidos, true)) {
+                return response()->json([
+                    'resultado' => 'R',
+                    'codigo' => 422,
+                    'mensaje' => "No se permite cambiar una oferta en estado {$ofertaAcademica->estado} a {$datos['estado']} manualmente.",
+                ], 422);
+            }
+        }
+
         $ofertaAcademica->update($datos);
 
         if ($ofertaAcademica->estado !== 'cancelado') {
@@ -189,5 +200,16 @@ class OfertaAcademicaController extends Controller
             'mensaje' => 'Oferta académica actualizada exitosamente',
             'data' => $ofertaAcademica,
         ]);
+    }
+
+    private function transicionesManualesPermitidas(): array
+    {
+        return [
+            'borrador' => ['abierto', 'cancelado'],
+            'abierto' => ['cerrado', 'cancelado'],
+            'lleno' => ['cerrado', 'cancelado'],
+            'cerrado' => ['cancelado'],
+            'cancelado' => [],
+        ];
     }
 }

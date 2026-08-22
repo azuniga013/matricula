@@ -229,11 +229,9 @@
                     <div>
                         <label class="label">Estado</label>
                         <select x-model="form.estado" class="input">
-                            <option value="borrador">Borrador</option>
-                            <option value="abierto">Abierto</option>
-                            <option value="lleno">Lleno</option>
-                            <option value="cerrado">Cerrado</option>
-                            <option value="cancelado">Cancelado</option>
+                            <template x-for="estado in estadosDisponiblesFormulario()" :key="estado.value">
+                                <option :value="estado.value" x-text="estado.label"></option>
+                            </template>
                         </select>
                     </div>
                 </div>
@@ -272,6 +270,31 @@ function ofertas() {
         get nivelesForm() {
             if (!this.form.version_plan_estudio_id) return this.niveles;
             return this.niveles.filter(n => String(n.version_plan_estudio_id) === String(this.form.version_plan_estudio_id));
+        },
+
+        estadosDisponiblesFormulario() {
+            const etiquetas = {
+                borrador: 'Borrador',
+                abierto: 'Abierto',
+                lleno: 'Lleno',
+                cerrado: 'Cerrado',
+                cancelado: 'Cancelado',
+            };
+
+            if (!this.editing) {
+                return ['borrador', 'abierto', 'cancelado'].map(value => ({ value, label: etiquetas[value] }));
+            }
+
+            const transiciones = {
+                borrador: ['borrador', 'abierto', 'cancelado'],
+                abierto: ['abierto', 'cerrado', 'cancelado'],
+                lleno: ['lleno', 'cerrado', 'cancelado'],
+                cerrado: ['cerrado', 'cancelado'],
+                cancelado: ['cancelado'],
+            };
+
+            const estados = transiciones[this.form.estado] || ['borrador'];
+            return estados.map(value => ({ value, label: etiquetas[value] }));
         },
 
         onVersionChange() {
