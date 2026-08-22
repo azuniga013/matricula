@@ -116,7 +116,7 @@ class ReciboCajaController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $recibo = ReciboCaja::with([
-            'pago:id,codigo,estudiante_id,metodo_pago_id,monto,estado,referencia_externa,fecha_proceso,fecha_deposito,fecha_aprobacion,creado_en',
+            'pago:id,codigo,estudiante_id,metodo_pago_id,monto,monto_recibido,vuelto,estado,referencia_externa,fecha_proceso,fecha_deposito,fecha_aprobacion,creado_en',
             'estudiante:id,codigo,nombre,apellido,correo,telefono',
             'conceptoPago:id,codigo,nombre',
             'metodoPago:id,codigo,nombre',

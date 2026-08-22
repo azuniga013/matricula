@@ -468,6 +468,12 @@
                                 La selección de obligaciones está deshabilitada para este flujo. Se aplicarán todas las obligaciones pendientes.
                             </div>
                         </template>
+                        <div class="bg-gray-50 rounded-lg p-3 text-sm space-y-1 mb-4">
+                            <div class="flex justify-between"><span class="text-gray-500">Total a pagar</span><span class="font-semibold">L <span x-text="fmtMontoPago(pagoTotalSeleccionado)"></span></span></div>
+                            <template x-if="pagoEsEfectivo">
+                                <div class="flex justify-between"><span class="text-gray-500">Vuelto</span><span class="font-semibold text-emerald-700">L <span x-text="fmtMontoPago(pagoVueltoCalculado)"></span></span></div>
+                            </template>
+                        </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
@@ -493,6 +499,10 @@
                             <div class="col-span-2">
                                 <label class="label">Referencia</label>
                                 <input x-model="pagoForm.referencia_externa" type="text" class="input" placeholder="N° depósito/transferencia (opcional)">
+                            </div>
+                            <div class="col-span-2" x-show="pagoEsEfectivo">
+                                <label class="label">Monto recibido (L) *</label>
+                                <input x-model.number="pagoForm.monto_recibido" type="number" step="0.01" min="0" :required="pagoEsEfectivo" class="input">
                             </div>
                         </div>
 
@@ -600,7 +610,7 @@ function matriculas() {
         // Pago desde matrícula
         showModalPago: false, savingPago: false, errorPago: '',
         pagoMatricula: null, pagoObligacionesIds: [],
-        pagoForm: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '' },
+        pagoForm: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '', monto_recibido: '' },
         flujoPagoMatricula: null,
         metodosPago: [],
         cuentasBancarias: [],
@@ -871,7 +881,7 @@ function matriculas() {
             if (!this.flujo.habilita_revision_contable) return;
             this.pagoMatricula = null;
             this.pagoObligacionesIds = [];
-            this.pagoForm = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '' };
+            this.pagoForm = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia_externa: '', monto_recibido: '' };
             this.errorPago = '';
             this.flujoPagoMatricula = null;
             this.showModalPago = true;
@@ -901,9 +911,9 @@ function matriculas() {
                     c.origen === 'portal_administrativo' &&
                     (!conceptoId || String(c.concepto_pago_id) === String(conceptoId)) &&
                     (!metodoId || !c.metodo_pago_id || String(c.metodo_pago_id) === String(metodoId))
-                ) || null;
+                ) || this.flujo;
             } catch (e) {
-                this.flujoPagoMatricula = null;
+                this.flujoPagoMatricula = this.flujo;
             }
         },
 
@@ -912,9 +922,29 @@ function matriculas() {
             this.pagoObligacionesIds = (this.pagoMatricula?.obligaciones || []).map(o => o.id);
         },
 
+        get pagoEsEfectivo() {
+            const metodo = this.metodosPago.find(x => x.id == this.pagoForm.metodo_pago_id);
+            return metodo?.codigo === 'EFE';
+        },
+
+        get pagoTotalSeleccionado() {
+            return (this.pagoMatricula?.obligaciones || [])
+                .filter(o => this.pagoObligacionesIds.includes(o.id))
+                .reduce((s, o) => s + Number(o.monto || 0) - Number(o.monto_pagado || 0), 0);
+        },
+
+        get pagoVueltoCalculado() {
+            if (!this.pagoEsEfectivo) return 0;
+            const recibido = Number(this.pagoForm.monto_recibido || 0);
+            return recibido > this.pagoTotalSeleccionado ? (recibido - this.pagoTotalSeleccionado) : 0;
+        },
+
         onPagoMetodoChange() {
             if (!this.requiereCuentaBancaria(this.pagoForm.metodo_pago_id)) {
                 this.pagoForm.cuenta_bancaria_id = '';
+            }
+            if (!this.pagoEsEfectivo) {
+                this.pagoForm.monto_recibido = '';
             }
             this.cargarFlujoPagoMatricula();
         },
@@ -948,6 +978,7 @@ function matriculas() {
                     metodo_pago_id: this.pagoForm.metodo_pago_id,
                     cuenta_bancaria_id: this.pagoForm.cuenta_bancaria_id || null,
                     monto: montoTotal,
+                    monto_recibido: this.pagoEsEfectivo ? (this.pagoForm.monto_recibido || null) : null,
                     fecha_proceso: window.toLocalDateInput(),
                     referencia_externa: this.pagoForm.referencia_externa || '',
                     obligaciones: obligacionesDetalle,

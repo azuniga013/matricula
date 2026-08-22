@@ -8,11 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('notificaciones_asistencia')) {
+            return;
+        }
+
         Schema::create('notificaciones_asistencia', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('asistencia_estudiante_id')->constrained('asistencias_estudiante');
-            $table->foreignId('contacto_responsable_estudiante_id')->constrained('contactos_responsable_estudiante');
-            $table->foreignId('estudiante_id')->constrained('estudiantes');
+            $table->foreignId('asistencia_estudiante_id')->constrained('asistencias_estudiante', indexName: 'notif_asist_asistencia_fk');
+            $table->foreignId('contacto_responsable_estudiante_id')->constrained('contactos_responsable_estudiante', indexName: 'notif_asist_contacto_fk');
+            $table->foreignId('estudiante_id')->constrained('estudiantes', indexName: 'notif_asist_estudiante_fk');
             $table->string('canal', 20)->comment('email, whatsapp');
             $table->string('tipo', 30)->comment('falta, tardanza');
             $table->string('clave_idempotente', 191)->unique();

@@ -23,6 +23,7 @@ use App\Models\Permiso;
 use App\Models\PlanCobro;
 use App\Models\PlanEstudio;
 use App\Models\Rol;
+use App\Models\SesionCaja;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VersionPlanEstudio;
@@ -74,6 +75,14 @@ class PagoConsistenciaTransicionesTest extends TestCase
         $this->token = $this->admin->createToken('test')->plainTextToken;
 
         $sucursal = Sucursal::factory()->create(['codigo' => 'SPS']);
+        SesionCaja::create([
+            'codigo' => 'SCA-TEST-PCS',
+            'sucursal_id' => $sucursal->id,
+            'usuario_cajero_id' => $this->admin->id,
+            'monto_inicial' => 100,
+            'estado' => 'abierta',
+            'fecha_apertura' => now(),
+        ]);
         $this->estudiante = Estudiante::factory()->create(['sucursal_id' => $sucursal->id, 'estado' => 'activo']);
 
         $rawToken = Str::random(60);
@@ -234,6 +243,7 @@ class PagoConsistenciaTransicionesTest extends TestCase
             'concepto_pago_id' => $this->conceptoMatId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 1200,
+            'monto_recibido' => 1200,
             'solicitar_link' => true,
         ], $this->adminHeaders());
 
@@ -251,6 +261,7 @@ class PagoConsistenciaTransicionesTest extends TestCase
             'concepto_pago_id' => $this->conceptoCuoId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 1100,
+            'monto_recibido' => 1100,
             'obligaciones' => [
                 ['obligacion_id' => $this->obligacionCuoId, 'monto_aplicado' => 1100],
             ],

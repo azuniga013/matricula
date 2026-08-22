@@ -167,6 +167,8 @@ class PagoController extends Controller
             'metodo_pago_id' => 'required|exists:metodos_pago,id',
             'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'monto' => 'required|numeric|min:0.01',
+            'monto_recibido' => 'nullable|numeric|min:0.01',
+            'vuelto' => 'nullable|numeric|min:0',
             'fecha_proceso' => 'nullable|date',
             'referencia_externa' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string|max:500',

@@ -628,6 +628,8 @@
                         <div><span class="text-gray-400 block">Sucursal</span><span x-text="reciboSeleccionado?.sucursal?.nombre || '-'"></span></div>
                         <div><span class="text-gray-400 block">Fecha</span><span x-text="fmtFecha(reciboSeleccionado?.fecha_recibo || reciboSeleccionado?.fecha_proceso || reciboSeleccionado?.pago?.fecha_proceso || reciboSeleccionado?.pago?.fecha_aprobacion || reciboSeleccionado?.creado_en)"></span></div>
                         <div><span class="text-gray-400 block">Hora</span><span class="text-gray-500" x-text="fmtHora(reciboSeleccionado?.fecha_recibo || reciboSeleccionado?.fecha_proceso || reciboSeleccionado?.pago?.fecha_proceso || reciboSeleccionado?.pago?.fecha_aprobacion || reciboSeleccionado?.creado_en)"></span></div>
+                        <div x-show="reciboSeleccionado?.pago?.monto_recibido !== null && reciboSeleccionado?.pago?.monto_recibido !== undefined"><span class="text-gray-400 block">Monto recibido</span><span>L <span x-text="fmtMonto(reciboSeleccionado?.pago?.monto_recibido)"></span></span></div>
+                        <div x-show="reciboSeleccionado?.pago?.vuelto !== null && reciboSeleccionado?.pago?.vuelto !== undefined"><span class="text-gray-400 block">Vuelto</span><span>L <span x-text="fmtMonto(reciboSeleccionado?.pago?.vuelto)"></span></span></div>
                         <div><span class="text-gray-400 block">Reimpresiones</span><span x-text="reciboSeleccionado?.veces_reimpreso || 0"></span></div>
                     </div>
 
@@ -706,6 +708,8 @@
                     <div><span class="text-gray-400">Concepto</span><p x-text="detallePago?.concepto_pago?.codigo + ' — ' + detallePago?.concepto_pago?.nombre"></p></div>
                     <div><span class="text-gray-400">Método</span><p x-text="detallePago?.metodo_pago?.nombre || '-'"></p></div>
                     <div><span class="text-gray-400">Monto</span><p class="font-semibold text-lg">L <span x-text="fmtMonto(detallePago?.monto)"></span></p></div>
+                    <div x-show="detallePago?.monto_recibido !== null && detallePago?.monto_recibido !== undefined"><span class="text-gray-400">Monto recibido</span><p>L <span x-text="fmtMonto(detallePago?.monto_recibido)"></span></p></div>
+                    <div x-show="detallePago?.vuelto !== null && detallePago?.vuelto !== undefined"><span class="text-gray-400">Vuelto</span><p>L <span x-text="fmtMonto(detallePago?.vuelto)"></span></p></div>
                     <div><span class="text-gray-400">Referencia</span><p x-text="detallePago?.referencia_externa || '-'"></p></div>
                     <div><span class="text-gray-400">Sucursal</span><p x-text="detallePago?.sucursal?.nombre || '-'"></p></div>
                     <div><span class="text-gray-400">Fecha depósito</span><p x-text="fmtFecha(detallePago?.fecha_deposito) || '-'"></p></div>
@@ -1122,6 +1126,7 @@ function pagos() {
                 const payload = { ...this.form };
                 payload.solicitar_link = !!payload.solicitar_link;
                 if (!this.flujo.habilita_solicitud_link) payload.solicitar_link = false;
+                if (!this.esEfectivo) payload.monto_recibido = null;
                 if (this.esMATCUO && this.obligacionesSeleccionadas.length > 0) {
                     const seleccionadas = this.obligacionesPendientes.filter(o => this.obligacionesSeleccionadas.includes(String(o.id)));
                     payload.matricula_id = seleccionadas[0]?.matricula_id || null;

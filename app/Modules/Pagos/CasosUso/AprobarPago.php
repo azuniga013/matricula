@@ -31,6 +31,14 @@ final class AprobarPago
 
             $usuarioId = $contexto->usuarioId();
 
+            if (! $this->efectos->obtenerSesionCajaAbierta((int) $pago->sucursal_id, $usuarioId)) {
+                return ResultadoCasoUso::error(
+                    422,
+                    'Debe abrir una sesión de caja antes de aprobar pagos administrativos.',
+                    '422_SESION_CAJA_REQUERIDA'
+                );
+            }
+
             $this->repositorio->aprobar($pago, $usuarioId);
             $this->efectos->asignarSesionCajaSiHaceFalta($pago, $usuarioId);
             $this->efectos->confirmarMatriculaSiCorresponde($pago, $usuarioId);

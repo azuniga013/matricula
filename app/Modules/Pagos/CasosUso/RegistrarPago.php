@@ -38,6 +38,12 @@ final class RegistrarPago
             return ResultadoCasoUso::error(422, 'Debe seleccionar una cuenta bancaria activa para pagos por depósito o transferencia.', '422_CUENTA_BANCARIA_REQUERIDA');
         }
 
+        $monto = (float) ($datos['monto'] ?? 0);
+        [$montoRecibido, $vuelto, $errorEfectivo] = $this->validarMontosEfectivo($metodo, $monto, $datos);
+        if ($errorEfectivo) {
+            return ResultadoCasoUso::error(422, $errorEfectivo['mensaje'], $errorEfectivo['codigo_error']);
+        }
+
         $concepto = ConceptoPago::findOrFail($datos['concepto_pago_id']);
         $configFlujo = $this->resolutorFlujo->resolver(
             'portal_administrativo',
@@ -76,9 +82,17 @@ final class RegistrarPago
         $usuarioId = $contexto->usuarioId();
 
         try {
-            $guardado = DB::transaction(function () use ($datos, $cuentaBancaria, $solicitaLink, $usuarioId, $concepto, $configFlujo) {
+            $guardado = DB::transaction(function () use ($datos, $cuentaBancaria, $solicitaLink, $usuarioId, $concepto, $configFlujo, $monto, $montoRecibido, $vuelto) {
                 $estudiante = Estudiante::findOrFail($datos['estudiante_id']);
                 $fechaProceso = Carbon::parse($datos['fecha_proceso'] ?? now());
+
+                if (! $solicitaLink && ! $this->efectos->obtenerSesionCajaAbierta((int) $estudiante->sucursal_id, $usuarioId)) {
+                    return ResultadoCasoUso::error(
+                        422,
+                        'Debe abrir una sesión de caja antes de registrar pagos administrativos.',
+                        '422_SESION_CAJA_REQUERIDA'
+                    );
+                }
 
                 $resultadoCodigo = $this->nomenclatura->generarCodigo(
                     entidad: 'pagos_'.date('Y'),
@@ -95,7 +109,9 @@ final class RegistrarPago
                     'metodo_pago_id' => $datos['metodo_pago_id'] ?? null,
                     'cuenta_bancaria_id' => $cuentaBancaria?->id,
                     'sucursal_id' => $estudiante->sucursal_id,
-                    'monto' => $datos['monto'],
+                    'monto' => $monto,
+                    'monto_recibido' => $montoRecibido,
+                    'vuelto' => $vuelto,
                     'estado' => $solicitaLink ? 'solicita_link' : 'aprobado',
                     'referencia_externa' => $datos['referencia_externa'] ?? null,
                     'observaciones' => $datos['observaciones'] ?? null,
@@ -126,6 +142,10 @@ final class RegistrarPago
             return ResultadoCasoUso::error(422, $e->getMessage(), '422_INVENTARIO_INSUFICIENTE');
         }
 
+        if ($guardado instanceof ResultadoCasoUso) {
+            return $guardado;
+        }
+
         return ResultadoCasoUso::exito(
             $solicitaLink ? 'Pago registrado en solicitud de link' : 'Pago registrado y aprobado',
             $guardado,
@@ -144,5 +164,25 @@ final class RegistrarPago
         }
 
         return CuentaBancaria::activas()->find($cuentaBancariaId) ?: false;
+    }
+
+    private function validarMontosEfectivo(?MetodoPago $metodo, float $monto, array $datos): array
+    {
+        if (! $metodo || $metodo->codigo !== 'EFE') {
+            return [null, null, null];
+        }
+
+        if (! array_key_exists('monto_recibido', $datos) || $datos['monto_recibido'] === null || $datos['monto_recibido'] === '') {
+            return [null, null, ['mensaje' => 'Debe ingresar el monto recibido para pagos en efectivo.', 'codigo_error' => '422_MONTO_RECIBIDO_REQUERIDO']];
+        }
+
+        $montoRecibido = (float) $datos['monto_recibido'];
+        if ($montoRecibido < $monto) {
+            return [null, null, ['mensaje' => 'El monto recibido no puede ser menor al total del pago.', 'codigo_error' => '422_MONTO_RECIBIDO_INSUFICIENTE']];
+        }
+
+        $vueltoCalculado = round($montoRecibido - $monto, 2);
+
+        return [$montoRecibido, $vueltoCalculado, null];
     }
 }

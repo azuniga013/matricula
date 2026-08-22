@@ -532,8 +532,8 @@
                                 <template x-for="v in versiones" :key="v.id">
                                     <tr>
                                         <td class="font-mono font-semibold" x-text="'v' + v.numero_version"></td>
-                                        <td x-text="v.vigente_desde"></td>
-                                        <td x-text="v.vigente_hasta || '-'"></td>
+                                        <td x-text="formatearFecha(v.vigente_desde)"></td>
+                                        <td x-text="v.vigente_hasta ? formatearFecha(v.vigente_hasta) : '-'"></td>
                                         <td><span :class="v.estado === 'activo' ? 'badge-success' : 'badge-danger'" class="badge" x-text="v.estado"></span></td>
                                         <td class="text-right"><button @click="editVersion(v)" class="btn btn-ghost btn-sm">Editar</button></td>
                                     </tr>

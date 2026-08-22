@@ -90,6 +90,16 @@ class PagoTest extends TestCase
         ]);
 
         $this->sucursal = Sucursal::factory()->create(['codigo' => 'SPS']);
+        DB::table('sesiones_caja')->insert([
+            'codigo' => 'SCA-TEST-001',
+            'sucursal_id' => $this->sucursal->id,
+            'usuario_cajero_id' => $this->admin->id,
+            'monto_inicial' => 100.00,
+            'estado' => 'abierta',
+            'fecha_apertura' => now(),
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
 
         $this->conceptoMatId = DB::table('conceptos_pago')->insertGetId([
             'codigo' => 'MAT', 'nombre' => 'Matrícula', 'tipo_monto' => 'por_oferta',
@@ -189,6 +199,7 @@ class PagoTest extends TestCase
             'concepto_pago_id' => $this->conceptoMatId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 1200.00,
+            'monto_recibido' => 1200.00,
         ], $this->headers());
 
         $response->assertCreated()
@@ -204,6 +215,54 @@ class PagoTest extends TestCase
             'pago_id' => $response->json('data.id'),
             'estado' => 'emitido',
         ]);
+    }
+
+    public function test_efectivo_requiere_monto_recibido_y_guarda_vuelto(): void
+    {
+        $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('codigo_error', '422_MONTO_RECIBIDO_REQUERIDO');
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+            'monto_recibido' => 1500.00,
+        ], $this->headers());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.monto_recibido', '1500.00')
+            ->assertJsonPath('data.vuelto', '300.00');
+
+        $this->assertDatabaseHas('pagos', [
+            'id' => $response->json('data.id'),
+            'monto_recibido' => 1500.00,
+            'vuelto' => 300.00,
+        ]);
+    }
+
+    public function test_registrar_pago_administrativo_requiere_sesion_de_caja_abierta(): void
+    {
+        DB::table('sesiones_caja')->delete();
+
+        $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'monto' => 1200.00,
+            'monto_recibido' => 1200.00,
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('codigo_error', '422_SESION_CAJA_REQUERIDA');
     }
 
     public function test_deposito_requiere_cuenta_bancaria_activa_y_la_conserva_en_el_pago(): void
@@ -710,6 +769,7 @@ class PagoTest extends TestCase
             'concepto_pago_id' => $this->conceptoMatId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 1200.00,
+            'monto_recibido' => 1200.00,
         ], new ContextoUsuario($this->admin->id));
 
         $this->assertTrue($resultado->ok());
@@ -855,6 +915,7 @@ class PagoTest extends TestCase
             'concepto_pago_id' => $conceptoVliId,
             'metodo_pago_id' => $this->metodoEfeId,
             'monto' => 350.00,
+            'monto_recibido' => 350.00,
             'inventario_libro_id' => $inventario->id,
             'cantidad_libro' => 2,
         ], $this->headers());

@@ -20,7 +20,7 @@ class Pago extends Model
     protected $fillable = [
         'codigo', 'estudiante_id', 'matricula_id', 'concepto_pago_id',
         'metodo_pago_id', 'cuenta_bancaria_id', 'proveedor_pago_id', 'transaccion_id', 'procesador_respuesta',
-        'sucursal_id', 'sesion_caja_id', 'monto', 'fecha_proceso', 'fecha_deposito', 'estado', 'referencia_externa',
+        'sucursal_id', 'sesion_caja_id', 'monto', 'monto_recibido', 'vuelto', 'fecha_proceso', 'fecha_deposito', 'estado', 'referencia_externa',
         'alerta_duplicado', 'alerta_duplicado_mensaje', 'alerta_duplicado_en',
         'link_pago_url', 'link_pago_estado', 'link_generado_por', 'link_generado_en',
         'confirmado_por_estudiante_id', 'confirmado_por_estudiante_en',
@@ -33,6 +33,8 @@ class Pago extends Model
     {
         return [
             'monto' => 'decimal:2',
+            'monto_recibido' => 'decimal:2',
+            'vuelto' => 'decimal:2',
             'fecha_proceso' => 'datetime',
             'fecha_deposito' => 'datetime',
             'fecha_aprobacion' => 'datetime',

@@ -14,17 +14,22 @@ use App\Modules\Pagos\Exceptions\InventarioInsuficienteException;
 
 final class AplicadorEfectosPago
 {
+    public function obtenerSesionCajaAbierta(int $sucursalId, int $usuarioId): ?SesionCaja
+    {
+        return SesionCaja::where('sucursal_id', $sucursalId)
+            ->where('usuario_cajero_id', $usuarioId)
+            ->where('estado', 'abierta')
+            ->latest('id')
+            ->first();
+    }
+
     public function asignarSesionCajaSiHaceFalta(Pago $pago, int $usuarioId): void
     {
         if ($pago->sesion_caja_id) {
             return;
         }
 
-        $sesionCaja = SesionCaja::where('sucursal_id', $pago->sucursal_id)
-            ->where('usuario_cajero_id', $usuarioId)
-            ->where('estado', 'abierta')
-            ->latest('id')
-            ->first();
+        $sesionCaja = $this->obtenerSesionCajaAbierta((int) $pago->sucursal_id, $usuarioId);
 
         if ($sesionCaja) {
             $pago->update([
