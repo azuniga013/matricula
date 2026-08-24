@@ -110,6 +110,7 @@ class ReporteController extends Controller
             'financieros.por-sucursal' => fn () => $this->financierosIngresosPorSucursal($request)->getData(true)['data'],
             'financieros.pagos-pendientes' => fn () => $this->financierosPagosPendientes($request)->getData(true)['data'],
             'financieros.pendientes-por-estudiante' => fn () => $this->financierosPendientesPorEstudiante($request)->getData(true)['data'],
+            'financieros.pagos-pendientes-por-estudiante' => fn () => $this->financierosPagosPendientesPorEstudiante($request)->getData(true)['data'],
             'financieros.pagos-rechazados' => fn () => $this->financierosPagosRechazados($request)->getData(true)['data'],
             'recibos.por-orden' => fn () => $this->recibosPorOrden($request)->getData(true)['data'],
             'recibos.por-metodo' => fn () => $this->recibosPorMetodo($request)->getData(true)['data'],
@@ -154,6 +155,7 @@ class ReporteController extends Controller
             'financieros.por-sucursal' => 'Ingresos por Sucursal',
             'financieros.pagos-pendientes' => 'Pagos Pendientes',
             'financieros.pendientes-por-estudiante' => 'Cuentas Pendientes por Estudiante',
+            'financieros.pagos-pendientes-por-estudiante' => 'Pagos Pendientes por Estudiante',
             'financieros.pagos-rechazados' => 'Pagos Rechazados',
             'recibos.por-orden' => 'Recibos por Orden Numérica',
             'recibos.por-metodo' => 'Recibos por Método de Pago',
@@ -656,6 +658,69 @@ class ReporteController extends Controller
             'codigo' => 200,
             'mensaje' => 'OK',
             'data' => $query->get(),
+        ]);
+    }
+
+    public function financierosPagosPendientesPorEstudiante(Request $request): JsonResponse
+    {
+        $request->validate([
+            'sucursal_id' => 'nullable|exists:sucursales,id',
+            'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+        ]);
+
+        $query = DB::table('pagos')
+            ->join('estudiantes', 'pagos.estudiante_id', '=', 'estudiantes.id')
+            ->join('conceptos_pago', 'pagos.concepto_pago_id', '=', 'conceptos_pago.id')
+            ->leftJoin('matriculas', 'pagos.matricula_id', '=', 'matriculas.id')
+            ->leftJoin('ofertas_academicas', 'matriculas.oferta_academica_id', '=', 'ofertas_academicas.id')
+            ->leftJoin('periodos_academicos', 'ofertas_academicas.periodo_academico_id', '=', 'periodos_academicos.id')
+            ->leftJoin('niveles_academicos', 'ofertas_academicas.nivel_academico_id', '=', 'niveles_academicos.id')
+            ->leftJoin('horarios', 'ofertas_academicas.horario_id', '=', 'horarios.id')
+            ->leftJoin('docentes', 'ofertas_academicas.docente_id', '=', 'docentes.id')
+            ->leftJoin('sucursales', 'pagos.sucursal_id', '=', 'sucursales.id')
+            ->where('pagos.estado', 'pendiente')
+            ->select(
+                'sucursales.codigo as sucursal_codigo',
+                'sucursales.nombre as sucursal_nombre',
+                'periodos_academicos.codigo as periodo_codigo',
+                'periodos_academicos.nombre as periodo_nombre',
+                'niveles_academicos.codigo as nivel_codigo',
+                'niveles_academicos.nombre as nivel_nombre',
+                'horarios.codigo as horario_codigo',
+                'horarios.nombre as horario_nombre',
+                'docentes.codigo as docente_codigo',
+                DB::raw($this->expresionNombreDocente()),
+                'estudiantes.codigo as estudiante_codigo',
+                'estudiantes.nombre',
+                'estudiantes.apellido',
+                'estudiantes.correo',
+                'estudiantes.telefono',
+                DB::raw('COUNT(pagos.id) as pagos_pendientes'),
+                DB::raw('SUM(pagos.monto) as monto_pendiente_total')
+            )
+            ->groupBy(
+                'sucursales.id', 'sucursales.codigo', 'sucursales.nombre',
+                'periodos_academicos.id', 'periodos_academicos.codigo', 'periodos_academicos.nombre',
+                'niveles_academicos.id', 'niveles_academicos.codigo', 'niveles_academicos.nombre',
+                'horarios.id', 'horarios.codigo', 'horarios.nombre',
+                'docentes.id', 'docentes.codigo', 'docentes.nombre', 'docentes.apellido',
+                'estudiantes.id', 'estudiantes.codigo', 'estudiantes.nombre', 'estudiantes.apellido', 'estudiantes.correo', 'estudiantes.telefono'
+            );
+
+        $this->aplicarAlcanceReporte($request, $query, 'pagos.sucursal_id', 'ofertas_academicas.docente_id');
+
+        if ($request->filled('sucursal_id')) {
+            $query->where('pagos.sucursal_id', $request->sucursal_id);
+        }
+        if ($request->filled('periodo_academico_id')) {
+            $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
+        }
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 200,
+            'mensaje' => 'OK',
+            'data' => $query->orderByDesc('monto_pendiente_total')->get(),
         ]);
     }
 
