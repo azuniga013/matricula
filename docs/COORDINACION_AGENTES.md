@@ -15,6 +15,9 @@ estado transitorio, los acuerdos de interfaz y las zonas de colisión.
 | Agente principal (P-028/029/034/035) | Modularización Pagos, Matrículas, Caja, Calificaciones, Inventario | `app/Modules/`, `app/Providers/AppServiceProvider.php`, `PagoController`, `MatriculaController`, `SesionCajaController`, `CalificacionController`, `InventarioLibroController`, `ReciboCajaController` |
 | Agente P-002 | Pruebas automatizadas: cobertura RBAC y alcance | `tests/Feature/` (`PagoTest`, `MatriculaTest`, `CajaTest`, `CalificacionTest`, `InventarioLibroTest`, `PortalEstudianteTest`, `IntegracionFlujoAcademicoTest`), `docs/PENDIENTES.md`. Archivos de pruebas nuevos ya creados y con cobertura: `AlcanceApiTest.php`, `DenegacionRbacTest.php` (no duplicar). **División P-003 (2026-08-10):** el otro agente conserva `AlcanceApiTest.php`, `DenegacionRbacTest.php`, `CalificacionTest.php`, `PortalEstudianteTest.php` y `AlcanceAdministrativoApiTest.php`; este frente abrió `AlcanceAdministrativoTest.php` para alcance administrativo adicional por sucursal/propietario sin tocar esos cinco archivos. |
 | Agente frontend docente (2026-08-24) | Frontend web del docente y menú administrativo restringido | `resources/views/layouts/admin.blade.php`, `resources/views/admin/mis-grupos.blade.php`, `resources/views/admin/asistencias.blade.php`, `resources/views/admin/calificaciones.blade.php`, `docs/PENDIENTES.md` |
+| Agente APK docente home (P-052, 2026-08-24) | Pantalla inicial `Portal Docente`, resumen del docente y tarjetas informativas | Mientras se trabaje en paralelo, reservar `mobile-docentes/src/components/DocenteHome*`, `mobile-docentes/src/hooks/useDocenteHome*` y cualquier extractor nuevo del home. No mezclar cambios grandes directos en `mobile-docentes/App.jsx` sin coordinar el punto de montaje. |
+| Agente APK docente menú (P-052, 2026-08-24) | Menú principal visual con iconos y descripciones por módulo | Reservar `mobile-docentes/src/components/MainMenu*`, `mobile-docentes/src/components/MenuCard*`, assets/iconografía local y estilos compartidos del menú. No cambiar la carga de datos del dashboard docente. |
+| Agente APK docente UX módulos (P-052, 2026-08-24) | Navegación y UX de Ofertas, Asistencia, Calificaciones y Sincronización después del rediseño del home | No tocar componentes del home ni del menú; concentrarse en pantallas internas (`OfferList`, asistencia, calificaciones, sincronización) y en la transición desde el menú nuevo. |
 
 ## Acuerdos del frente docente
 
@@ -29,6 +32,17 @@ estado transitorio, los acuerdos de interfaz y las zonas de colisión.
 - Vistas docentes principales revisadas: `admin/mis-grupos`, `admin/asistencias`, `admin/calificaciones`.
 - `docs/PENDIENTES.md` actualizado con la nota operativa del frente docente.
 - Pendiente sugerido: validar con usuario docente real que el menú y el acceso directo a rutas no docentes se comporten como se espera.
+
+## Frente APK docente P-052
+
+- 2026-08-24: nueva solicitud vigente del usuario para mejorar `Portal Docente` en la APK (`mobile-docentes/`).
+- Objetivo funcional: la primera pantalla debe ser más informativa y el menú principal debe presentarse como iconos/tarjetas con una breve descripción por módulo.
+- Partición recomendada para trabajo paralelo:
+  - Home/dashboard docente: resumen del docente, métricas y accesos rápidos.
+  - Menú principal: iconos, descripciones, jerarquía visual y estados.
+  - UX de módulos: ajustar transición y consistencia visual en Ofertas, Asistencia, Calificaciones y Sincronización.
+- Regla de colisión: si `App.jsx` sigue siendo el punto central, un solo agente debe hacer el ensamblaje final; el resto debe extraer componentes nuevos para minimizar conflictos.
+- Verificación mínima del frente: `npx expo export --platform android`.
 
 Reglas de convivencia:
 
@@ -150,6 +164,7 @@ pruebas directas de casos de uso) y `docs/PENDIENTES.md` (conteos P-002/P-035).
   link desde la oferta. La APK docente ya compila (`expo export`) con edición
   del link del período en `Ofertas Académicas`. Si otro agente toca WhatsApp,
   no reintroducir `grupo_whatsapp_id` como requisito operativo.
+- 2026-08-24: Para `P-052`, evitar rediseñar todo desde `App.jsx` en paralelo. Extraer componentes primero y dejar un agente integrador para el montaje final del `Portal Docente` y del menú principal.
 - 2026-08-24: Seguridad/RBAC quedó alineado a permisos finos por submódulo en
   `routes/api.php` (`seguridad.usuarios.*`, `seguridad.roles.*`, etc.). Si otro
   agente modifica pruebas o seeders de seguridad, asumir que los permisos

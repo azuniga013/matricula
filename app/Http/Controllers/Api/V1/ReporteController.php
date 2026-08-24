@@ -598,6 +598,7 @@ class ReporteController extends Controller
         $request->validate([
             'sucursal_id' => 'nullable|exists:sucursales,id',
             'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'estudiante_id' => 'nullable|exists:estudiantes,id',
         ]);
 
         $query = DB::table('pagos')
@@ -652,6 +653,9 @@ class ReporteController extends Controller
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
         }
+        if ($request->filled('estudiante_id')) {
+            $query->where('estudiantes.id', $request->estudiante_id);
+        }
 
         return response()->json([
             'resultado' => 'A',
@@ -666,6 +670,7 @@ class ReporteController extends Controller
         $request->validate([
             'sucursal_id' => 'nullable|exists:sucursales,id',
             'periodo_academico_id' => 'nullable|exists:periodos_academicos,id',
+            'estudiante_id' => 'nullable|exists:estudiantes,id',
         ]);
 
         $query = DB::table('pagos')
@@ -714,6 +719,9 @@ class ReporteController extends Controller
         }
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
+        }
+        if ($request->filled('estudiante_id')) {
+            $query->where('estudiantes.id', $request->estudiante_id);
         }
 
         return response()->json([

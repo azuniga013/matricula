@@ -3,19 +3,19 @@ import { ActivityIndicator, Alert, Button, FlatList, KeyboardAvoidingView, Platf
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
-import { Ionicons } from '@expo/vector-icons';
 import { attendanceForOffer, clearBiometricCredentials, currentUser, grades, loadBiometricCredentials, login, logout, offers, saveAttendance, saveBiometricCredentials, saveGrades, students, updateWhatsappPeriodLink } from './src/api';
 import { cachedAttendance, cachedGrades, cachedOffers, cachedStudents, clearLocalData, initDatabase, markError, pending, queue, removePending, replaceAttendance, replaceGrades, replaceOffers, replaceStudents } from './src/database';
+import DocenteHome from './src/components/DocenteHome';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const toDateInput = (value) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || ''); if (!m) return new Date(); return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])); };
 const fromDateInput = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}`.trim();
 const MODULES = [
-  { id: 'ofertas', title: 'Ofertas Académicas', detail: 'Lista de estudiantes por oferta' },
-  { id: 'asistencia', title: 'Asistencia Diaria', detail: 'Lista y pase de asistencia' },
-  { id: 'calificaciones', title: 'Calificaciones', detail: 'Lista y notas de estudiantes' },
-  { id: 'sincronizacion', title: 'Sincronización', detail: 'Pendientes, errores y reintentos' },
+  { id: 'ofertas', title: 'Ofertas Académicas', detail: 'Consulte horarios, estudiantes y link de WhatsApp del período.', icon: 'library-outline', iconBg: '#dbeafe', iconColor: '#1d4ed8' },
+  { id: 'asistencia', title: 'Asistencia Diaria', detail: 'Pase lista por horario y fecha con apoyo offline.', icon: 'checkmark-done-outline', iconBg: '#dcfce7', iconColor: '#15803d' },
+  { id: 'calificaciones', title: 'Calificaciones', detail: 'Registre notas finales y faltas por estudiante.', icon: 'school-outline', iconBg: '#fef3c7', iconColor: '#b45309' },
+  { id: 'sincronizacion', title: 'Sincronización', detail: 'Revise pendientes, conflictos y reintentos locales.', icon: 'sync-outline', iconBg: '#fee2e2', iconColor: '#b91c1c' },
 ];
 
 export default function App() {
@@ -70,6 +70,16 @@ export default function App() {
     return all;
   }, {})).sort((a, b) => String(b.nombre).localeCompare(String(a.nombre))), [items]);
   const visibleOffers = useMemo(() => periodId ? items.filter((item) => String(item.periodo_academico_id || item.periodo_academico?.id) === String(periodId)) : items, [items, periodId]);
+  const dashboard = useMemo(() => {
+    const studentsCount = items.reduce((total, offer) => total + cachedStudents(offer.id).length, 0);
+    const primaryPeriod = periods[0];
+    return {
+      offersCount: items.length,
+      studentsCount,
+      periodsCount: periods.length,
+      primaryPeriodLabel: primaryPeriod ? (primaryPeriod.nombre || primaryPeriod.codigo || 'Período activo') : 'Sin períodos descargados',
+    };
+  }, [items, periods]);
 
   async function refresh(filterPeriod = periodId) {
     if (!online) return Alert.alert('Sin conexión', 'Se muestran los datos descargados anteriormente.');
@@ -211,13 +221,12 @@ export default function App() {
   if (loading) return <Centered text="Preparando aplicación docente..." />;
   if (!user) return <Login {...{ email, setEmail, password, setPassword, submit: submitLogin, bioAvailable, bioGuardado, setBioGuardado, bioLoading, bioLogin }} />;
   if (selected) return <StudentList module={module} offer={selected} students={studentsForOffer} attendance={attendance} setAttendance={setAttendance} grades={gradeRows} setGrades={setGradeRows} date={date} setDate={setDate} online={online} saveAttendance={saveAttendanceLocally} saveGrades={saveGradesLocally} changeDate={changeAttendanceDate} back={() => setSelected(null)} />;
-  if (!module) return <Menu user={user} online={online} pendingCount={pendingCount} recentErrors={recentErrors} syncSummary={syncSummary} modules={MODULES} open={setModule} sync={() => refresh(null)} syncing={syncing} logout={closeSession} />;
-  if (module === 'sincronizacion') return <SyncQueueScreen pendingRows={pendingRows} online={online} syncing={syncing} syncSummary={syncSummary} synchronize={synchronizeQueue} back={() => setModule(null)} />;
+  if (!module) return <DocenteHome user={user} online={online} pendingCount={pendingCount} recentErrors={recentErrors} syncSummary={syncSummary} modules={MODULES} open={setModule} sync={() => refresh(null)} syncing={syncing} logout={closeSession} dashboard={dashboard} />;
+  if (module === 'sincronizacion') return <SyncQueueScreen pendingRows={pendingRows} online={online} syncing={syncing} syncSummary={syncSummary} synchronize={synchronizeQueue} back={() => setModule(null)} setPendingVersion={setPendingVersion} setSyncSummary={setSyncSummary} />;
   return <OfferList module={MODULES.find((item) => item.id === module)} offers={visibleOffers} periods={periods} periodId={periodId} selectPeriod={(id) => { setPeriodId(id); if (online) refresh(id); }} open={openOffer} back={() => setModule(null)} sync={() => refresh(periodId)} syncing={syncing} />;
 }
 
-function Menu({ user, online, pendingCount, recentErrors, syncSummary, modules, open, sync, syncing, logout }) { return <SafeAreaView style={styles.container}><View style={styles.header}><View><Text style={styles.title}>Portal Docente</Text><Text style={styles.sub}>{user.nombre} · {online ? 'En línea' : 'Modo offline'} · {pendingCount} pendientes</Text></View><Button title={syncing ? 'Sincronizando' : 'Sincronizar'} disabled={syncing} onPress={sync} /></View><ScrollView contentContainerStyle={styles.list}>{syncSummary ? <View style={styles.card}><Text style={styles.cardTitle}>Estado de sincronización</Text><Text style={styles.muted}>{syncSummary.message}</Text></View> : null}{recentErrors.length ? <View style={styles.card}><Text style={styles.cardTitle}>Pendientes con error</Text>{recentErrors.map((item) => <Text key={item.uuid} style={styles.muted}>• {item.tipo}: {item.ultimo_error}</Text>)}</View> : null}{modules.map((item) => <TouchableOpacity key={item.id} style={styles.menuCard} onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.muted}>{item.detail}</Text></TouchableOpacity>)}</ScrollView><View style={styles.footer}><Button title="Cerrar sesión" onPress={logout} /></View></SafeAreaView>; }
-function SyncQueueScreen({ pendingRows, online, syncing, syncSummary, synchronize, back }) {
+function SyncQueueScreen({ pendingRows, online, syncing, syncSummary, synchronize, back, setPendingVersion, setSyncSummary }) {
   async function retryNow() {
     const resultado = await synchronize();
     if (resultado.error) return Alert.alert('Sincronización incompleta', resultado.error);
@@ -249,10 +258,19 @@ function PeriodFilter({ periods, periodId, selectPeriod }) { return <ScrollView 
 function OfferList({ module, offers, periods, periodId, selectPeriod, open, back, sync, syncing }) {
   const [links, setLinks] = useState({});
   const [savingId, setSavingId] = useState(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     setLinks(Object.fromEntries(offers.map((offer) => [offer.id, offer.whatsapp_link_periodo || ''])));
   }, [offers]);
+
+  const filteredOffers = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return offers;
+    return offers.filter((offer) => [offer.codigo, offer.nivel_academico?.nombre, offer.periodo_academico?.nombre, offer.horario?.nombre, offer.whatsapp_grupo_nombre]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(term)));
+  }, [offers, query]);
 
   async function saveWhatsappLink(offer) {
     setSavingId(offer.id);
@@ -268,7 +286,7 @@ function OfferList({ module, offers, periods, periodId, selectPeriod, open, back
     }
   }
 
-  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{module.title}</Text><Text style={styles.sub}>Seleccione período y oferta</Text></View><Button title={syncing ? '...' : 'Actualizar'} disabled={syncing} onPress={sync} /></View><PeriodFilter periods={periods} periodId={periodId} selectPeriod={selectPeriod} /><FlatList data={offers} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No hay ofertas para el período seleccionado.</Text>} renderItem={({ item }) => <View style={styles.card}><TouchableOpacity onPress={() => open(item.id)}><Text style={styles.cardTitle}>{item.codigo} · {item.nivel_academico?.nombre || 'Oferta'}</Text><Text style={styles.muted}>{item.periodo_academico?.nombre} · {item.horario?.nombre || 'Sin horario'}</Text></TouchableOpacity>{module?.id === 'ofertas' ? <View style={styles.whatsappBox}><Text style={styles.fieldLabel}>Grupo WhatsApp</Text><Text style={styles.muted}>{item.whatsapp_grupo_nombre || 'Sin nombre configurado'}</Text><Text style={styles.fieldLabel}>Link WhatsApp del período</Text><TextInput style={styles.input} placeholder="https://chat.whatsapp.com/..." value={links[item.id] || ''} onChangeText={(value) => setLinks((prev) => ({ ...prev, [item.id]: value }))} autoCapitalize="none" autoCorrect={false} /><Button title={savingId === item.id ? 'Guardando...' : 'Guardar link'} disabled={savingId === item.id || !item.whatsapp_grupo_nombre} onPress={() => saveWhatsappLink(item)} />{!item.whatsapp_grupo_nombre ? <Text style={styles.muted}>La oferta no tiene nombre de grupo configurado.</Text> : null}</View> : null}</View>} /></SafeAreaView>;
+  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Menú" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{module.title}</Text><Text style={styles.sub}>Seleccione período y horario</Text></View><Button title={syncing ? '...' : 'Actualizar'} disabled={syncing} onPress={sync} /></View><FlatList data={filteredOffers} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} ListHeaderComponent={<><View style={extraStyles.infoCard}><Text style={extraStyles.infoTitle}>{module.title}</Text><Text style={extraStyles.infoText}>{module?.id === 'ofertas' ? 'Consulte cada horario, revise el nombre funcional de WhatsApp y mantenga actualizado el link del período.' : 'Elija el horario en el que desea trabajar y continúe con el listado de estudiantes.'}</Text><View style={extraStyles.metricRow}><View style={extraStyles.metricPill}><Text style={extraStyles.metricPillLabel}>Períodos</Text><Text style={extraStyles.metricPillValue}>{periods.length}</Text></View><View style={extraStyles.metricPill}><Text style={extraStyles.metricPillLabel}>Horarios</Text><Text style={extraStyles.metricPillValue}>{filteredOffers.length}</Text></View></View></View><TextInput style={extraStyles.searchInput} placeholder="Buscar por código, nivel, horario o período" value={query} onChangeText={setQuery} autoCorrect={false} /><PeriodFilter periods={periods} periodId={periodId} selectPeriod={selectPeriod} /></>} ListEmptyComponent={<View style={extraStyles.emptyCard}><Text style={styles.cardTitle}>Sin resultados</Text><Text style={styles.muted}>No hay horarios para el filtro actual.</Text></View>} renderItem={({ item }) => <View style={extraStyles.offerCard}><TouchableOpacity onPress={() => open(item.id)} activeOpacity={0.85}><View style={extraStyles.offerHeader}><View style={extraStyles.offerHeaderGrow}><Text style={styles.cardTitle}>{item.codigo} · {item.nivel_academico?.nombre || 'Oferta'}</Text><Text style={styles.muted}>{item.periodo_academico?.nombre || 'Sin período'} · {item.horario?.nombre || 'Sin horario'}</Text></View><View style={extraStyles.offerAction}><Text style={extraStyles.offerActionText}>Abrir</Text></View></View><View style={extraStyles.offerMetaRow}><Text style={extraStyles.offerTag}>{item.horario?.nombre || 'Horario pendiente'}</Text><Text style={extraStyles.offerTagSoft}>{item.periodo_academico?.codigo || item.periodo_academico?.nombre || 'Período'}</Text></View></TouchableOpacity>{module?.id === 'ofertas' ? <View style={extraStyles.whatsappPanel}><Text style={styles.fieldLabel}>Nombre del horario en WhatsApp</Text><Text style={extraStyles.helperText}>{item.whatsapp_grupo_nombre || 'Sin nombre configurado todavía.'}</Text><Text style={styles.fieldLabel}>Link WhatsApp del período</Text><TextInput style={styles.input} placeholder="https://chat.whatsapp.com/..." value={links[item.id] || ''} onChangeText={(value) => setLinks((prev) => ({ ...prev, [item.id]: value }))} autoCapitalize="none" autoCorrect={false} /><TouchableOpacity style={[extraStyles.primaryBlockBtn, (savingId === item.id || !item.whatsapp_grupo_nombre) && extraStyles.primaryBlockBtnDisabled]} disabled={savingId === item.id || !item.whatsapp_grupo_nombre} onPress={() => saveWhatsappLink(item)} activeOpacity={0.85}><Text style={extraStyles.primaryBlockBtnText}>{savingId === item.id ? 'Guardando...' : 'Guardar link del período'}</Text></TouchableOpacity>{!item.whatsapp_grupo_nombre ? <Text style={extraStyles.helperText}>La oferta necesita un nombre funcional de WhatsApp para habilitar este guardado.</Text> : null}</View> : null}</View>} /></SafeAreaView>;
 }
 const ATT_STATES = [
   { value: 'presente', label: 'Presente', note: 'Asistió normalmente', color: '#16a34a' },
@@ -316,6 +334,12 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
   const [marking, setMarking] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshingDate, setRefreshingDate] = useState(false);
+  const [query, setQuery] = useState('');
+  const filteredStudents = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return students;
+    return students.filter((student) => [student.codigo, fullName(student)].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
+  }, [students, query]);
 
   if (isAttendance && marking) {
     return <MarkingStudent offer={offer} student={marking} attendance={attendance} setAttendance={setAttendance} back={() => setMarking(null)} />;
@@ -333,17 +357,18 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
     }
   }
 
-  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Ofertas" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{isAttendance ? 'Asistencia Diaria' : isGrades ? 'Calificaciones' : 'Estudiantes'}</Text><Text style={styles.sub}>{offer.codigo} · {offer.periodo_academico?.nombre}</Text></View></View><ScrollView contentContainerStyle={styles.list}>{isAttendance && <><Text style={styles.section}>Fecha</Text><View style={styles.dateRow}><TextInput style={[styles.input, styles.dateInput]} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCorrect={false} /><TouchableOpacity style={styles.calendarBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}><Text style={styles.calendarBtnText}>{refreshingDate ? '⏳' : '📅'}</Text></TouchableOpacity></View>{showDatePicker && <DateTimePicker value={toDateInput(date)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={pickDate} />}</>}{students.length === 0 && <Text style={styles.muted}>No hay estudiantes descargados para esta oferta.</Text>}{students.map((student) => {
+  return <SafeAreaView style={styles.container}><View style={styles.header}><Button title="Ofertas" onPress={back} /><View style={styles.headerGrow}><Text style={styles.title}>{isAttendance ? 'Asistencia Diaria' : isGrades ? 'Calificaciones' : 'Estudiantes'}</Text><Text style={styles.sub}>{offer.codigo} · {offer.periodo_academico?.nombre}</Text></View></View><ScrollView contentContainerStyle={styles.list}><View style={extraStyles.infoCard}><Text style={extraStyles.infoTitle}>{offer.nivel_academico?.nombre || 'Horario académico'}</Text><Text style={extraStyles.infoText}>{offer.horario?.nombre || 'Sin horario'} · {students.length} estudiante(s) disponible(s).</Text>{isAttendance ? <View style={extraStyles.datePanel}><Text style={styles.fieldLabel}>Fecha de trabajo</Text><View style={styles.dateRow}><TextInput style={[styles.input, styles.dateInput, extraStyles.inputNoMargin]} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCorrect={false} /><TouchableOpacity style={styles.calendarBtn} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}><Text style={extraStyles.calendarBtnText}>{refreshingDate ? '...' : 'Calendario'}</Text></TouchableOpacity></View>{showDatePicker && <DateTimePicker value={toDateInput(date)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={pickDate} />}</View> : null}{isGrades ? <Text style={extraStyles.helperText}>Ingrese nota final y faltas por estudiante. Puede dejar campos vacíos si aún no aplica.</Text> : null}</View><TextInput style={extraStyles.searchInput} placeholder="Buscar estudiante por código o nombre" value={query} onChangeText={setQuery} autoCorrect={false} />{filteredStudents.length === 0 ? <View style={extraStyles.emptyCard}><Text style={styles.cardTitle}>Sin estudiantes</Text><Text style={styles.muted}>No hay coincidencias para la búsqueda actual.</Text></View> : null}{filteredStudents.map((student) => {
     const id = student.estudiante_id || student.id;
     const row = grades[id] || {};
     if (isAttendance) {
       const selected = attendance[student.matricula_id];
-      return <TouchableOpacity key={student.matricula_id} style={styles.card} onPress={() => setMarking(student)}>
+      return <TouchableOpacity key={student.matricula_id} style={styles.card} onPress={() => setMarking(student)} activeOpacity={0.85}>
         <View style={styles.studentRow}><View style={styles.studentRowGrow}><Text style={styles.cardTitle}>{fullName(student)}</Text><Text style={styles.muted}>{student.codigo}</Text></View><Text style={[styles.badge, estadoBadge(selected?.estado).badge]}>{estadoBadge(selected?.estado).label}</Text></View>
+        <Text style={extraStyles.helperText}>Toque para cambiar el estado de asistencia.</Text>
       </TouchableOpacity>;
     }
-    return <View key={student.matricula_id} style={styles.card}><Text style={styles.cardTitle}>{student.codigo} · {fullName(student)}</Text><TextInput style={styles.input} placeholder="Nota final" keyboardType="decimal-pad" value={String(row.nota_final ?? '')} onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, nota_final: value } })} /><TextInput style={styles.input} placeholder="Faltas" keyboardType="number-pad" value={String(row.faltas ?? 0)} onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, faltas: value } })} /></View>;
-  })}{isAttendance && <Button title={online ? 'Guardar y sincronizar' : 'Guardar asistencia local'} onPress={saveAttendance} />}{isGrades && <Button title={online ? 'Guardar y sincronizar' : 'Guardar notas localmente'} onPress={saveGrades} />}</ScrollView></SafeAreaView>;
+    return <View key={student.matricula_id} style={styles.card}><Text style={styles.cardTitle}>{student.codigo} · {fullName(student)}</Text><TextInput style={styles.input} placeholder="Nota final" keyboardType="decimal-pad" value={String(row.nota_final ?? '')} onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, nota_final: value } })} /><TextInput style={styles.input} placeholder="Faltas" keyboardType="number-pad" value={String(row.faltas ?? 0)} onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, faltas: value } })} /><Text style={extraStyles.helperText}>Los cambios se guardan localmente y luego se sincronizan.</Text></View>;
+  })}<TouchableOpacity style={extraStyles.primaryBlockBtn} onPress={isAttendance ? saveAttendance : saveGrades} activeOpacity={0.85}><Text style={extraStyles.primaryBlockBtnText}>{isAttendance ? (online ? 'Guardar y sincronizar asistencia' : 'Guardar asistencia local') : (online ? 'Guardar y sincronizar calificaciones' : 'Guardar calificaciones locales')}</Text></TouchableOpacity></ScrollView></SafeAreaView>;
 }
 
 function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
