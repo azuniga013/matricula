@@ -4,8 +4,8 @@
 <div x-data="misGrupos()" x-init="init()">
     <div class="page-header">
         <div>
-            <h1 class="page-title">Mis Grupos</h1>
-            <p class="page-subtitle">Administre el link de WhatsApp vigente por grupo y período</p>
+            <h1 class="page-title">Mis Horarios</h1>
+            <p class="page-subtitle">Administre el link de WhatsApp vigente por horario y período</p>
         </div>
         <div class="flex items-center gap-2">
             <button @click="cargarOfertas()" class="btn btn-outline btn-sm">
@@ -58,7 +58,7 @@
     </template>
 
     <template x-if="!loading && !errorCarga && ofertas.length === 0">
-        <div class="card"><div class="card-body text-center text-gray-400 py-12"><p>No hay grupos disponibles con los filtros seleccionados.</p></div></div>
+        <div class="card"><div class="card-body text-center text-gray-400 py-12"><p>No hay horarios disponibles con los filtros seleccionados.</p></div></div>
     </template>
 
     <div x-show="!loading && ofertas.length > 0" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -67,10 +67,10 @@
                 <div class="card-body space-y-4">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h3 class="text-base font-semibold text-gray-900" x-text="oferta.codigo + ' · ' + (oferta.nivel_academico?.nombre || 'Grupo')"></h3>
+                            <h3 class="text-base font-semibold text-gray-900" x-text="oferta.codigo + ' · ' + (oferta.nivel_academico?.nombre || 'Horario')"></h3>
                             <p class="text-sm text-gray-500" x-text="(oferta.periodo_academico?.nombre || '-') + ' · ' + (oferta.horario?.nombre || 'Sin horario')"></p>
                             <p class="text-sm text-gray-500" x-text="(oferta.sucursal?.nombre || '-') + ' · ' + docenteNombre(oferta)"></p>
-                            <p class="text-sm text-gray-500" x-text="'Grupo: ' + (oferta.whatsapp_grupo_nombre || oferta.grupo_whatsapp?.nombre || 'Sin nombre configurado')"></p>
+                            <p class="text-sm text-gray-500" x-text="'Horario: ' + (oferta.whatsapp_grupo_nombre || oferta.grupo_whatsapp?.nombre || 'Sin nombre configurado')"></p>
                         </div>
                         <div class="flex items-center gap-2">
                             <a :href="'/admin/asistencias?oferta=' + oferta.id" class="btn btn-outline btn-sm">Asistencias</a>
@@ -150,13 +150,13 @@ function misGrupos() {
                 if (this.filtros.sucursal) url += `sucursal_id=${this.filtros.sucursal}&`;
                 if (this.filtros.nivel) url += `nivel_academico_id=${this.filtros.nivel}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
-                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
+                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los horarios');
                 this.ofertas = data.data || [];
                 this.links = Object.fromEntries(this.ofertas.map(oferta => [oferta.id, oferta.whatsapp_link_periodo || '']));
             } catch (e) {
                 this.ofertas = [];
                 this.links = {};
-                this.errorCarga = window.extractError(e, 'No fue posible cargar sus grupos.');
+                this.errorCarga = window.extractError(e, 'No fue posible cargar sus horarios.');
             } finally {
                 this.loading = false;
             }

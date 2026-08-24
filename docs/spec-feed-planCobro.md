@@ -5967,7 +5967,7 @@ I need to:
 1206: 
 1207: - API `GET /api/v1/monitor-cupos` protegida por `matriculas.consultar`, con alcance RBAC, filtros por período/sucursal, cálculo de cupos y colores funcionales.
 1208: - Pantalla administrativa del Monitor de cupos con período abierto preseleccionado, filtros por período y sucursal mediante código/nombre, actualización automática configurable y presentación sin IDs técnicos.
-1209: - Pruebas específicas `MonitorCuposTest` y `ReportesOperativosTest`; la suite actual contiene 26 pruebas y 97 aserciones aprobadas.
+1209: - La cobertura actual del monitor de cupos se valida principalmente en `OfertaAcademicaTest` (consulta y filtro por período) y `AlcanceApiTest` (permiso y denegación del endpoint `ofertas/monitor`).
 1210: - Prueba de aceptación móvil confirmada por usuario: la aplicación funciona correctamente en celular.
 1211: 
 1212: Pendiente:
@@ -8103,7 +8103,7 @@ Looking at the exploration results, I need to update AGENTS.md to reflect the ac
 1206: 
 1207: - API `GET /api/v1/monitor-cupos` protegida por `matriculas.consultar`, con alcance RBAC, filtros por período/sucursal, cálculo de cupos y colores funcionales.
 1208: - Pantalla administrativa del Monitor de cupos con período abierto preseleccionado, filtros por período y sucursal mediante código/nombre, actualización automática configurable y presentación sin IDs técnicos.
-1209: - Pruebas específicas `MonitorCuposTest` y `ReportesOperativosTest`; la suite actual contiene 26 pruebas y 97 aserciones aprobadas.
+1209: - La cobertura actual del monitor de cupos se valida principalmente en `OfertaAcademicaTest` (consulta y filtro por período) y `AlcanceApiTest` (permiso y denegación del endpoint `ofertas/monitor`).
 1210: - Prueba de aceptación móvil confirmada por usuario: la aplicación funciona correctamente en celular.
 1211: 
 1212: Pendiente:

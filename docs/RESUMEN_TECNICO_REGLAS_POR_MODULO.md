@@ -29,9 +29,9 @@
 - No se permite reabrir manualmente una oferta `cerrado -> abierto` ni
   `cancelado -> abierto`.
 - La oferta guarda directamente `whatsapp_grupo_nombre` como identidad funcional
-  del grupo y `whatsapp_link_periodo` como link vigente del período.
+  del horario en WhatsApp y `whatsapp_link_periodo` como link vigente del período.
 - El nombre se edita en `Ofertas`; el link operativo se administra desde
-  `Mis Grupos`.
+  `Mis Horarios`.
 
 ## Pagos Administrativos
 
@@ -86,7 +86,7 @@ solicita_link -> esperando_respuesta -> en_revision -> aprobado
 | `ADMIN_SUCURSAL` | Gestión local | Operación limitada a sus sucursales asignadas | No debe tener alcance global ni configuración sensible |
 | `CAJA` | Cobro y recibos | Sesiones de caja, recibos y cierre según permisos | No configura catálogo académico ni seguridad |
 | `MATRICULA` | Proceso académico-administrativo | Reservas, confirmaciones y gestiones de matrícula | No configura RBAC ni pagos sensibles fuera de su alcance |
-| `DOCENTE` | Ejecución académica | Asistencias y calificaciones de sus ofertas | No administra usuarios, caja ni configuración |
+| `DOCENTE` | Ejecución académica | Asistencias, calificaciones y links de WhatsApp de sus ofertas | No administra usuarios, caja ni configuración |
 | `AUDITORIA` | Consulta | Reportes y consulta según permisos | No crea, modifica, aprueba ni configura |
 
 ### Regla de asignación de roles protegidos

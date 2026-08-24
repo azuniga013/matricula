@@ -92,9 +92,9 @@
                 </template>
                 <template x-if="reporteActual?.oferta">
                     <div>
-                        <label class="label">Grupo (Oferta) *</label>
+                        <label class="label">Horario (Oferta) *</label>
                         <select x-model="filtros.oferta_academica_id" class="input">
-                            <option value="">Seleccionar grupo...</option>
+                            <option value="">Seleccionar horario...</option>
                             <template x-for="o in ofertas" :key="o.id">
                                 <option :value="o.id" x-text="o.codigo + ' · ' + (o.nivel_academico?.nombre || '') + ' · ' + (o.horario?.nombre || '')"></option>
                             </template>
@@ -230,15 +230,15 @@ function reportes() {
                 { id: 'por-docente', label: 'Matriculados por Docente', url: '/api/v1/reportes/academicos/por-docente', fechaDesde: false, fechaHasta: false, periodo: true, sucursal: true, estadoMatricula: true,
                   columns: [ {key:'docente', label:'Docente', fn: f => `${f.docente_nombre || ''} ${f.docente_apellido || ''}`}, {key:'nivel_nombre', label:'Nivel'}, {key:'horario_nombre', label:'Horario'}, {key:'total_matriculados', label:'Matriculados', numeric:true} ],
                   totalesFn: (filas) => [{ label: 'Total matriculados', valor: filas.reduce((a, f) => a + Number(f.total_matriculados || 0), 0) }] },
-                { id: 'grupo', label: 'Alumnos por Grupo', url: '/api/v1/reportes/academicos/grupo', fechaDesde: false, fechaHasta: false, oferta: true,
+                { id: 'grupo', label: 'Alumnos por Horario', url: '/api/v1/reportes/academicos/grupo', fechaDesde: false, fechaHasta: false, oferta: true,
                   columns: [ {key:'sucursal_codigo', label:'Sucursal', mono:true, fn: f => `${f.sucursal_codigo || ''} · ${f.sucursal_nombre || ''}`}, {key:'periodo_nombre', label:'Período'}, {key:'plan_nombre', label:'Plan'}, {key:'nivel_codigo', label:'Nivel', mono:true, fn: f => `${f.nivel_codigo || ''} · ${f.nivel_nombre || ''}`}, {key:'horario_nombre', label:'Horario', fn: f => `${f.horario_codigo || ''} · ${f.horario_nombre || ''}`}, {key:'docente', label:'Docente', fn: f => `${f.docente_codigo || ''} · ${(f.docente_nombre || '')} ${(f.docente_apellido || '')}`}, {key:'estudiante_codigo', label:'Código Alumno', mono:true}, {key:'nombre_completo', label:'Estudiante', fn: f => `${f.nombre || ''} ${f.apellido || ''}`}, {key:'correo', label:'Correo'}, {key:'telefono', label:'Teléfono'}, {key:'estado_matricula', label:'Estado', fn: f => BADGE(f.estado_matricula, 'success')} ],
-                  totalesFn: (filas) => [{ label: 'Alumnos en el grupo', valor: filas.length }] },
-                { id: 'calificaciones-grupo', label: 'Calificaciones por Grupo', url: '/api/v1/reportes/academicos/calificaciones-por-grupo', fechaDesde: false, fechaHasta: false, oferta: true,
+                  totalesFn: (filas) => [{ label: 'Alumnos en el horario', valor: filas.length }] },
+                { id: 'calificaciones-grupo', label: 'Calificaciones por Horario', url: '/api/v1/reportes/academicos/calificaciones-por-grupo', fechaDesde: false, fechaHasta: false, oferta: true,
                   columns: [ {key:'estudiante_codigo', label:'Código', mono:true}, {key:'nombre_completo', label:'Estudiante', fn: f => `${f.nombre || ''} ${f.apellido || ''}`}, {key:'nota_final', label:'Nota Final', numeric:true}, {key:'faltas', label:'Faltas', numeric:true}, {key:'estado_calificacion', label:'Estado', fn: f => BADGE(f.estado_calificacion, f.estado_calificacion === 'registrado' ? 'success' : 'info')} ],
                   totalesFn: (filas) => {
                       const conNota = filas.filter(f => f.nota_final !== null && f.nota_final !== undefined);
                       const prom = conNota.length ? (conNota.reduce((a, f) => a + Number(f.nota_final), 0) / conNota.length).toFixed(1) : '-';
-                      return [{ label: 'Con calificación', valor: conNota.length }, { label: 'Promedio del grupo', valor: prom }];
+                      return [{ label: 'Con calificación', valor: conNota.length }, { label: 'Promedio del horario', valor: prom }];
                   } },
                 { id: 'nivel-actual', label: 'Nivel Actual del Estudiante', url: '/api/v1/reportes/academicos/nivel-actual', fechaDesde: false, fechaHasta: false, estudiante: true, single: true,
                   columns: [ {key:'nivel_codigo', label:'Código Nivel', mono:true}, {key:'nivel_nombre', label:'Nivel'}, {key:'periodo_nombre', label:'Período'}, {key:'fecha_confirmacion', label:'Confirmado', fn: f => F(f.fecha_confirmacion)} ] },
@@ -344,7 +344,7 @@ function reportes() {
                 return;
             }
             if (r.oferta && !this.filtros.oferta_academica_id) {
-                this.toast('Seleccione un grupo (oferta académica)', 'warning');
+                this.toast('Seleccione un horario (oferta académica)', 'warning');
                 return;
             }
             if (r.estudiante && !this.filtros.estudiante_id) {

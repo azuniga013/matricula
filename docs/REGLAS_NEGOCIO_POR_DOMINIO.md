@@ -195,7 +195,7 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
 - El estudiante solo debe ver ofertas del periodo abierto, de su sucursal,
   permitidas por su nivel, abiertas y con cupo disponible.
 - En el Portal Académico, las pantallas operativas deben filtrar en este orden:
-  `periodo -> nivel -> horario/grupo`. Un periodo cerrado permite consulta
+  `periodo -> nivel -> horario`. Un periodo cerrado permite consulta
   histórica, pero no creación ni operación académica nueva.
 
 ### 2.3 Matrícula
@@ -410,11 +410,11 @@ integridad transaccional.
 
 - Solo se trabaja con estudiantes cuya matrícula está `matriculado` en la
   oferta consultada.
-- La oferta académica conserva directamente el nombre funcional del grupo de
+- La oferta académica conserva directamente el nombre funcional del horario de
   WhatsApp (`whatsapp_grupo_nombre`) y el link operativo del período
   (`whatsapp_link_periodo`).
-- La pantalla de Ofertas define el nombre funcional del grupo. El link vigente
-  del período se administra en el flujo operativo `Mis Grupos`.
+- La pantalla de Ofertas define el nombre funcional del horario. El link vigente
+  del período se administra en el flujo operativo `Mis Horarios`.
 - El docente responsable de la oferta es quien actualiza el link de WhatsApp del
   período desde su flujo operativo; un `SUPERADMIN` puede corregirlo de forma
   excepcional.
@@ -521,9 +521,9 @@ registros asociados al estudiante identificado por `auth.estudiante`.
   como comprobantes vigentes.
 - El recibo debe mostrar información funcional e histórica: número, fecha,
   alumno, concepto, periodo, nivel, horario, importe y método de pago.
-- El enlace de WhatsApp se entrega únicamente cuando el pago requerido esté
+- El enlace de WhatsApp del horario se entrega únicamente cuando el pago requerido esté
   aprobado y la configuración del flujo lo habilite. El ingreso automático al
-  grupo no forma parte de esta regla.
+  chat no forma parte de esta regla.
 - El nivel actual se obtiene de matrícula e historial académico, no de un dato
   duplicado en el perfil del estudiante.
 - La emisión de certificados debe basarse en historial o calificación válida,

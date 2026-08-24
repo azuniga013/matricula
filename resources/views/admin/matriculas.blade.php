@@ -127,9 +127,9 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label">Grupo / Oferta</label>
+                        <label class="label">Horario / Oferta</label>
                         <select x-model="filtroGestion.oferta" @change="cargarMatriculasPagadas(); loadGestiones()" class="input" :disabled="!filtroGestion.nivel">
-                            <option value="">Todos los grupos</option>
+                            <option value="">Todos los horarios</option>
                             <template x-for="o in ofertasGestionDisponibles" :key="o.id"><option :value="o.id" x-text="o.codigo + ' · ' + (o.horario?.nombre || '')"></option></template>
                         </select>
                     </div>

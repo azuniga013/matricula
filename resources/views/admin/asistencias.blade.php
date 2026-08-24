@@ -4,7 +4,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-title">Asistencias</h1>
-            <p class="page-subtitle">Pasar lista — Registro de asistencia por grupo</p>
+            <p class="page-subtitle">Pasar lista — Registro de asistencia por horario</p>
         </div>
         <div class="flex items-center gap-2">
             <button @click="loadAll()" class="btn btn-outline btn-sm">
@@ -45,14 +45,14 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label">Grupo / Oferta</label>
+                    <label class="label">Horario / Oferta</label>
                     <select x-model="ofertaId" @change="onOfertaChange()" class="input" :disabled="cargandoOfertas">
-                        <option value="">Seleccionar grupo...</option>
+                        <option value="">Seleccionar horario...</option>
                         <template x-for="o in ofertas" :key="o.id">
                             <option :value="o.id" x-text="o.codigo + ' · ' + (o.nivel_academico?.nombre || '') + ' · ' + (o.horario?.nombre || '') + ' · ' + (o.docente?.nombre || '')"></option>
                         </template>
                     </select>
-                    <p x-show="!cargandoOfertas && ofertas.length === 0 && !errorCarga" class="mt-1 text-xs text-amber-700">No hay grupos disponibles con los filtros seleccionados.</p>
+                    <p x-show="!cargandoOfertas && ofertas.length === 0 && !errorCarga" class="mt-1 text-xs text-amber-700">No hay horarios disponibles con los filtros seleccionados.</p>
                     <p x-show="errorCarga" class="mt-1 text-xs text-red-600" x-text="errorCarga"></p>
                 </div>
             </div>
@@ -79,7 +79,7 @@
     </template>
 
     <template x-if="!loading && estudiantes.length === 0 && ofertaId">
-        <div class="card"><div class="card-body text-center text-gray-400 py-12"><p>No hay estudiantes matriculados en este grupo</p></div></div>
+        <div class="card"><div class="card-body text-center text-gray-400 py-12"><p>No hay estudiantes matriculados en este horario</p></div></div>
     </template>
 
     <template x-if="estudiantes.length > 0">
@@ -170,7 +170,7 @@ function asistencias() {
                 if (this.filtros.nivel) url += `nivel_academico_id=${this.filtros.nivel}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (requestId !== this.ofertasRequestId) return;
-                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los grupos');
+                if (data.resultado !== 'A') throw new Error(data.mensaje || 'No fue posible cargar los horarios');
                 this.ofertas = data.data || [];
                 if (this.ofertaPreseleccionada && this.ofertas.some(o => String(o.id) === String(this.ofertaPreseleccionada))) {
                     this.ofertaId = this.ofertaPreseleccionada;
@@ -183,7 +183,7 @@ function asistencias() {
                 if (requestId !== this.ofertasRequestId) return;
                 this.ofertas = [];
                 this.estudiantes = [];
-                this.errorCarga = window.extractError(e, 'No fue posible cargar los grupos. Verifique sus permisos de asistencia.');
+                this.errorCarga = window.extractError(e, 'No fue posible cargar los horarios. Verifique sus permisos de asistencia.');
             }
             finally {
                 if (requestId === this.ofertasRequestId) this.cargandoOfertas = false;

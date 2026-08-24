@@ -222,7 +222,7 @@
                     <div>
                         <label class="label">Nombre del Grupo WhatsApp</label>
                         <input x-model="form.whatsapp_grupo_nombre" type="text" class="input" placeholder="Ej. Inglés 1 Intensivo Matutino SPS">
-                        <p class="mt-1 text-xs text-gray-500">El link vigente del período se administra desde <a href="/admin/mis-grupos" class="text-brand-600 hover:text-brand-700">Mis Grupos</a>.</p>
+                        <p class="mt-1 text-xs text-gray-500">El link vigente del período se administra desde <a href="/admin/mis-grupos" class="text-brand-600 hover:text-brand-700">Mis Horarios</a>.</p>
                     </div>
                     <div>
                         <label class="label">Estado</label>

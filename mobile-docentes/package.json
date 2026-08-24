@@ -21,6 +21,8 @@
     "react-native": "^0.81.0"
   },
   "devDependencies": {
-    "eas-cli": "^16.0.0"
+    "eas-cli": "^16.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~10.0.0"
   }
 }

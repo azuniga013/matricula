@@ -85,7 +85,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-gray-900">Nueva Matrícula</p>
-                                <p class="text-xs text-gray-500">Registrar estudiante en un grupo</p>
+                                <p class="text-xs text-gray-500">Registrar estudiante en un horario</p>
                             </div>
                         </a>
                         <a href="/admin/pagos" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition group">

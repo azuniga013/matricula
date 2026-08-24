@@ -62,7 +62,7 @@ export async function clearBiometricCredentials() {
 export async function currentUser() { return request('/me'); }
 export async function offers(periodId = null) {
   const data = await request('/docente-movil/sincronizar');
-  const ofertas = data.ofertas || [];
+  const ofertas = (data.ofertas || []).filter((item) => String(item.periodo_academico?.estado || item.periodo_estado || 'activo') !== 'inactivo');
   return periodId
     ? ofertas.filter((item) => String(item.periodo_academico_id || item.periodo_academico?.id) === String(periodId))
     : ofertas;

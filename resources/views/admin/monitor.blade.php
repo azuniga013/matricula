@@ -5,7 +5,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-title">Monitor de Cupos</h1>
-            <p class="page-subtitle">Disponibilidad de grupos académicos en tiempo real</p>
+            <p class="page-subtitle">Disponibilidad de horarios académicos en tiempo real</p>
         </div>
         <div class="flex items-center gap-3">
             {{-- Auto-refresh indicator --}}
@@ -68,7 +68,7 @@
             </div>
             <div>
                 <p class="stat-value" x-text="resumen.ofertas"></p>
-                <p class="stat-label">Grupos Académicos</p>
+                <p class="stat-label">Horarios Académicos</p>
             </div>
         </div>
         <div class="stat-card">
@@ -165,7 +165,7 @@
                         </template>
                         <template x-if="ofertas.length === 0">
                             <tr>
-                                <td colspan="11" class="text-center py-10 text-gray-400 text-sm">No hay grupos académicos para los filtros seleccionados</td>
+                                <td colspan="11" class="text-center py-10 text-gray-400 text-sm">No hay horarios académicos para los filtros seleccionados</td>
                             </tr>
                         </template>
                     </tbody>

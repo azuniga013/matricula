@@ -90,7 +90,7 @@
 
                     <a x-show="permAny(['asistencias.lista.consultar','asistencias.lista.crear'])" href="/admin/mis-grupos" :class="isActive('/admin/mis-grupos') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.742-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197M6 18.719a5.971 5.971 0 0 1 .941-3.197m0 0a3 3 0 0 1 4.682-2.72 9.094 9.094 0 0 1 4.636 0 3 3 0 0 1 4.682 2.72M6.94 15.522a3 3 0 0 0 4.682-2.72 9.094 9.094 0 0 0-4.636 0 3 3 0 0 0-.046 2.72ZM12 12a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" /></svg>
-                        Mis Grupos
+                        Mis Horarios
                     </a>
 
                     <a x-show="permAny(['asistencias.lista.consultar','asistencias.lista.crear'])" href="/admin/asistencias" :class="isActive('/admin/asistencias') ? 'active' : ''" class="sidebar-item text-white/70">

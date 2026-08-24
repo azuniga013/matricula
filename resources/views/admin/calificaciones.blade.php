@@ -4,7 +4,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-title">Calificaciones</h1>
-            <p class="page-subtitle">Registro de notas finales por grupo académico</p>
+            <p class="page-subtitle">Registro de notas finales por horario académico</p>
         </div>
         <button x-show="grupoSeleccionado && estudiantes.length > 0 && api.hasPermission('calificaciones.registro.crear')" @click="guardar()" :disabled="saving" class="btn btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
@@ -35,9 +35,9 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label">3. Horario / Grupo</label>
+                    <label class="label">3. Horario</label>
                     <select x-model="filtros.oferta_academica_id" @change="cambioGrupo()" class="input" :disabled="!filtros.nivel_academico_id">
-                        <option value="">Seleccionar grupo...</option>
+                        <option value="">Seleccionar horario...</option>
                         <template x-for="o in gruposDisponibles" :key="o.id">
                             <option :value="o.id" x-text="grupoTexto(o)"></option>
                         </template>
@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    {{-- Info contextual del grupo --}}
+    {{-- Info contextual del horario --}}
     <template x-if="grupoSeleccionado">
         <div class="card mb-6 border-l-4 border-l-brand-500">
             <div class="card-body">
@@ -85,8 +85,8 @@
         <div class="card">
             <div class="card-body py-16 text-center">
                 <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>
-                <p class="text-gray-500 font-medium">Seleccione período, nivel y grupo para cargar los estudiantes</p>
-                <p class="text-gray-400 text-sm mt-1">El orden de filtro es obligatorio: Período → Nivel → Horario/Grupo</p>
+                <p class="text-gray-500 font-medium">Seleccione período, nivel y horario para cargar los estudiantes</p>
+                <p class="text-gray-400 text-sm mt-1">El orden de filtro es obligatorio: Período → Nivel → Horario</p>
             </div>
         </div>
     </template>
@@ -140,7 +140,7 @@
                             </tr>
                         </template>
                         <template x-if="estudiantes.length === 0">
-                            <tr><td colspan="7" class="text-center py-10 text-gray-400 text-sm">No hay estudiantes matriculados en este grupo</td></tr>
+                            <tr><td colspan="7" class="text-center py-10 text-gray-400 text-sm">No hay estudiantes matriculados en este horario</td></tr>
                         </template>
                     </tbody>
                 </table>

@@ -47,7 +47,7 @@ usuarios --< intentos_acceso
 usuarios --< bitacora_seguridad
 ```
 
-`usuarios.docente_id` mantiene la relación uno a uno para limitar al docente a sus ofertas, grupos, alumnos, asistencias y calificaciones.
+`usuarios.docente_id` mantiene la relación uno a uno para limitar al docente a sus ofertas, horarios, alumnos, asistencias y calificaciones.
 
 ## Alcance de datos
 
