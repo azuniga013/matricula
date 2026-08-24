@@ -14,6 +14,21 @@ estado transitorio, los acuerdos de interfaz y las zonas de colisión.
 |---|---|---|
 | Agente principal (P-028/029/034/035) | Modularización Pagos, Matrículas, Caja, Calificaciones, Inventario | `app/Modules/`, `app/Providers/AppServiceProvider.php`, `PagoController`, `MatriculaController`, `SesionCajaController`, `CalificacionController`, `InventarioLibroController`, `ReciboCajaController` |
 | Agente P-002 | Pruebas automatizadas: cobertura RBAC y alcance | `tests/Feature/` (`PagoTest`, `MatriculaTest`, `CajaTest`, `CalificacionTest`, `InventarioLibroTest`, `PortalEstudianteTest`, `IntegracionFlujoAcademicoTest`), `docs/PENDIENTES.md`. Archivos de pruebas nuevos ya creados y con cobertura: `AlcanceApiTest.php`, `DenegacionRbacTest.php` (no duplicar). **División P-003 (2026-08-10):** el otro agente conserva `AlcanceApiTest.php`, `DenegacionRbacTest.php`, `CalificacionTest.php`, `PortalEstudianteTest.php` y `AlcanceAdministrativoApiTest.php`; este frente abrió `AlcanceAdministrativoTest.php` para alcance administrativo adicional por sucursal/propietario sin tocar esos cinco archivos. |
+| Agente frontend docente (2026-08-24) | Frontend web del docente y menú administrativo restringido | `resources/views/layouts/admin.blade.php`, `resources/views/admin/mis-grupos.blade.php`, `resources/views/admin/asistencias.blade.php`, `resources/views/admin/calificaciones.blade.php`, `docs/PENDIENTES.md` |
+
+## Acuerdos del frente docente
+
+- 2026-08-24: el frontend docente usa el menú administrativo existente, pero se ocultan las secciones no docentes cuando `sessionUser.docente_id` está presente.
+- 2026-08-24: el frente docente conserva solo `Mis Horarios`, `Asistencias`, `Calificaciones` y `APK Docentes` como accesos visibles.
+- 2026-08-24: si otro agente toca vistas docentes, debe respetar el mismo criterio de visibilidad y no reintroducir módulos administrativos completos en ese menú.
+- 2026-08-24: si se necesita endurecer más, la siguiente capa a coordinar es el bloqueo de rutas directas, no el menú.
+
+## Estado actual del frente docente
+
+- Menú restringido por `docente_id` implementado en `resources/views/layouts/admin.blade.php`.
+- Vistas docentes principales revisadas: `admin/mis-grupos`, `admin/asistencias`, `admin/calificaciones`.
+- `docs/PENDIENTES.md` actualizado con la nota operativa del frente docente.
+- Pendiente sugerido: validar con usuario docente real que el menú y el acceso directo a rutas no docentes se comporten como se espera.
 
 Reglas de convivencia:
 
@@ -125,3 +140,18 @@ pruebas directas de casos de uso) y `docs/PENDIENTES.md` (conteos P-002/P-035).
   `Undefined type 'DB'` en `CalificacionTest`/`MatriculaTest`/`CajaTest` y
   `Undefined method 'id'` en `Comun\ContextoUsuario` /
   `Matriculas\Servicios\GeneradorObligacionesMatricula`; la suite pasa igual.
+
+## Mensajes recientes para otros agentes
+
+- 2026-08-24: La línea funcional vigente para WhatsApp ya no debe depender del
+  catálogo antiguo como fuente operativa. El flujo principal quedó así:
+  `Ofertas` define `whatsapp_grupo_nombre`, `Mis Horarios` / APK docente
+  actualizan `whatsapp_link_periodo`, y el portal del estudiante resuelve el
+  link desde la oferta. La APK docente ya compila (`expo export`) con edición
+  del link del período en `Ofertas Académicas`. Si otro agente toca WhatsApp,
+  no reintroducir `grupo_whatsapp_id` como requisito operativo.
+- 2026-08-24: Seguridad/RBAC quedó alineado a permisos finos por submódulo en
+  `routes/api.php` (`seguridad.usuarios.*`, `seguridad.roles.*`, etc.). Si otro
+  agente modifica pruebas o seeders de seguridad, asumir que los permisos
+  genéricos `seguridad.consultar|crear|modificar|configurar` ya no son la
+  referencia principal para esas rutas.

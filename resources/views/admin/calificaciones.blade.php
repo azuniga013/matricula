@@ -6,13 +6,13 @@
             <h1 class="page-title">Calificaciones</h1>
             <p class="page-subtitle">Registro de notas finales por horario académico</p>
         </div>
-        <button x-show="grupoSeleccionado && estudiantes.length > 0 && api.hasPermission('calificaciones.registro.crear')" @click="guardar()" :disabled="saving" class="btn btn-primary">
+        <button x-show="horarioSeleccionado && estudiantes.length > 0 && api.hasPermission('calificaciones.registro.crear')" @click="guardar()" :disabled="saving" class="btn btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             <span x-text="saving ? 'Guardando...' : 'Guardar Calificaciones'"></span>
         </button>
     </div>
 
-    {{-- Filtros en cascada: Período → Nivel → Grupo (AGENTS §4.9.1) --}}
+    {{-- Filtros en cascada: Período → Nivel → Horario (AGENTS §4.9.1) --}}
     <div class="card mb-6">
         <div class="card-body">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -36,10 +36,10 @@
                 </div>
                 <div>
                     <label class="label">3. Horario</label>
-                    <select x-model="filtros.oferta_academica_id" @change="cambioGrupo()" class="input" :disabled="!filtros.nivel_academico_id">
+                    <select x-model="filtros.oferta_academica_id" @change="cambioHorario()" class="input" :disabled="!filtros.nivel_academico_id">
                         <option value="">Seleccionar horario...</option>
-                        <template x-for="o in gruposDisponibles" :key="o.id">
-                            <option :value="o.id" x-text="grupoTexto(o)"></option>
+                        <template x-for="o in horariosDisponibles" :key="o.id">
+                            <option :value="o.id" x-text="horarioTexto(o)"></option>
                         </template>
                     </select>
                 </div>
@@ -48,25 +48,25 @@
     </div>
 
     {{-- Info contextual del horario --}}
-    <template x-if="grupoSeleccionado">
+    <template x-if="horarioSeleccionado">
         <div class="card mb-6 border-l-4 border-l-brand-500">
             <div class="card-body">
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div>
                         <p class="text-gray-400 text-xs">Nivel</p>
-                        <p class="font-semibold" x-text="grupoSeleccionado.nivel_academico?.codigo + ' · ' + grupoSeleccionado.nivel_academico?.nombre"></p>
+                        <p class="font-semibold" x-text="horarioSeleccionado.nivel_academico?.codigo + ' · ' + horarioSeleccionado.nivel_academico?.nombre"></p>
                     </div>
                     <div>
                         <p class="text-gray-400 text-xs">Docente</p>
-                        <p class="font-semibold" x-text="grupoSeleccionado.docente ? (grupoSeleccionado.docente.nombre + ' ' + grupoSeleccionado.docente.apellido) : '-'"></p>
+                        <p class="font-semibold" x-text="horarioSeleccionado.docente ? (horarioSeleccionado.docente.nombre + ' ' + horarioSeleccionado.docente.apellido) : '-'"></p>
                     </div>
                     <div>
                         <p class="text-gray-400 text-xs">Modalidad / Horario</p>
-                        <p class="font-semibold" x-text="(grupoSeleccionado.modalidad?.nombre || '-') + ' · ' + (grupoSeleccionado.horario?.nombre || '-')"></p>
+                        <p class="font-semibold" x-text="(horarioSeleccionado.modalidad?.nombre || '-') + ' · ' + (horarioSeleccionado.horario?.nombre || '-')"></p>
                     </div>
                     <div>
                         <p class="text-gray-400 text-xs">Regla de aprobación</p>
-                        <p class="font-semibold">Nota ≥ <span x-text="grupoSeleccionado.nivel_academico?.nota_minima_aprobar"></span>% · Faltas ≤ <span x-text="grupoSeleccionado.nivel_academico?.faltas_maximas_permitidas"></span></p>
+                        <p class="font-semibold">Nota ≥ <span x-text="horarioSeleccionado.nivel_academico?.nota_minima_aprobar"></span>% · Faltas ≤ <span x-text="horarioSeleccionado.nivel_academico?.faltas_maximas_permitidas"></span></p>
                     </div>
                 </div>
             </div>
@@ -81,7 +81,7 @@
     </template>
 
     {{-- Estado vacío --}}
-    <template x-if="!loading && !grupoSeleccionado">
+    <template x-if="!loading && !horarioSeleccionado">
         <div class="card">
             <div class="card-body py-16 text-center">
                 <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>
@@ -92,7 +92,7 @@
     </template>
 
     {{-- Tabla de estudiantes --}}
-    <template x-if="!loading && grupoSeleccionado">
+    <template x-if="!loading && horarioSeleccionado">
         <div class="card">
             <div class="table-container">
                 <table class="table">
@@ -151,7 +151,7 @@
                     <span class="text-emerald-600 font-medium" x-text="conteoAprobados() + ' aprobados'"></span> ·
                     <span class="text-red-500 font-medium" x-text="(estudiantes.filter(e => e.nota_final !== null && e.nota_final !== '' && !isNaN(e.nota_final)).length - conteoAprobados()) + ' reprobados'"></span>
                 </p>
-                <p class="text-xs text-gray-400">Resultado calculado con nota ≥ <span x-text="grupoSeleccionado?.nivel_academico?.nota_minima_aprobar"></span>% y faltas ≤ <span x-text="grupoSeleccionado?.nivel_academico?.faltas_maximas_permitidas"></span></p>
+                <p class="text-xs text-gray-400">Resultado calculado con nota ≥ <span x-text="horarioSeleccionado?.nivel_academico?.nota_minima_aprobar"></span>% y faltas ≤ <span x-text="horarioSeleccionado?.nivel_academico?.faltas_maximas_permitidas"></span></p>
             </div>
         </div>
     </template>
@@ -182,11 +182,11 @@ function calificaciones() {
                 if (!this.filtros.nivel_academico_id && this.nivelesDisponibles.length > 0) {
                     this.filtros.nivel_academico_id = this.nivelesDisponibles[0].id;
                 }
-                if (!this.filtros.oferta_academica_id && this.gruposDisponibles.length > 0) {
-                    this.filtros.oferta_academica_id = this.gruposDisponibles[0].id;
+                if (!this.filtros.oferta_academica_id && this.horariosDisponibles.length > 0) {
+                    this.filtros.oferta_academica_id = this.horariosDisponibles[0].id;
                 }
                 if (this.filtros.oferta_academica_id) {
-                    await this.cambioGrupo();
+                    await this.cambioHorario();
                 }
             } catch(e) {}
         },
@@ -200,7 +200,7 @@ function calificaciones() {
             return [...mapa.values()].sort((a, b) => (a.orden || 0) - (b.orden || 0));
         },
 
-        get gruposDisponibles() {
+        get horariosDisponibles() {
             if (!this.filtros.nivel_academico_id) return [];
             return this.ofertas.filter(o =>
                 o.periodo_academico_id == this.filtros.periodo_academico_id &&
@@ -208,7 +208,7 @@ function calificaciones() {
             );
         },
 
-        get grupoSeleccionado() {
+        get horarioSeleccionado() {
             return this.ofertas.find(o => o.id == this.filtros.oferta_academica_id) || null;
         },
 
@@ -223,7 +223,7 @@ function calificaciones() {
             this.estudiantes = [];
         },
 
-        async cambioGrupo() {
+        async cambioHorario() {
             if (!this.filtros.oferta_academica_id) { this.estudiantes = []; return; }
             this.loading = true;
             const h = { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } };
@@ -265,7 +265,7 @@ function calificaciones() {
         },
 
         esAprobado(e) {
-            const nivel = this.grupoSeleccionado?.nivel_academico;
+            const nivel = this.horarioSeleccionado?.nivel_academico;
             if (!nivel) return false;
             return Number(e.nota_final) >= Number(nivel.nota_minima_aprobar)
                 && Number(e.faltas || 0) <= Number(nivel.faltas_maximas_permitidas);
@@ -306,7 +306,7 @@ function calificaciones() {
                 const { data } = await window.axios.post('/api/v1/calificaciones/registrar', payload, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 if (data.resultado === 'A') {
                     this.toast(data.mensaje || 'Calificaciones registradas', 'success');
-                    await this.cambioGrupo();
+                    await this.cambioHorario();
                 } else {
                     this.toast(data.mensaje || 'Error al guardar', 'error');
                 }
@@ -315,7 +315,7 @@ function calificaciones() {
             } finally { this.saving = false; }
         },
 
-        grupoTexto(o) {
+        horarioTexto(o) {
             const horario = o.horario?.nombre || 'Sin horario';
             const docente = o.docente ? `${o.docente.nombre} ${o.docente.apellido}` : '';
             return `${o.codigo} · ${horario}${docente ? ' · ' + docente : ''}`;

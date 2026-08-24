@@ -51,34 +51,34 @@
                         Dashboard
                     </a>
 
-                    <p x-show="permAny(['catalogos.sucursales.consultar','catalogos.departamentos.consultar','catalogos.niveles.consultar','catalogos.modalidades.consultar','catalogos.horarios.consultar','catalogos.docentes.consultar','catalogos.aulas.consultar','catalogos.planes.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Académico</p>
+                    <p x-show="!isDocente && permAny(['catalogos.sucursales.consultar','catalogos.departamentos.consultar','catalogos.niveles.consultar','catalogos.modalidades.consultar','catalogos.horarios.consultar','catalogos.docentes.consultar','catalogos.aulas.consultar','catalogos.planes.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Académico</p>
 
-                    <a x-show="permAny(['catalogos.sucursales.consultar','catalogos.departamentos.consultar','catalogos.niveles.consultar','catalogos.modalidades.consultar','catalogos.horarios.consultar','catalogos.docentes.consultar','catalogos.aulas.consultar','catalogos.planes.consultar'])" href="/admin/catalogos" :class="isActive('/admin/catalogos') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['catalogos.sucursales.consultar','catalogos.departamentos.consultar','catalogos.niveles.consultar','catalogos.modalidades.consultar','catalogos.horarios.consultar','catalogos.docentes.consultar','catalogos.aulas.consultar','catalogos.planes.consultar'])" href="/admin/catalogos" :class="isActive('/admin/catalogos') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
                         Catálogos
                     </a>
 
-                    <a x-show="permAny(['ofertas.academicas.consultar','ofertas.periodos.consultar','ofertas.monitor.consultar'])" href="/admin/ofertas" :class="isActive('/admin/ofertas') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['ofertas.academicas.consultar','ofertas.periodos.consultar','ofertas.monitor.consultar'])" href="/admin/ofertas" :class="isActive('/admin/ofertas') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" /></svg>
                         Ofertas y Cupos
                     </a>
 
-                    <a x-show="permAny(['ofertas.monitor.consultar'])" href="/admin/monitor" :class="isActive('/admin/monitor') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['ofertas.monitor.consultar'])" href="/admin/monitor" :class="isActive('/admin/monitor') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" /></svg>
                         Monitor de Cupos
                     </a>
 
-                    <a x-show="api.hasPermission('catalogos.planes-cobro.consultar')" href="/admin/planes-cobro" :class="isActive('/admin/planes-cobro') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && api.hasPermission('catalogos.planes-cobro.consultar')" href="/admin/planes-cobro" :class="isActive('/admin/planes-cobro') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 0 4.5 6h.75m13.5 0h.75a.75.75 0 0 0 .75-.75V4.5M3.75 9.75v.75a.75.75 0 0 0 .75.75h.75m13.5 0h.75a.75.75 0 0 0 .75-.75v-.75M4.5 13.5v.75a.75.75 0 0 0 .75.75h.75" stroke-linecap="round" /></svg>
                         Planes de Cobro
                     </a>
 
-                    <a x-show="permAny(['estudiantes.registro.consultar','estudiantes.ficha.consultar','estudiantes.accesos.consultar'])" href="/admin/estudiantes" :class="isActive('/admin/estudiantes') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['estudiantes.registro.consultar','estudiantes.ficha.consultar','estudiantes.accesos.consultar'])" href="/admin/estudiantes" :class="isActive('/admin/estudiantes') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
                         Estudiantes
                     </a>
 
-                    <a x-show="permAny(['matriculas.gestion.consultar','matriculas.historial.consultar'])" href="/admin/matriculas" :class="isActive('/admin/matriculas') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['matriculas.gestion.consultar','matriculas.historial.consultar'])" href="/admin/matriculas" :class="isActive('/admin/matriculas') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
                         Matrícula
                     </a>
@@ -98,43 +98,43 @@
                         Asistencias
                     </a>
 
-                    <a x-show="permAny(['inventario.libros.consultar','inventario.stock.consultar','inventario.ventas.consultar'])" href="/admin/inventario" :class="isActive('/admin/inventario') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['inventario.libros.consultar','inventario.stock.consultar','inventario.ventas.consultar'])" href="/admin/inventario" :class="isActive('/admin/inventario') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
                         Inventario
                     </a>
 
-                    <p x-show="permAny(['pagos.consultar','caja.sesiones.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Financiero</p>
+                    <p x-show="!isDocente && permAny(['pagos.consultar','caja.sesiones.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Financiero</p>
 
-                    <a x-show="permAny(['pagos.consultar','pagos.comprobantes.consultar','pagos.aprobacion.consultar'])" href="/admin/pagos" :class="isActive('/admin/pagos') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['pagos.consultar','pagos.comprobantes.consultar','pagos.aprobacion.consultar'])" href="/admin/pagos" :class="isActive('/admin/pagos') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
                         Obligaciones
                     </a>
 
-                    <a x-show="permAny(['caja.sesiones.consultar','caja.recibos.consultar','caja.cierre.consultar'])" href="/admin/caja" :class="isActive('/admin/caja') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['caja.sesiones.consultar','caja.recibos.consultar','caja.cierre.consultar'])" href="/admin/caja" :class="isActive('/admin/caja') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015A2.993 2.993 0 0 0 20.25 9.75c.896 0 1.7-.393 2.25-1.015" /></svg>
                         Caja
                     </a>
 
-                    <p x-show="permAny(['reportes.academicos.consultar','reportes.financieros.consultar','reportes.caja.consultar','reportes.inventario.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Reportes</p>
+                    <p x-show="!isDocente && permAny(['reportes.academicos.consultar','reportes.financieros.consultar','reportes.caja.consultar','reportes.inventario.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Reportes</p>
 
-                    <a x-show="permAny(['reportes.academicos.consultar','reportes.financieros.consultar','reportes.caja.consultar','reportes.inventario.consultar'])" href="/admin/reportes" :class="isActive('/admin/reportes') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['reportes.academicos.consultar','reportes.financieros.consultar','reportes.caja.consultar','reportes.inventario.consultar'])" href="/admin/reportes" :class="isActive('/admin/reportes') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
                         Reportes
                     </a>
 
-                    <p x-show="permAny(['seguridad.usuarios.consultar','seguridad.roles.consultar','seguridad.permisos.consultar','seguridad.auditoria.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Sistema</p>
+                    <p x-show="!isDocente && permAny(['seguridad.usuarios.consultar','seguridad.roles.consultar','seguridad.permisos.consultar','seguridad.auditoria.consultar'])" class="px-3 pt-4 mb-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">Sistema</p>
 
-                    <a x-show="permAny(['seguridad.usuarios.consultar','seguridad.roles.consultar','seguridad.permisos.consultar','seguridad.auditoria.consultar'])" href="/admin/seguridad" :class="isActive('/admin/seguridad') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['seguridad.usuarios.consultar','seguridad.roles.consultar','seguridad.permisos.consultar','seguridad.auditoria.consultar'])" href="/admin/seguridad" :class="isActive('/admin/seguridad') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
                         Seguridad
                     </a>
 
-                    <a x-show="permAny(['seguridad.parametros.consultar','seguridad.parametros.modificar'])" href="/admin/parametros-globales" :class="isActive('/admin/parametros-globales') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['seguridad.parametros.consultar','seguridad.parametros.modificar'])" href="/admin/parametros-globales" :class="isActive('/admin/parametros-globales') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 1.985c.324-.253.736-.344 1.13-.21l4.954 1.63a1.5 1.5 0 0 1 .477 2.511l-3.185 2.558a.75.75 0 0 1-.901-.004l-4.94-3.991a.75.75 0 0 1 .002-1.158l3.46-2.726Zm-3.336 4.962a.75.75 0 0 1 .918.107l4.94 3.991a.75.75 0 0 1-.002 1.158l-3.46 2.726a1.5 1.5 0 0 1-1.13.21l-4.954-1.63a1.5 1.5 0 0 1-.477-2.511l3.185-2.558Z" /></svg>
                         Parámetros Globales
                     </a>
 
-                    <a x-show="permAny(['configuracion.pagos.consultar','configuracion.pagos.modificar'])" href="/admin/proveedores-pago" :class="isActive('/admin/proveedores-pago') ? 'active' : ''" class="sidebar-item text-white/70">
+                    <a x-show="!isDocente && permAny(['configuracion.pagos.consultar','configuracion.pagos.modificar'])" href="/admin/proveedores-pago" :class="isActive('/admin/proveedores-pago') ? 'active' : ''" class="sidebar-item text-white/70">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg>
                         Proveedores Pago
                     </a>
@@ -269,6 +269,7 @@
             return {
                 sidebarOpen: false,
                 isLoggedIn: false,
+                isDocente: false,
                 userName: '',
                 userEmail: '',
                 currentDate: new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -289,6 +290,7 @@
                         this.isLoggedIn = true;
                         this.userName = sessionUser.nombre;
                         this.userEmail = sessionUser.email;
+                        this.isDocente = Boolean(sessionUser.docente_id);
                         window.api_user = sessionUser;
                         window.api_permisos = sessionUser.permisos || [];
                         if (window.api) {
