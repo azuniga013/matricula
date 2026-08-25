@@ -95,15 +95,13 @@ class DocenteMovilController extends Controller
 
         $oferta = OfertaAcademica::where('docente_id', $usuario->docente_id)->findOrFail($id);
         $datos = $request->validate([
+            'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'whatsapp_link_periodo' => 'nullable|string|max:500',
         ]);
 
-        if (! $oferta->whatsapp_grupo_nombre) {
-            return response()->json([
-                'resultado' => 'R',
-                'codigo' => 422,
-                'mensaje' => 'La oferta no tiene nombre de grupo de WhatsApp configurado.',
-            ], 422);
+        $nombre = trim((string) ($datos['whatsapp_grupo_nombre'] ?? $oferta->whatsapp_grupo_nombre ?? ''));
+        if ($nombre === '') {
+            $nombre = null;
         }
 
         $link = trim((string) ($datos['whatsapp_link_periodo'] ?? ''));
@@ -119,6 +117,7 @@ class DocenteMovilController extends Controller
         }
 
         $oferta->update([
+            'whatsapp_grupo_nombre' => $nombre,
             'whatsapp_link_periodo' => $link !== '' ? $link : null,
             'actualizado_por' => $usuario->id,
         ]);
@@ -126,7 +125,7 @@ class DocenteMovilController extends Controller
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
-            'mensaje' => 'Link de WhatsApp actualizado correctamente.',
+            'mensaje' => 'Configuración de WhatsApp actualizada correctamente.',
             'data' => $this->mapearOferta($oferta->fresh(['periodoAcademico:id,codigo,nombre','nivelAcademico:id,codigo,nombre','horario:id,codigo,nombre,hora_inicio,hora_fin','modalidad:id,codigo,nombre'])),
         ]);
     }

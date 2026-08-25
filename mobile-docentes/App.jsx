@@ -644,11 +644,13 @@ function PeriodFilter({ periods, periodId, selectPeriod }) {
 
 function OfferList({ module, offers, periods, periodId, selectPeriod, open, back, sync, syncing }) {
   const [links, setLinks] = useState({});
+  const [names, setNames] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     setLinks(Object.fromEntries(offers.map((offer) => [offer.id, offer.whatsapp_link_periodo || ''])));
+    setNames(Object.fromEntries(offers.map((offer) => [offer.id, offer.whatsapp_grupo_nombre || ''])));
   }, [offers]);
 
   const filteredOffers = useMemo(() => {
@@ -662,10 +664,12 @@ function OfferList({ module, offers, periods, periodId, selectPeriod, open, back
   async function saveWhatsappLink(offer) {
     setSavingId(offer.id);
     try {
-      const updated = await updateWhatsappPeriodLink(offer.id, links[offer.id] || null);
+      const updated = await updateWhatsappPeriodLink(offer.id, links[offer.id] || null, names[offer.id] || null);
+      offer.whatsapp_grupo_nombre = updated?.whatsapp_grupo_nombre || null;
       offer.whatsapp_link_periodo = updated?.whatsapp_link_periodo || null;
+      setNames((prev) => ({ ...prev, [offer.id]: offer.whatsapp_grupo_nombre || '' }));
       setLinks((prev) => ({ ...prev, [offer.id]: offer.whatsapp_link_periodo || '' }));
-      Alert.alert('WhatsApp', 'Link del período guardado correctamente.');
+      Alert.alert('WhatsApp', 'Configuración del horario guardada correctamente.');
     } catch (error) {
       Alert.alert('No se pudo guardar', error.message || 'Inténtelo de nuevo.');
     } finally {
@@ -748,7 +752,14 @@ function OfferList({ module, offers, periods, periodId, selectPeriod, open, back
             {module?.id === 'ofertas' ? (
               <View style={extraStyles.whatsappPanel}>
                 <Text style={styles.fieldLabel}>Nombre del horario en WhatsApp</Text>
-                <Text style={extraStyles.helperText}>{item.whatsapp_grupo_nombre || 'Sin nombre configurado todavía.'}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. Inglés 1 Intensivo Matutino SPS"
+                  value={names[item.id] || ''}
+                  onChangeText={(value) => setNames((prev) => ({ ...prev, [item.id]: value }))}
+                  autoCorrect={false}
+                />
+                <Text style={extraStyles.helperText}>Este es el nombre funcional que verá el docente para identificar el horario en WhatsApp.</Text>
 
                 <Text style={styles.fieldLabel}>Link WhatsApp del período</Text>
                 <TextInput
@@ -761,15 +772,15 @@ function OfferList({ module, offers, periods, periodId, selectPeriod, open, back
                 />
 
                 <TouchableOpacity
-                  style={[extraStyles.primaryBlockBtn, (savingId === item.id || !item.whatsapp_grupo_nombre) && extraStyles.primaryBlockBtnDisabled]}
-                  disabled={savingId === item.id || !item.whatsapp_grupo_nombre}
+                  style={[extraStyles.primaryBlockBtn, savingId === item.id && extraStyles.primaryBlockBtnDisabled]}
+                  disabled={savingId === item.id}
                   onPress={() => saveWhatsappLink(item)}
                   activeOpacity={0.85}
                 >
-                  <Text style={extraStyles.primaryBlockBtnText}>{savingId === item.id ? 'Guardando...' : 'Guardar link del período'}</Text>
+                  <Text style={extraStyles.primaryBlockBtnText}>{savingId === item.id ? 'Guardando...' : 'Guardar configuración de WhatsApp'}</Text>
                 </TouchableOpacity>
 
-                {!item.whatsapp_grupo_nombre ? <Text style={extraStyles.helperText}>La oferta necesita un nombre funcional de WhatsApp para habilitar este guardado.</Text> : null}
+                {!names[item.id] ? <Text style={extraStyles.helperText}>Puede dejar solo el link, pero se recomienda definir también un nombre claro para el horario.</Text> : null}
               </View>
             ) : null}
           </View>
