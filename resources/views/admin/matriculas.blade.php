@@ -575,7 +575,19 @@
                              <p><span class="text-gray-400">Plan:</span> <span x-text="gestionSeleccionada?.datos_antes?.plan_codigo || '-'" ></span></p>
                              <p><span class="text-gray-400">Horario:</span> <span x-text="gestionSeleccionada?.datos_antes?.horario_codigo || gestionSeleccionada?.datos_antes?.horario_nombre || '-'" ></span></p>
                              <p><span class="text-gray-400">Estado:</span> <span x-text="gestionSeleccionada?.datos_antes?.estado || '-'" ></span></p>
-                         </div>
+                  </div>
+                 <div x-show="auditoriaGestion.length > 0" class="border-t border-gray-100 pt-4">
+                     <h4 class="text-sm font-semibold text-gray-800 mb-3">Auditoría</h4>
+                     <div class="space-y-2">
+                         <template x-for="item in auditoriaGestion" :key="item.id">
+                             <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs">
+                                 <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                                 <p class="text-gray-500" x-text="formatFecha(item.creado_en)"></p>
+                                 <p class="text-gray-600" x-text="item.descripcion || '-'"></p>
+                             </div>
+                         </template>
+                     </div>
+                 </div>
                          <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 space-y-2 text-sm">
                              <p class="font-semibold text-emerald-700">Después</p>
                              <p><span class="text-gray-400">Oferta:</span> <span class="font-mono" x-text="gestionSeleccionada?.despues?.oferta_codigo || '-'" ></span></p>
@@ -628,6 +640,7 @@ function matriculas() {
         filtroGestion: { tipo: '', estado: '', periodo: '', plan: '', nivel: '', oferta: '' },
         ofertasGestion: [],
         showModalGestion: false, showModalRechazo: false, showModalDetalle: false,
+        auditoriaGestion: [],
         savingGestion: false, errorGestion: '', matriculaPreseleccionada: false,
         formGestion: { matricula_id: '', tipo_gestion_matricula_id: '', oferta_academica_destino_id: '', motivo: '' },
         matriculasActivas: [], ofertasDestino: [], ofertasDestinoLoading: false,
@@ -1149,6 +1162,10 @@ function matriculas() {
                 const { data } = await window.axios.get(`/api/v1/gestiones-matricula/${g.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 this.gestionSeleccionada = data.data || g;
             } catch(e) { this.gestionSeleccionada = g; }
+            try {
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=gestiones_matricula&entidad_id=${g.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.auditoriaGestion = data.data || [];
+            } catch (e) { this.auditoriaGestion = []; }
             this.showModalDetalle = true;
         },
 

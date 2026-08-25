@@ -8,6 +8,7 @@ use App\Models\AsistenciaEstudiante;
 use App\Models\Matricula;
 use App\Models\OfertaAcademica;
 use App\Services\ResolutorAlcanceDatos;
+use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -128,7 +129,7 @@ class AsistenciaController extends Controller
             ], 403);
         }
 
-        return DB::transaction(function () use ($datos, $user) {
+        return DB::transaction(function () use ($datos, $user, $request) {
             $registradas = 0;
             $asistenciasNotificables = [];
 
@@ -176,6 +177,8 @@ class AsistenciaController extends Controller
                     event(new AsistenciaNotificableRegistrada(array_values(array_unique($asistenciasNotificables))));
                 });
             }
+
+            app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'asistencias', 'registrar', 'ofertas_academicas', $datos['oferta_academica_id'], null, ['fecha' => $datos['fecha'], 'registradas' => $registradas], 'Registro de asistencias por oferta');
 
             return response()->json([
                 'resultado' => 'A',

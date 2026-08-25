@@ -10,6 +10,7 @@ use App\Modules\Calificaciones\CasosUso\RegistrarCalificaciones;
 use App\Modules\Calificaciones\Servicios\ValidadorAccesoOfertaDocente;
 use App\Modules\Comun\ContextoUsuario;
 use App\Modules\Comun\ResultadoCasoUso;
+use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -79,6 +80,10 @@ class CalificacionController extends Controller
             ContextoUsuario::desdeRequest(),
         );
 
+        if ($resultado->ok()) {
+            app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'calificaciones', 'registrar', 'ofertas_academicas', (int) $request->oferta_academica_id, null, ['cantidad' => count($request->calificaciones)], 'Registro de calificaciones por oferta');
+        }
+
         return $this->responder($resultado);
     }
 
@@ -104,6 +109,7 @@ class CalificacionController extends Controller
 
     public function actualizar(int $id, Request $request): JsonResponse
     {
+        $antes = Calificacion::find($id)?->only(['nota_final', 'faltas', 'observaciones', 'estado']);
         $request->validate([
             'nota_final' => 'nullable|numeric|min:0|max:100',
             'faltas' => 'nullable|integer|min:0',
@@ -116,6 +122,10 @@ class CalificacionController extends Controller
             $request->user()?->docente_id,
             ContextoUsuario::desdeRequest(),
         );
+
+        if ($resultado->ok()) {
+            app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'calificaciones', 'actualizar', 'calificaciones', $id, $antes, $resultado->data()['calificacion'] ?? null, 'Actualización de calificación');
+        }
 
         return $this->responder($resultado);
     }

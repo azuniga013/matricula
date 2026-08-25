@@ -447,6 +447,16 @@
                     </div>
                 </template>
                 </div>
+                <div x-show="editing && auditoriaEntidad.length > 0 && ['sucursales'].includes(activeTab)" class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-800">Auditoría</h4>
+                    <template x-for="item in auditoriaEntidad" :key="item.id">
+                        <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs space-y-1">
+                            <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                            <p class="text-gray-500" x-text="formatearFecha(item.creado_en)"></p>
+                            <p class="text-gray-600" x-text="item.descripcion || '-' "></p>
+                        </div>
+                    </template>
+                </div>
 
                 <div x-show="error" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
                     <p class="text-sm text-red-600" x-text="error"></p>
@@ -568,7 +578,7 @@ function catalogos() {
         error: '',
         items: [],
         planFiltroId: '',
-        formData: {},
+        formData: {}, auditoriaEntidad: [],
         editId: null,
 
         permMap: {
@@ -875,6 +885,7 @@ function catalogos() {
             this.editing = false;
             this.editId = null;
             this.error = '';
+            this.auditoriaEntidad = [];
             this.formData = {};
             this.currentFields.forEach(f => {
                 if (f.type === 'number') this.formData[f.key] = 0;
@@ -922,6 +933,16 @@ function catalogos() {
                 }
             });
             this.showModal = true;
+            if (['sucursales'].includes(this.activeTab)) {
+                try {
+                    const token = localStorage.getItem('auth_token');
+                    const entidadTipo = this.activeTab === 'sucursales' ? 'sucursales' : null;
+                    if (entidadTipo) {
+                        const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=${entidadTipo}&entidad_id=${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                        this.auditoriaEntidad = data.data || [];
+                    }
+                } catch (e) { this.auditoriaEntidad = []; }
+            }
         },
 
         async saveItem() {

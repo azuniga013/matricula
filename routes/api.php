@@ -197,6 +197,12 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
         Route::get('/auditoria/correos', [AuditoriaController::class, 'correos'])
             ->middleware('permission:seguridad.auditoria.consultar');
 
+        Route::get('/auditoria/operaciones', [AuditoriaController::class, 'operaciones'])
+            ->middleware('permission:seguridad.auditoria.consultar');
+
+        Route::get('/auditoria/entidad', [AuditoriaController::class, 'entidad'])
+            ->middleware('permission:seguridad.auditoria.consultar');
+
         Route::apiResourceProtegido('parametros-globales', ParametroGlobalController::class, 'seguridad.parametros', [
             'only' => ['index', 'store', 'update', 'destroy'],
             'parameters' => ['parametros-globales' => 'parametroGlobal'],

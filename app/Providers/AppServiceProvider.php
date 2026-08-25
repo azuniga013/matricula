@@ -18,8 +18,10 @@ use App\Modules\Matriculas\Repositorios\MatriculaRepositorio;
 use App\Modules\Pagos\Repositorios\EloquentPagoRepositorio;
 use App\Modules\Pagos\Repositorios\PagoRepositorio;
 use App\Services\CachePermisosService;
+use App\Services\ConfiguracionBitacorasService;
 use App\Services\Pagos\FabricaProcesadorPago;
 use App\Services\Pagos\PayPalProcesador;
+use App\Services\RegistroBitacoraCorreoService;
 use App\Services\ResolutorAlcanceDatos;
 use App\Services\ServicioBitacora;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(CachePermisosService::class);
+        $this->app->singleton(ConfiguracionBitacorasService::class);
+        $this->app->singleton(RegistroBitacoraCorreoService::class);
         $this->app->singleton(ServicioBitacora::class);
         $this->app->singleton(ResolutorAlcanceDatos::class, function ($app) {
             return new ResolutorAlcanceDatos(

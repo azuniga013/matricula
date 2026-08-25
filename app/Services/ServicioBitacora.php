@@ -5,12 +5,17 @@ namespace App\Services;
 use App\Models\BitacoraSeguridad;
 use App\Models\BitacoraPeticion;
 use Illuminate\Http\Request;
+use App\Models\BitacoraAuditoria;
 
 class ServicioBitacora
 {
+    public function __construct(
+        private readonly ConfiguracionBitacorasService $configuracion,
+    ) {}
+
     public function registrarPeticion(Request $request, int $estadoHttp, int $duracionMs): void
     {
-        if (!config('seguridad.bitacora.registrar_peticiones', true)) {
+        if (! $this->configuracion->peticionesHabilitadas()) {
             return;
         }
 
@@ -27,7 +32,7 @@ class ServicioBitacora
 
     public function registrarSeguridad(array $datos): void
     {
-        if (!config('seguridad.bitacora.registrar_seguridad', true)) {
+        if (! $this->configuracion->seguridadHabilitada()) {
             return;
         }
 
@@ -70,6 +75,44 @@ class ServicioBitacora
             'ip' => $ip,
             'agente' => $agente,
             'resultado' => 'exitoso',
+        ]);
+    }
+
+    public function registrarAuditoria(array $datos): void
+    {
+        if (! $this->configuracion->auditoriaCentralHabilitada()) {
+            return;
+        }
+
+        BitacoraAuditoria::create(array_merge([
+            'usuario_id' => null,
+            'modulo' => 'general',
+            'accion' => 'actualizacion',
+            'entidad_tipo' => null,
+            'entidad_id' => null,
+            'descripcion' => null,
+            'valores_antes' => null,
+            'valores_despues' => null,
+            'ip' => null,
+            'agente' => null,
+            'creado_en' => now(),
+        ], $datos));
+    }
+
+    public function registrarAuditoriaDesdeRequest(Request $request, string $modulo, string $accion, ?string $entidadTipo = null, mixed $entidadId = null, mixed $antes = null, mixed $despues = null, ?string $descripcion = null): void
+    {
+        $this->registrarAuditoria([
+            'usuario_id' => $request->user()?->id,
+            'modulo' => $modulo,
+            'accion' => $accion,
+            'entidad_tipo' => $entidadTipo,
+            'entidad_id' => $entidadId,
+            'descripcion' => $descripcion,
+            'valores_antes' => $antes,
+            'valores_despues' => $despues,
+            'ip' => $request->ip(),
+            'agente' => $request->userAgent(),
+            'creado_en' => now(),
         ]);
     }
 }

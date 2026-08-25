@@ -238,6 +238,19 @@
                     <p class="text-sm text-red-600" x-text="error"></p>
                 </div>
 
+                <div x-show="editing && auditoriaOferta.length > 0" class="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Auditoría</h4>
+                    <div class="space-y-2">
+                        <template x-for="item in auditoriaOferta" :key="item.id">
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs">
+                                <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                                <p class="text-gray-500" x-text="window.formatDateLocal(item.creado_en)"></p>
+                                <p class="text-gray-600" x-text="item.descripcion || '-'"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" @click="showModal = false" class="btn btn-outline">Cancelar</button>
                     <button type="submit" :disabled="saving" class="btn btn-primary">
@@ -258,7 +271,7 @@ function ofertas() {
         loading: true, showModal: false, editing: false, saving: false, error: '',
         ofertas: [], periodos: [], sucursales: [], niveles: [], versiones: [], modalidades: [], horarios: [], docentes: [], aulas: [], planesCobro: [],
         filtro: { periodo: '', sucursal: '', version_plan_estudio_id: '', nivel_academico_id: '', estado: '' },
-        form: {}, editId: null,
+        form: {}, editId: null, auditoriaOferta: [],
 
         get nivelesFiltrados() {
             if (!this.filtro.version_plan_estudio_id) return this.niveles;
@@ -349,6 +362,7 @@ function ofertas() {
 
         async openModal() {
             this.editing = false; this.editId = null; this.error = '';
+            this.auditoriaOferta = [];
             this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', whatsapp_grupo_nombre: '', cupo_maximo: 25, estado: 'borrador' };
             this.showModal = false;
             await this.$nextTick();
@@ -366,6 +380,11 @@ function ofertas() {
             };
             this.showModal = false;
             await this.$nextTick();
+            try {
+                const token = localStorage.getItem('auth_token');
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=ofertas_academicas&entidad_id=${o.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                this.auditoriaOferta = data.data || [];
+            } catch (e) { this.auditoriaOferta = []; }
             this.showModal = true;
         },
 

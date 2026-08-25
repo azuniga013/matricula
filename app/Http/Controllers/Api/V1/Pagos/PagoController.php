@@ -16,6 +16,7 @@ use App\Modules\Pagos\CasosUso\SubirComprobantePago;
 use App\Modules\Comun\ContextoUsuario;
 use App\Services\ResolutorAlcanceDatos;
 use App\Services\ResolutorFlujoMatricula;
+use App\Services\ServicioBitacora;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -195,12 +196,17 @@ class PagoController extends Controller
             ], $resultado->codigo());
         }
 
-        return response()->json([
+        $respuesta = response()->json([
             'resultado' => 'A',
             'codigo' => 201,
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data()['pago'],
         ], 201);
+
+        $pagoData = $resultado->data()['pago'];
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'pagos', 'registrar', 'pagos', is_array($pagoData) ? ($pagoData['id'] ?? null) : ($pagoData->id ?? null), null, $pagoData, 'Registro de pago');
+
+        return $respuesta;
     }
 
     public function actualizarLink(Request $request, int $id): JsonResponse
@@ -278,12 +284,16 @@ class PagoController extends Controller
             ], $resultado->codigo());
         }
 
-        return response()->json([
+        $respuesta = response()->json([
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data(),
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest(request(), 'pagos', 'aprobar', 'pagos', $id, null, $resultado->data(), 'Aprobación de pago');
+
+        return $respuesta;
     }
 
     public function rechazar(int $id, Request $request): JsonResponse
@@ -307,12 +317,16 @@ class PagoController extends Controller
             ], $resultado->codigo());
         }
 
-        return response()->json([
+        $respuesta = response()->json([
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data()['pago'],
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'pagos', 'rechazar', 'pagos', $id, null, $resultado->data()['pago'], 'Rechazo de pago');
+
+        return $respuesta;
     }
 
     public function show(Request $request, int $id): JsonResponse

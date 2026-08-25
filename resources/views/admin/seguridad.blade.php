@@ -425,6 +425,74 @@
                 </div>
             </div>
 
+            <div x-show="tab === 'auditores'" class="card mt-6">
+                <div class="card-header"><h3 class="text-sm font-semibold text-gray-900">Bitácora Central de Operaciones</h3></div>
+                <div class="p-4 border-b border-gray-100 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div><label class="label">Usuario</label><select x-model="filtrosOperaciones.usuario_id" class="input text-sm"><option value="">Todos</option><template x-for="u in usuarios" :key="u.id"><option :value="u.id" x-text="u.name"></option></template></select></div>
+                        <div><label class="label">Módulo</label><input x-model="filtrosOperaciones.modulo" type="text" class="input text-sm" placeholder="pagos, ofertas..."></div>
+                        <div><label class="label">Acción</label><input x-model="filtrosOperaciones.accion" type="text" class="input text-sm" placeholder="crear, actualizar..."></div>
+                        <div><label class="label">Entidad</label><input x-model="filtrosOperaciones.entidad_tipo" type="text" class="input text-sm" placeholder="pagos, ofertas_academicas..."></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div><label class="label">Fecha desde</label><input x-model="filtrosOperaciones.fecha_desde" type="datetime-local" class="input text-sm"></div>
+                        <div><label class="label">Fecha hasta</label><input x-model="filtrosOperaciones.fecha_hasta" type="datetime-local" class="input text-sm"></div>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <button @click="cargarOperacionesAuditoria()" class="btn btn-primary btn-sm">Filtrar</button>
+                        <button @click="limpiarFiltrosOperaciones()" class="btn btn-outline btn-sm">Limpiar</button>
+                        <span x-show="cargandoOperacionesAuditoria" class="inline-flex items-center text-xs text-gray-400"><div class="animate-spin rounded-full h-3 w-3 border-2 border-gray-300 border-t-gray-600 mr-2"></div>Cargando...</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Entidad</th><th>Descripción</th><th>Cambios</th></tr></thead>
+                            <tbody>
+                                <template x-for="o in operacionesAuditoria" :key="o.id">
+                                    <tr>
+                                        <td class="text-gray-500 text-xs" x-text="formatearFecha(o.creado_en)"></td>
+                                        <td class="font-medium" x-text="o.usuario?.name || 'Sistema'"></td>
+                                        <td><span class="badge badge-info" x-text="o.modulo"></span></td>
+                                        <td class="font-mono text-xs" x-text="o.accion"></td>
+                                        <td class="text-gray-500 text-xs" x-text="(o.entidad_tipo || '-') + (o.entidad_id ? (' #' + o.entidad_id) : '')"></td>
+                                        <td class="text-sm text-gray-600" x-text="o.descripcion || '-'"></td>
+                                        <td class="text-xs text-gray-600 align-top">
+                                            <div class="space-y-2 min-w-[240px]">
+                                                <template x-if="tieneCambios(o.valores_antes)">
+                                                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
+                                                        <p class="font-semibold text-amber-700 mb-1">Antes</p>
+                                                        <div class="space-y-1">
+                                                            <template x-for="linea in resumirCambios(o.valores_antes)" :key="'a-' + linea">
+                                                                <p x-text="linea"></p>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="tieneCambios(o.valores_despues)">
+                                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5">
+                                                        <p class="font-semibold text-emerald-700 mb-1">Después</p>
+                                                        <div class="space-y-1">
+                                                            <template x-for="linea in resumirCambios(o.valores_despues)" :key="'d-' + linea">
+                                                                <p x-text="linea"></p>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!tieneCambios(o.valores_antes) && !tieneCambios(o.valores_despues)">
+                                                    <span class="text-gray-400">Sin detalle</span>
+                                                </template>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="operacionesAuditoria.length === 0"><td colspan="7" class="text-center text-gray-400 py-8">No se encontraron registros</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div x-show="tab === 'correos'" class="card">
                 <div class="card-header"><h3 class="text-sm font-semibold text-gray-900">Bitácora de Correos Enviados</h3></div>
                 <div class="p-4 border-b border-gray-100 space-y-3">
@@ -534,6 +602,16 @@
                     <label class="label">Nombre</label>
                     <input x-model="permisoForm.nombre" type="text" required maxlength="100" class="input" placeholder="Crear permiso">
                 </div>
+                <div x-show="editingPermiso && auditoriaPermiso.length > 0" class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-800">Auditoría del permiso</h4>
+                    <template x-for="item in auditoriaPermiso" :key="item.id">
+                        <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs space-y-1">
+                            <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                            <p class="text-gray-500" x-text="formatearFecha(item.creado_en)"></p>
+                            <p class="text-gray-600" x-text="item.descripcion || '-' "></p>
+                        </div>
+                    </template>
+                </div>
                 <div x-show="errorPermiso" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3"><p class="text-sm text-red-600" x-text="errorPermiso"></p></div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" @click="showPermisoModal = false" class="btn btn-outline">Cancelar</button>
@@ -596,6 +674,16 @@
                     <div class="col-span-2"><label class="label">Sucursales con acceso</label><div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-gray-200 p-3 max-h-40 overflow-y-auto"><template x-for="sucursal in sucursalesCatalogo" :key="sucursal.id"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" :value="sucursal.codigo" x-model="userForm.sucursales" class="rounded border-gray-300 text-brand-600"><span x-text="sucursal.codigo + ' · ' + sucursal.nombre"></span></label></template><p x-show="sucursalesCatalogo.length === 0" class="text-sm text-amber-700">No hay sucursales disponibles o no tiene permiso para consultarlas.</p></div><p class="mt-1 text-xs text-gray-500">Puede asignar una o varias sucursales. Eso define qué información por sucursal podrá consultar el usuario.</p></div>
                     <div><label class="label">Estado</label><select x-model="userForm.estado" class="input"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
                 </div>
+                <div x-show="editingUser && auditoriaUsuario.length > 0" class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-800">Auditoría del usuario</h4>
+                    <template x-for="item in auditoriaUsuario" :key="item.id">
+                        <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs space-y-1">
+                            <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                            <p class="text-gray-500" x-text="formatearFecha(item.creado_en)"></p>
+                            <p class="text-gray-600" x-text="item.descripcion || '-' "></p>
+                        </div>
+                    </template>
+                </div>
                 <div x-show="error" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3"><p class="text-sm text-red-600" x-text="error"></p></div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" @click="showUserModal = false" class="btn btn-outline">Cancelar</button>
@@ -640,6 +728,18 @@
 
                 {{-- Permisos Matrix --}}
                 <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                    <div x-show="auditoriaRol.length > 0" class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <h4 class="text-sm font-semibold text-gray-800 mb-3">Auditoría del rol</h4>
+                        <div class="space-y-2">
+                            <template x-for="item in auditoriaRol" :key="item.id">
+                                <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs">
+                                    <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                                    <p class="text-gray-500" x-text="formatearFecha(item.creado_en)"></p>
+                                    <p class="text-gray-600" x-text="item.descripcion || '-'"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                     <template x-for="(permisos, modKey) in permisosFiltrados" :key="modKey">
                         <div class="border border-gray-200 rounded-lg overflow-hidden">
                             {{-- Module Header --}}
@@ -838,17 +938,19 @@
 function seguridad() {
     return {
         loading: true, tab: 'usuarios', error: '',
-        usuarios: [], roles: [], docentes: [], sucursalesCatalogo: [], permisosPorModulo: {}, bitacora: [],
+        usuarios: [], roles: [], docentes: [], sucursalesCatalogo: [], permisosPorModulo: {}, bitacora: [], operacionesAuditoria: [],
         flujosMatricula: [],
         conceptosPago: [], metodosPago: [],
         cargandoBitacora: false,
         filtros: { usuario_id: '', metodo: '', estado_http: '', fecha_desde: '', fecha_hasta: '', busqueda: '' },
+        cargandoOperacionesAuditoria: false,
+        filtrosOperaciones: { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', fecha_desde: '', fecha_hasta: '' },
         correos: [], cargandoCorreos: false,
         filtrosCorreos: { tipo: '', destinatario: '', estado: '', fecha_desde: '', fecha_hasta: '' },
         showCorreoModal: false, correoSeleccionado: null,
 
         /* User modal */
-        showUserModal: false, editingUser: false, saving: false, editUserId: null,
+        showUserModal: false, editingUser: false, saving: false, editUserId: null, auditoriaUsuario: [],
         userForm: { name: '', email: '', password: '', password_confirmation: '', docente_id: '', roles: [], sucursales: [], estado: 'activo' },
 
         /* Módulos / Opciones */
@@ -863,7 +965,7 @@ function seguridad() {
         opcionForm: { modulo_id: '', codigo: '', nombre: '', ruta: '', orden: '' },
 
         /* Permisos modal */
-        showPermisosModal: false, savingPermisos: false,
+        showPermisosModal: false, savingPermisos: false, auditoriaRol: [],
         rolEditando: null, rolNombre: '',
         permisosRol: [],
         todosPermisos: {},
@@ -871,7 +973,7 @@ function seguridad() {
         copiarDesdeRolId: '',
 
         /* Nuevo permiso */
-        showPermisoModal: false, savingPermiso: false, errorPermiso: '', editingPermiso: false, editPermisoId: null,
+        showPermisoModal: false, savingPermiso: false, errorPermiso: '', editingPermiso: false, editPermisoId: null, auditoriaPermiso: [],
         opcionesModulo: [],
         estadoPermisos: '',
         permisoForm: { opcion_modulo_id: '', codigo: '', nombre: '', accion: '' },
@@ -940,6 +1042,7 @@ function seguridad() {
                     this.metodosPago = mpRes.status === 'fulfilled' ? (mpRes.value.data.data?.data || mpRes.value.data.data || []) : [];
                 } else if (this.tab === 'auditores') {
                     await this.cargarBitacora();
+                    await this.cargarOperacionesAuditoria();
                 } else if (this.tab === 'correos') {
                     await this.cargarCorreos();
                 }
@@ -1121,6 +1224,48 @@ function seguridad() {
             this.cargarBitacora();
         },
 
+        async cargarOperacionesAuditoria() {
+            this.cargandoOperacionesAuditoria = true;
+            const token = localStorage.getItem('auth_token');
+            const params = new URLSearchParams();
+            params.set('per_page', '50');
+            if (this.filtrosOperaciones.usuario_id) params.set('usuario_id', this.filtrosOperaciones.usuario_id);
+            if (this.filtrosOperaciones.modulo) params.set('modulo', this.filtrosOperaciones.modulo);
+            if (this.filtrosOperaciones.accion) params.set('accion', this.filtrosOperaciones.accion);
+            if (this.filtrosOperaciones.entidad_tipo) params.set('entidad_tipo', this.filtrosOperaciones.entidad_tipo);
+            if (this.filtrosOperaciones.fecha_desde) params.set('fecha_desde', this.filtrosOperaciones.fecha_desde);
+            if (this.filtrosOperaciones.fecha_hasta) params.set('fecha_hasta', this.filtrosOperaciones.fecha_hasta);
+            try {
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/operaciones?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+                this.operacionesAuditoria = data.data?.data || data.data || [];
+            } catch (e) {
+                this.operacionesAuditoria = [];
+            } finally { this.cargandoOperacionesAuditoria = false; }
+        },
+
+        limpiarFiltrosOperaciones() {
+            this.filtrosOperaciones = { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', fecha_desde: '', fecha_hasta: '' };
+            this.cargarOperacionesAuditoria();
+        },
+
+        tieneCambios(valor) {
+            return valor && typeof valor === 'object' && Object.keys(valor).length > 0;
+        },
+
+        resumirCambios(valor) {
+            if (!this.tieneCambios(valor)) return [];
+            return Object.entries(valor)
+                .slice(0, 6)
+                .map(([clave, contenido]) => `${clave}: ${this.formatearValorAuditoria(contenido)}`);
+        },
+
+        formatearValorAuditoria(valor) {
+            if (valor === null || valor === undefined || valor === '') return '-';
+            if (Array.isArray(valor)) return valor.join(', ');
+            if (typeof valor === 'object') return JSON.stringify(valor);
+            return String(valor);
+        },
+
         async cargarCorreos() {
             this.cargandoCorreos = true;
             const token = localStorage.getItem('auth_token');
@@ -1153,9 +1298,9 @@ function seguridad() {
         },
 
         /* ---------- Users ---------- */
-        openUserModal() { this.editingUser = false; this.editUserId = null; this.error = ''; this.userForm = { name: '', email: '', password: '', password_confirmation: '', docente_id: '', roles: [], sucursales: [], estado: 'activo' }; this.showUserModal = true; },
+        openUserModal() { this.editingUser = false; this.editUserId = null; this.error = ''; this.auditoriaUsuario = []; this.userForm = { name: '', email: '', password: '', password_confirmation: '', docente_id: '', roles: [], sucursales: [], estado: 'activo' }; this.showUserModal = true; },
 
-        editUser(u) { this.editingUser = true; this.editUserId = u.id; this.error = ''; this.userForm = { name: u.name, email: u.email, password: '', password_confirmation: '', docente_id: u.docente_id || '', roles: (u.roles || []).map(r => r.codigo), sucursales: (u.sucursales || []).map(s => s.codigo), estado: u.estado }; this.showUserModal = true; },
+        async editUser(u) { this.editingUser = true; this.editUserId = u.id; this.error = ''; this.userForm = { name: u.name, email: u.email, password: '', password_confirmation: '', docente_id: u.docente_id || '', roles: (u.roles || []).map(r => r.codigo), sucursales: (u.sucursales || []).map(s => s.codigo), estado: u.estado }; try { const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=users&entidad_id=${u.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } }); this.auditoriaUsuario = data.data || []; } catch(e) { this.auditoriaUsuario = []; } this.showUserModal = true; },
 
         docentesDisponiblesParaUsuario() {
             return this.docentes.filter(d => !this.usuarios.some(u => Number(u.docente_id) === Number(d.id) && u.id !== this.editUserId));
@@ -1251,11 +1396,12 @@ function seguridad() {
             this.errorPermiso = '';
             this.editingPermiso = false;
             this.editPermisoId = null;
+            this.auditoriaPermiso = [];
             this.permisoForm = { opcion_modulo_id: '', codigo: '', nombre: '', accion: '' };
             this.showPermisoModal = true;
         },
 
-        editPermiso(p) {
+        async editPermiso(p) {
             this.errorPermiso = '';
             this.editingPermiso = true;
             this.editPermisoId = p.id;
@@ -1265,6 +1411,10 @@ function seguridad() {
                 nombre: p.nombre,
                 accion: p.accion,
             };
+            try {
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=permisos&entidad_id=${p.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.auditoriaPermiso = data.data || [];
+            } catch (e) { this.auditoriaPermiso = []; }
             this.showPermisoModal = true;
         },
 
@@ -1315,6 +1465,7 @@ function seguridad() {
         async editRolePermisos(r) {
             this.rolEditando = r;
             this.rolNombre = r.nombre;
+            this.auditoriaRol = [];
             this.permisosRol = [];
             this.busquedaPermisos = '';
             this.copiarDesdeRolId = '';
@@ -1327,6 +1478,10 @@ function seguridad() {
                     window.axios.get('/api/v1/seguridad/permisos', h),
                     window.axios.get(`/api/v1/seguridad/roles/${r.id}/permisos`, h),
                 ]);
+                try {
+                    const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=roles&entidad_id=${r.id}`, h);
+                    this.auditoriaRol = data.data || [];
+                } catch (e) { this.auditoriaRol = []; }
 
                 const catalogo = catalogoRes.data.data?.data || catalogoRes.data.data || [];
                 const group = {};

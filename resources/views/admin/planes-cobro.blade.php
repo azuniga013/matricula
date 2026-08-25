@@ -165,6 +165,17 @@
                     <p class="text-sm text-red-600" x-text="error"></p>
                 </div>
 
+                <div x-show="editing && auditoriaPlan.length > 0" class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <h4 class="text-sm font-semibold text-gray-800">Auditoría del plan</h4>
+                    <template x-for="item in auditoriaPlan" :key="item.id">
+                        <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs space-y-1">
+                            <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                            <p class="text-gray-500" x-text="window.formatDateLocal(item.creado_en)"></p>
+                            <p class="text-gray-600" x-text="item.descripcion || '-' "></p>
+                        </div>
+                    </template>
+                </div>
+
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" @click="showModal = false" class="btn btn-outline">Cancelar</button>
                     <button type="submit" :disabled="saving" class="btn btn-primary">
@@ -184,7 +195,7 @@ function planesCobro() {
     return {
         loading: true, showModal: false, editing: false, saving: false, error: '',
         planes: [], conceptosPago: [], buscar: '', filtroEstado: '',
-        form: { codigo: '', nombre: '', descripcion: '', detalles: [] }, editId: null,
+        form: { codigo: '', nombre: '', descripcion: '', detalles: [] }, editId: null, auditoriaPlan: [],
 
         async init() {
             await this.loadConceptos();
@@ -220,6 +231,7 @@ function planesCobro() {
 
         openModal() {
             this.editing = false; this.editId = null; this.error = '';
+            this.auditoriaPlan = [];
             this.form = { codigo: '', nombre: '', descripcion: '', detalles: [] };
             this.agregarDetalle();
             this.showModal = true;
@@ -229,7 +241,7 @@ function planesCobro() {
             this.form.detalles.push({ concepto_pago_id: '', numero_cuota: 0, nombre_cargo: '', monto: 0, dias_vencimiento: 0 });
         },
 
-        editPlan(plan) {
+        async editPlan(plan) {
             this.editing = true; this.editId = plan.id; this.error = '';
             this.form = {
                 codigo: plan.codigo,
@@ -245,6 +257,10 @@ function planesCobro() {
                 })),
             };
             if (this.form.detalles.length === 0) this.agregarDetalle();
+            try {
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=planes_cobro&entidad_id=${plan.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.auditoriaPlan = data.data || [];
+            } catch (e) { this.auditoriaPlan = []; }
             this.showModal = true;
         },
 

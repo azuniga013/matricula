@@ -58,6 +58,17 @@ class SesionController extends Controller
             ['revocado_en' => $sesion->fresh()->revocado_en?->toIso8601String()],
         );
 
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'sesiones',
+            'revocar',
+            'sesiones_usuario',
+            $sesion->id,
+            $antes,
+            ['revocado_en' => $sesion->fresh()->revocado_en?->toIso8601String()],
+            'Revocación manual de sesión'
+        );
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,

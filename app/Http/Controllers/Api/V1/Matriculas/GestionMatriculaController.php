@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Matriculas;
 
 use App\Http\Controllers\Controller;
 use App\Models\{GestionMatricula, Matricula, OfertaAcademica, TipoGestionMatricula};
+use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,6 +95,8 @@ class GestionMatriculaController extends Controller
             'actualizado_en' => now(),
         ]);
 
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'gestiones_matricula', 'solicitar', 'gestiones_matricula', $gestion->id, null, $gestion->toArray(), 'Solicitud de gestión de matrícula');
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 201,
@@ -104,6 +107,7 @@ class GestionMatriculaController extends Controller
 
     public function aprobar(int $id): JsonResponse
     {
+        $request = request();
         $usuarioId = (int) Auth::id();
         $resultado = DB::transaction(function () use ($id, $usuarioId) {
             $gestion = GestionMatricula::lockForUpdate()->findOrFail($id);
@@ -149,6 +153,8 @@ class GestionMatriculaController extends Controller
             ], $resultado['codigo']);
         }
 
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'gestiones_matricula', 'aprobar', 'gestiones_matricula', $resultado['gestion']->id, null, $resultado['gestion']->toArray(), 'Aprobación y ejecución de gestión de matrícula');
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 200,
@@ -182,6 +188,8 @@ class GestionMatriculaController extends Controller
             'actualizado_por' => $usuarioId,
             'actualizado_en' => now(),
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'gestiones_matricula', 'rechazar', 'gestiones_matricula', $gestion->id, null, $gestion->fresh()->toArray(), 'Rechazo de gestión de matrícula');
 
         return response()->json([
             'resultado' => 'A',

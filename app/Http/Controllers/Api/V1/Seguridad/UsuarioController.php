@@ -133,6 +133,17 @@ class UsuarioController extends Controller
 
         $usuario->load(['roles', 'sucursales', 'docente']);
 
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'usuarios',
+            'crear',
+            'users',
+            $usuario->id,
+            null,
+            $usuario->toArray(),
+            'Creación de usuario'
+        );
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
@@ -155,6 +166,7 @@ class UsuarioController extends Controller
 
     public function update(Request $request, User $usuario): JsonResponse
     {
+        $antes = $usuario->only(['name', 'email', 'telefono', 'docente_id', 'estado', 'debe_cambiar_contrasena']);
         $datos = $request->validate([
             'name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:users,email,'.$usuario->id,
@@ -200,6 +212,17 @@ class UsuarioController extends Controller
         }
 
         $usuario->load(['roles', 'sucursales', 'docente']);
+
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'usuarios',
+            'actualizar',
+            'users',
+            $usuario->id,
+            $antes,
+            $usuario->toArray(),
+            'Actualización de usuario'
+        );
 
         return response()->json([
             'resultado' => 'A',
@@ -262,6 +285,17 @@ class UsuarioController extends Controller
 
         $usuario->load('roles');
 
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'usuarios',
+            'asignar_roles',
+            'users',
+            $usuario->id,
+            null,
+            ['roles' => $usuario->roles->pluck('codigo')->values()->all()],
+            'Asignación de roles a usuario'
+        );
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
@@ -300,6 +334,17 @@ class UsuarioController extends Controller
 
         $usuario->load('sucursales');
 
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'usuarios',
+            'asignar_sucursales',
+            'users',
+            $usuario->id,
+            null,
+            ['sucursales' => $usuario->sucursales->pluck('codigo')->values()->all()],
+            'Asignación de sucursales a usuario'
+        );
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
@@ -334,6 +379,17 @@ class UsuarioController extends Controller
             $usuario->id,
             null,
             ['debe_cambiar_contrasena' => false],
+        );
+
+        $this->bitacora->registrarAuditoriaDesdeRequest(
+            $request,
+            'usuarios',
+            'restablecer_contrasena',
+            'users',
+            $usuario->id,
+            null,
+            ['debe_cambiar_contrasena' => false],
+            'Restablecimiento de contraseña de usuario'
         );
 
         return response()->json([

@@ -4,39 +4,40 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class UsuarioRol extends Model
+class BitacoraAuditoria extends Model
 {
     use HasFactory;
 
-    protected $table = 'usuario_roles';
+    protected $table = 'bitacora_auditoria';
     public $timestamps = false;
 
     protected $fillable = [
         'usuario_id',
-        'rol_id',
-        'estado',
-        'creado_por',
-        'actualizado_por',
+        'modulo',
+        'accion',
+        'entidad_tipo',
+        'entidad_id',
+        'descripcion',
+        'valores_antes',
+        'valores_despues',
+        'ip',
+        'agente',
         'creado_en',
-        'actualizado_en',
     ];
 
     protected function casts(): array
     {
         return [
+            'valores_antes' => 'array',
+            'valores_despues' => 'array',
             'creado_en' => 'datetime',
-            'actualizado_en' => 'datetime',
         ];
     }
 
-    public function usuario()
+    public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'usuario_id');
-    }
-
-    public function rol()
-    {
-        return $this->belongsTo(Rol::class, 'rol_id');
     }
 }

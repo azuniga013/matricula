@@ -788,6 +788,19 @@
                     </div>
                 </template>
 
+                <div x-show="auditoriaPago.length > 0" class="border-t border-gray-100 pt-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Auditoría</h4>
+                    <div class="space-y-2">
+                        <template x-for="item in auditoriaPago" :key="item.id">
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs">
+                                <p class="font-medium text-gray-700" x-text="(item.usuario?.name || 'Sistema') + ' · ' + item.accion"></p>
+                                <p class="text-gray-500" x-text="fmtFecha(item.creado_en)"></p>
+                                <p class="text-gray-600" x-text="item.descripcion || '-' "></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <div class="flex justify-end pt-2">
                     <button @click="showDetalle = false" class="btn btn-outline">Cerrar</button>
                 </div>
@@ -833,7 +846,7 @@ function pagos() {
         filtroRecibos: { fecha_desde: '', fecha_hasta: '', estado: '', periodo: '', plan: '', nivel: '', oferta: '' },
         periodosAcademicos: [], planesEstudio: [], ofertasRecibos: [],
         showComprobante: false, showRechazo: false, showRecibo: false, showAnulacion: false,
-        showDetalle: false, detallePago: null,
+        showDetalle: false, detallePago: null, auditoriaPago: [],
         pagoSeleccionado: null, pagoAprobar: null, reciboSeleccionado: null,
         showConfirmarAprobacion: false,
         motivoRechazo: '', motivoAnulacion: '',
@@ -1208,6 +1221,10 @@ function pagos() {
                 const { data } = await window.axios.get(`/api/v1/pagos/${p.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 this.detallePago = data.data || p;
             } catch(e) { this.detallePago = p; }
+            try {
+                const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/entidad?entidad_tipo=pagos&entidad_id=${p.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.auditoriaPago = data.data || [];
+            } catch(e) { this.auditoriaPago = []; }
             this.showDetalle = true;
         },
 

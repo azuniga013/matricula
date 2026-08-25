@@ -38,6 +38,12 @@ class ParametroGlobalSeeder extends Seeder
             ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_DRIVER', 'nombre' => 'Driver WhatsApp', 'valor' => 'deshabilitado', 'tipo' => 'seleccion', 'opciones' => ['deshabilitado', 'stub', 'meta_cloud_api'], 'descripcion' => 'Driver configurado para el canal WhatsApp de asistencia'],
             ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_REMITENTE', 'nombre' => 'Remitente WhatsApp', 'valor' => '', 'tipo' => 'texto', 'descripcion' => 'Identificador o número remitente del proveedor oficial de WhatsApp'],
             ['grupo' => 'notificaciones_asistencia', 'codigo' => 'WHATSAPP_PLANTILLA', 'nombre' => 'Plantilla WhatsApp', 'valor' => 'asistencia_basica', 'tipo' => 'texto', 'descripcion' => 'Plantilla oficial aprobada para enviar faltas o tardanzas por WhatsApp'],
+
+            // Bitácoras
+            ['grupo' => 'bitacoras', 'codigo' => 'AUDITORIA_CENTRAL_HABILITADA', 'nombre' => 'Auditoría central habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_auditoria.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_PETICIONES_HABILITADA', 'nombre' => 'Bitácora de peticiones habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_peticiones.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_SEGURIDAD_HABILITADA', 'nombre' => 'Bitácora de seguridad habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_seguridad.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_CORREOS_HABILITADA', 'nombre' => 'Bitácora de correos habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_correos.'],
         ];
 
         foreach ($parametros as $p) {

@@ -9,6 +9,7 @@ use App\Modules\Caja\CasosUso\AnularRecibo;
 use App\Modules\Caja\CasosUso\ReimprimirRecibo;
 use App\Modules\Comun\ContextoUsuario;
 use App\Services\ResolutorAlcanceDatos;
+use App\Services\ServicioBitacora;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -152,12 +153,16 @@ class ReciboCajaController extends Controller
             ], $resultado->codigo());
         }
 
-        return response()->json([
+        $respuesta = response()->json([
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data()['recibo'],
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest(request(), 'recibos', 'reimprimir', 'recibos_caja', $id, null, $resultado->data()['recibo'], 'Reimpresión de recibo');
+
+        return $respuesta;
     }
 
     public function anular(int $id, Request $request): JsonResponse
@@ -185,12 +190,16 @@ class ReciboCajaController extends Controller
             ], $resultado->codigo());
         }
 
-        return response()->json([
+        $respuesta = response()->json([
             'resultado' => 'A',
             'codigo' => 200,
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data()['recibo'],
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'recibos', 'anular', 'recibos_caja', $id, null, $resultado->data()['recibo'], 'Anulación de recibo');
+
+        return $respuesta;
     }
 
     public function imprimir(int $id): View

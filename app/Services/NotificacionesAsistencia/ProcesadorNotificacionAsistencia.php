@@ -3,14 +3,15 @@
 namespace App\Services\NotificacionesAsistencia;
 
 use App\Mail\NotificacionAsistenciaResponsable;
-use App\Models\BitacoraCorreo;
 use App\Models\NotificacionAsistencia;
+use App\Services\RegistroBitacoraCorreoService;
 use Illuminate\Support\Facades\Mail;
 
 class ProcesadorNotificacionAsistencia
 {
     public function __construct(
         private readonly ConfiguracionNotificacionesAsistencia $configuracion,
+        private readonly RegistroBitacoraCorreoService $bitacoraCorreos,
     ) {}
 
     public function procesar(NotificacionAsistencia $notificacion): void
@@ -110,7 +111,7 @@ class ProcesadorNotificacionAsistencia
         try {
             Mail::to($destinatario)->send(new NotificacionAsistenciaResponsable($notificacion));
 
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $destinatario,
                 'asunto' => 'Aviso de asistencia',
                 'tipo' => 'asistencia_familia',
@@ -118,7 +119,6 @@ class ProcesadorNotificacionAsistencia
                 'estado' => 'enviado',
                 'error' => null,
                 'cuerpo_html' => null,
-                'creado_en' => now(),
             ]);
 
             $notificacion->update([
@@ -129,7 +129,7 @@ class ProcesadorNotificacionAsistencia
                 'actualizado_en' => now(),
             ]);
         } catch (\Throwable $e) {
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $destinatario,
                 'asunto' => 'Aviso de asistencia',
                 'tipo' => 'asistencia_familia',
@@ -137,7 +137,6 @@ class ProcesadorNotificacionAsistencia
                 'estado' => 'fallido',
                 'error' => $e->getMessage(),
                 'cuerpo_html' => null,
-                'creado_en' => now(),
             ]);
 
             $this->marcarFallida($notificacion, 'No se pudo enviar el correo institucional.');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\OfertaAcademica;
 use App\Models\Modalidad;
 use App\Models\Sucursal;
+use App\Services\ServicioBitacora;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -121,6 +122,8 @@ class OfertaAcademicaController extends Controller
             'modalidad', 'horario', 'docente', 'aula', 'planCobro',
         ]);
 
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'ofertas', 'crear', 'ofertas_academicas', $oferta->id, null, $oferta->toArray(), 'Creación de oferta académica');
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
@@ -148,6 +151,7 @@ class OfertaAcademicaController extends Controller
 
     public function update(Request $request, OfertaAcademica $ofertaAcademica): JsonResponse
     {
+        $antes = $ofertaAcademica->toArray();
         $datos = $request->validate([
             'codigo' => 'sometimes|nullable|string|max:50|unique:ofertas_academicas,codigo,' . $ofertaAcademica->id,
             'sucursal_id' => 'sometimes|required|exists:sucursales,id',
@@ -224,6 +228,8 @@ class OfertaAcademicaController extends Controller
             'modalidad', 'horario', 'docente', 'aula', 'planCobro',
         ]);
 
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'ofertas', 'actualizar', 'ofertas_academicas', $ofertaAcademica->id, $antes, $ofertaAcademica->toArray(), 'Actualización de oferta académica');
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
@@ -281,6 +287,8 @@ class OfertaAcademicaController extends Controller
             'actualizado_por' => $usuario->id,
             'actualizado_en' => now(),
         ]);
+
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'ofertas', 'actualizar_whatsapp', 'ofertas_academicas', $ofertaAcademica->id, null, $ofertaAcademica->fresh()->only(['whatsapp_grupo_nombre', 'whatsapp_link_periodo', 'actualizado_por', 'actualizado_en']), 'Actualización de WhatsApp de oferta');
 
         return response()->json([
             'resultado' => 'A',

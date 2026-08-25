@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\V1\Estudiantes;
 
 use App\Http\Controllers\Controller;
 use App\Models\AccesoEstudiante;
-use App\Models\BitacoraCorreo;
 use App\Models\Estudiante;
 use App\Models\Calificacion;
 use App\Mail\CredencialesEstudiante;
+use App\Services\RegistroBitacoraCorreoService;
 use App\Services\ResolutorFlujoMatricula;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +18,10 @@ use Illuminate\Support\Str;
 
 class EstudianteAuthController extends Controller
 {
+    public function __construct(
+        protected RegistroBitacoraCorreoService $bitacoraCorreos,
+    ) {}
+
     public function login(Request $request): JsonResponse
     {
         $request->validate([
@@ -135,24 +139,22 @@ class EstudianteAuthController extends Controller
             );
             $cuerpoHtml = $mailable->render();
             Mail::to($datos['correo'])->send($mailable);
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $datos['correo'],
                 'asunto' => 'Bienvenido — Credenciales de Acceso',
                 'tipo' => 'registro',
                 'codigo_estudiante' => $codigo,
                 'estado' => 'enviado',
                 'cuerpo_html' => $cuerpoHtml,
-                'creado_en' => now(),
             ]);
         } catch (\Throwable $e) {
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $datos['correo'],
                 'asunto' => 'Bienvenido — Credenciales de Acceso',
                 'tipo' => 'registro',
                 'codigo_estudiante' => $codigo,
                 'estado' => 'fallido',
                 'error' => $e->getMessage(),
-                'creado_en' => now(),
             ]);
         }
 
@@ -216,24 +218,22 @@ class EstudianteAuthController extends Controller
             );
             $cuerpoHtml = $mailable->render();
             Mail::to($correo)->send($mailable);
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $correo,
                 'asunto' => 'Cuenta Activada — Credenciales de Acceso',
                 'tipo' => 'activacion',
                 'codigo_estudiante' => $estudiante->codigo,
                 'estado' => 'enviado',
                 'cuerpo_html' => $cuerpoHtml,
-                'creado_en' => now(),
             ]);
         } catch (\Throwable $e) {
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $correo,
                 'asunto' => 'Cuenta Activada — Credenciales de Acceso',
                 'tipo' => 'activacion',
                 'codigo_estudiante' => $estudiante->codigo,
                 'estado' => 'fallido',
                 'error' => $e->getMessage(),
-                'creado_en' => now(),
             ]);
         }
 
@@ -281,24 +281,22 @@ class EstudianteAuthController extends Controller
             );
             $cuerpoHtml = $mailable->render();
             Mail::to($datos['email'])->send($mailable);
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $datos['email'],
                 'asunto' => 'Credenciales Reenviadas — Acceso al Portal',
                 'tipo' => 'reenvio',
                 'codigo_estudiante' => $acceso->estudiante->codigo,
                 'estado' => 'enviado',
                 'cuerpo_html' => $cuerpoHtml,
-                'creado_en' => now(),
             ]);
         } catch (\Throwable $e) {
-            BitacoraCorreo::create([
+            $this->bitacoraCorreos->registrar([
                 'destinatario' => $datos['email'],
                 'asunto' => 'Credenciales Reenviadas — Acceso al Portal',
                 'tipo' => 'reenvio',
                 'codigo_estudiante' => $acceso->estudiante->codigo,
                 'estado' => 'fallido',
                 'error' => $e->getMessage(),
-                'creado_en' => now(),
             ]);
         }
 

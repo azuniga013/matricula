@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Seguridad;
 
 use App\Http\Controllers\Controller;
 use App\Models\BitacoraCorreo;
+use App\Models\BitacoraAuditoria;
 use App\Models\BitacoraPeticion;
 use App\Models\BitacoraSeguridad;
 use Illuminate\Http\JsonResponse;
@@ -117,6 +118,64 @@ class AuditoriaController extends Controller
             'codigo' => 0,
             'mensaje' => 'OK',
             'data' => $correos,
+        ]);
+    }
+
+    public function operaciones(Request $request): JsonResponse
+    {
+        $query = BitacoraAuditoria::with('usuario');
+
+        if ($request->filled('usuario_id')) {
+            $query->where('usuario_id', $request->usuario_id);
+        }
+        if ($request->filled('modulo')) {
+            $query->where('modulo', $request->modulo);
+        }
+        if ($request->filled('accion')) {
+            $query->where('accion', $request->accion);
+        }
+        if ($request->filled('entidad_tipo')) {
+            $query->where('entidad_tipo', $request->entidad_tipo);
+        }
+        if ($request->filled('entidad_id')) {
+            $query->where('entidad_id', $request->entidad_id);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->where('creado_en', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('creado_en', '<=', $request->fecha_hasta);
+        }
+
+        $registros = $query->orderByDesc('creado_en')->paginate(50);
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => 'OK',
+            'data' => $registros,
+        ]);
+    }
+
+    public function entidad(Request $request): JsonResponse
+    {
+        $request->validate([
+            'entidad_tipo' => 'required|string|max:120',
+            'entidad_id' => 'required|integer|min:1',
+        ]);
+
+        $registros = BitacoraAuditoria::with('usuario')
+            ->where('entidad_tipo', $request->entidad_tipo)
+            ->where('entidad_id', $request->entidad_id)
+            ->orderByDesc('creado_en')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => 'OK',
+            'data' => $registros,
         ]);
     }
 }
