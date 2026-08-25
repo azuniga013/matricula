@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Constants from 'expo-constants';
 import {
   ActivityIndicator,
   Alert,
@@ -1114,6 +1115,8 @@ function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
 
 function Login({ email, setEmail, password, setPassword, submit, bioAvailable, bioGuardado, setBioGuardado, bioLoading, bioLogin }) {
   const [showPassword, setShowPassword] = useState(false);
+  const appVersion = Constants.expoConfig?.version || '0.0.0';
+  const appVersionCode = Constants.expoConfig?.android?.versionCode || '-';
 
   return (
     <KeyboardAvoidingView style={styles.loginWrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={40}>
@@ -1123,6 +1126,7 @@ function Login({ email, setEmail, password, setPassword, submit, bioAvailable, b
           <Text style={styles.loginTitle}>Cursos SVP</Text>
           <Text style={styles.loginSubtitle}>Portal Docente</Text>
           <Text style={styles.loginHint}>Ingrese con su cuenta administrativa vinculada como docente.</Text>
+          <Text style={styles.loginVersion}>Versión {appVersion} · Build {appVersionCode}</Text>
 
           <View style={styles.fieldBlock}>
             <Text style={styles.fieldLabel}>Correo</Text>
@@ -1278,6 +1282,7 @@ const styles = StyleSheet.create({
   loginTitle: { textAlign: 'center', fontSize: 28, fontWeight: '800', color: '#0f172a' },
   loginSubtitle: { textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#1d4ed8' },
   loginHint: { textAlign: 'center', color: '#475569', lineHeight: 20 },
+  loginVersion: { textAlign: 'center', color: '#64748b', fontSize: 12, marginTop: -4 },
   fieldBlock: { gap: 4 },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: '#334155' },
   passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
