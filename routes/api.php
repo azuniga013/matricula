@@ -200,6 +200,9 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
         Route::get('/auditoria/operaciones', [AuditoriaController::class, 'operaciones'])
             ->middleware('permission:seguridad.auditoria.consultar');
 
+        Route::get('/auditoria/operaciones/exportar', [AuditoriaController::class, 'exportarOperaciones'])
+            ->middleware('permission:seguridad.auditoria.consultar');
+
         Route::get('/auditoria/entidad', [AuditoriaController::class, 'entidad'])
             ->middleware('permission:seguridad.auditoria.consultar');
 

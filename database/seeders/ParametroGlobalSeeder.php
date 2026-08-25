@@ -44,6 +44,10 @@ class ParametroGlobalSeeder extends Seeder
             ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_PETICIONES_HABILITADA', 'nombre' => 'Bitácora de peticiones habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_peticiones.'],
             ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_SEGURIDAD_HABILITADA', 'nombre' => 'Bitácora de seguridad habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_seguridad.'],
             ['grupo' => 'bitacoras', 'codigo' => 'BITACORA_CORREOS_HABILITADA', 'nombre' => 'Bitácora de correos habilitada', 'valor' => 'true', 'tipo' => 'booleano', 'descripcion' => 'Activa o desactiva la tabla bitacora_correos.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'RETENCION_AUDITORIA_DIAS', 'nombre' => 'Retención auditoría central (días)', 'valor' => '180', 'tipo' => 'numero', 'descripcion' => 'Cantidad de días a conservar en bitacora_auditoria antes de purgar.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'RETENCION_PETICIONES_DIAS', 'nombre' => 'Retención bitácora de peticiones (días)', 'valor' => '30', 'tipo' => 'numero', 'descripcion' => 'Cantidad de días a conservar en bitacora_peticiones antes de purgar.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'RETENCION_SEGURIDAD_DIAS', 'nombre' => 'Retención bitácora de seguridad (días)', 'valor' => '365', 'tipo' => 'numero', 'descripcion' => 'Cantidad de días a conservar en bitacora_seguridad antes de purgar.'],
+            ['grupo' => 'bitacoras', 'codigo' => 'RETENCION_CORREOS_DIAS', 'nombre' => 'Retención bitácora de correos (días)', 'valor' => '90', 'tipo' => 'numero', 'descripcion' => 'Cantidad de días a conservar en bitacora_correos antes de purgar.'],
         ];
 
         foreach ($parametros as $p) {

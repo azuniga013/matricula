@@ -107,6 +107,8 @@ class EstudianteController extends Controller
         $datos = $request->validate([
             'nombre' => 'required|string|max:150',
             'apellido' => 'required|string|max:150',
+            'fecha_nacimiento' => 'nullable|date|before:today',
+            'sexo' => 'nullable|string|in:M,F,Otro',
             'correo' => 'nullable|email|max:100',
             'telefono' => 'nullable|string|max:30',
             'direccion' => 'nullable|string|max:255',

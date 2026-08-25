@@ -441,6 +441,7 @@
                     <div class="flex gap-2 pt-1">
                         <button @click="cargarOperacionesAuditoria()" class="btn btn-primary btn-sm">Filtrar</button>
                         <button @click="limpiarFiltrosOperaciones()" class="btn btn-outline btn-sm">Limpiar</button>
+                        <button @click="exportarOperacionesAuditoria()" class="btn btn-outline btn-sm">Exportar CSV</button>
                         <span x-show="cargandoOperacionesAuditoria" class="inline-flex items-center text-xs text-gray-400"><div class="animate-spin rounded-full h-3 w-3 border-2 border-gray-300 border-t-gray-600 mr-2"></div>Cargando...</span>
                     </div>
                 </div>
@@ -1246,6 +1247,34 @@ function seguridad() {
         limpiarFiltrosOperaciones() {
             this.filtrosOperaciones = { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', fecha_desde: '', fecha_hasta: '' };
             this.cargarOperacionesAuditoria();
+        },
+
+        async exportarOperacionesAuditoria() {
+            const token = localStorage.getItem('auth_token');
+            const params = new URLSearchParams();
+            if (this.filtrosOperaciones.usuario_id) params.set('usuario_id', this.filtrosOperaciones.usuario_id);
+            if (this.filtrosOperaciones.modulo) params.set('modulo', this.filtrosOperaciones.modulo);
+            if (this.filtrosOperaciones.accion) params.set('accion', this.filtrosOperaciones.accion);
+            if (this.filtrosOperaciones.entidad_tipo) params.set('entidad_tipo', this.filtrosOperaciones.entidad_tipo);
+            if (this.filtrosOperaciones.fecha_desde) params.set('fecha_desde', this.filtrosOperaciones.fecha_desde);
+            if (this.filtrosOperaciones.fecha_hasta) params.set('fecha_hasta', this.filtrosOperaciones.fecha_hasta);
+            try {
+                const response = await window.axios.get(`/api/v1/seguridad/auditoria/operaciones/exportar?${params.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    responseType: 'blob',
+                });
+                const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = window.URL.createObjectURL(blob);
+                link.href = url;
+                link.setAttribute('download', 'bitacora_auditoria.csv');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'No se pudo exportar la bitácora', type: 'error' } }));
+            }
         },
 
         tieneCambios(valor) {

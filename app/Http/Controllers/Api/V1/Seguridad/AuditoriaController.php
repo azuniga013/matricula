@@ -7,6 +7,7 @@ use App\Models\BitacoraCorreo;
 use App\Models\BitacoraAuditoria;
 use App\Models\BitacoraPeticion;
 use App\Models\BitacoraSeguridad;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -177,5 +178,37 @@ class AuditoriaController extends Controller
             'mensaje' => 'OK',
             'data' => $registros,
         ]);
+    }
+
+    public function exportarOperaciones(Request $request): StreamedResponse
+    {
+        $query = BitacoraAuditoria::with('usuario');
+
+        if ($request->filled('usuario_id')) $query->where('usuario_id', $request->usuario_id);
+        if ($request->filled('modulo')) $query->where('modulo', $request->modulo);
+        if ($request->filled('accion')) $query->where('accion', $request->accion);
+        if ($request->filled('entidad_tipo')) $query->where('entidad_tipo', $request->entidad_tipo);
+        if ($request->filled('entidad_id')) $query->where('entidad_id', $request->entidad_id);
+        if ($request->filled('fecha_desde')) $query->where('creado_en', '>=', $request->fecha_desde);
+        if ($request->filled('fecha_hasta')) $query->where('creado_en', '<=', $request->fecha_hasta);
+
+        $registros = $query->orderByDesc('creado_en')->limit(5000)->get();
+
+        return response()->streamDownload(function () use ($registros) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['fecha', 'usuario', 'modulo', 'accion', 'entidad_tipo', 'entidad_id', 'descripcion']);
+            foreach ($registros as $item) {
+                fputcsv($handle, [
+                    optional($item->creado_en)?->format('Y-m-d H:i:s'),
+                    $item->usuario?->name ?? 'Sistema',
+                    $item->modulo,
+                    $item->accion,
+                    $item->entidad_tipo,
+                    $item->entidad_id,
+                    $item->descripcion,
+                ]);
+            }
+            fclose($handle);
+        }, 'bitacora_auditoria.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }
