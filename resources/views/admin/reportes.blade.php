@@ -95,11 +95,11 @@
                         <label class="label">Horario (Oferta) *</label>
                         <select x-model="filtros.oferta_academica_id" class="input">
                             <option value="">Seleccionar horario...</option>
-                            <template x-for="o in ofertas" :key="o.id">
-                                <option :value="o.id" x-text="o.codigo + ' · ' + (o.nivel_academico?.nombre || '') + ' · ' + (o.horario?.nombre || '')"></option>
-                            </template>
-                        </select>
-                    </div>
+                        <template x-for="o in ofertasFiltradas" :key="o.id">
+                            <option :value="o.id" x-text="o.codigo + ' · ' + (o.nivel_academico?.nombre || '') + ' · ' + (o.horario?.nombre || '')"></option>
+                        </template>
+                    </select>
+                </div>
                 </template>
                 <template x-if="reporteActual?.estudiante">
                     <div class="relative">
@@ -290,6 +290,13 @@ function reportes() {
 
         get reportesDeCategoria() { return this.catalogo[this.categoria] || []; },
         get reporteActual() { return this.reportesDeCategoria.find(r => r.id === this.reporteId) || null; },
+        get ofertasFiltradas() {
+            return this.ofertas.filter(o => {
+                if (this.filtros.periodo_academico_id && String(o.periodo_academico_id) !== String(this.filtros.periodo_academico_id)) return false;
+                if (this.filtros.sucursal_id && String(o.sucursal_id) !== String(this.filtros.sucursal_id)) return false;
+                return true;
+            });
+        },
 
         async init() {
             const h = { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } };
