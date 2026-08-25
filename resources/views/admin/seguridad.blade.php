@@ -428,15 +428,20 @@
             <div x-show="tab === 'auditores'" class="card mt-6">
                 <div class="card-header"><h3 class="text-sm font-semibold text-gray-900">Bitácora Central de Operaciones</h3></div>
                 <div class="p-4 border-b border-gray-100 space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         <div><label class="label">Usuario</label><select x-model="filtrosOperaciones.usuario_id" class="input text-sm"><option value="">Todos</option><template x-for="u in usuarios" :key="u.id"><option :value="u.id" x-text="u.name"></option></template></select></div>
                         <div><label class="label">Módulo</label><input x-model="filtrosOperaciones.modulo" type="text" class="input text-sm" placeholder="pagos, ofertas..."></div>
                         <div><label class="label">Acción</label><input x-model="filtrosOperaciones.accion" type="text" class="input text-sm" placeholder="crear, actualizar..."></div>
                         <div><label class="label">Entidad</label><input x-model="filtrosOperaciones.entidad_tipo" type="text" class="input text-sm" placeholder="pagos, ofertas_academicas..."></div>
+                        <div><label class="label">ID entidad</label><input x-model="filtrosOperaciones.entidad_id" type="number" min="1" class="input text-sm" placeholder="# registro"></div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div><label class="label">Fecha desde</label><input x-model="filtrosOperaciones.fecha_desde" type="datetime-local" class="input text-sm"></div>
                         <div><label class="label">Fecha hasta</label><input x-model="filtrosOperaciones.fecha_hasta" type="datetime-local" class="input text-sm"></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div><label class="label">Registros por página</label><select x-model="filtrosOperaciones.per_page" class="input text-sm"><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></div>
+                        <div class="flex items-end text-xs text-gray-500" x-text="'Total: ' + operacionesMeta.total + ' registros'"></div>
                     </div>
                     <div class="flex gap-2 pt-1">
                         <button @click="cargarOperacionesAuditoria()" class="btn btn-primary btn-sm">Filtrar</button>
@@ -490,6 +495,13 @@
                                 <tr x-show="operacionesAuditoria.length === 0"><td colspan="7" class="text-center text-gray-400 py-8">No se encontraron registros</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-600">
+                        <span x-text="'Página ' + operacionesMeta.current_page + ' de ' + operacionesMeta.last_page"></span>
+                        <div class="flex gap-2">
+                            <button @click="cambiarPaginaOperaciones(operacionesMeta.current_page - 1)" :disabled="operacionesMeta.current_page <= 1" class="btn btn-outline btn-sm">Anterior</button>
+                            <button @click="cambiarPaginaOperaciones(operacionesMeta.current_page + 1)" :disabled="operacionesMeta.current_page >= operacionesMeta.last_page" class="btn btn-outline btn-sm">Siguiente</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1229,23 +1241,37 @@ function seguridad() {
             this.cargandoOperacionesAuditoria = true;
             const token = localStorage.getItem('auth_token');
             const params = new URLSearchParams();
-            params.set('per_page', '50');
+            params.set('per_page', String(this.filtrosOperaciones.per_page || 25));
+            params.set('page', String(this.filtrosOperaciones.page || 1));
             if (this.filtrosOperaciones.usuario_id) params.set('usuario_id', this.filtrosOperaciones.usuario_id);
             if (this.filtrosOperaciones.modulo) params.set('modulo', this.filtrosOperaciones.modulo);
             if (this.filtrosOperaciones.accion) params.set('accion', this.filtrosOperaciones.accion);
             if (this.filtrosOperaciones.entidad_tipo) params.set('entidad_tipo', this.filtrosOperaciones.entidad_tipo);
+            if (this.filtrosOperaciones.entidad_id) params.set('entidad_id', this.filtrosOperaciones.entidad_id);
             if (this.filtrosOperaciones.fecha_desde) params.set('fecha_desde', this.filtrosOperaciones.fecha_desde);
             if (this.filtrosOperaciones.fecha_hasta) params.set('fecha_hasta', this.filtrosOperaciones.fecha_hasta);
             try {
                 const { data } = await window.axios.get(`/api/v1/seguridad/auditoria/operaciones?${params}`, { headers: { Authorization: `Bearer ${token}` } });
                 this.operacionesAuditoria = data.data?.data || data.data || [];
+                this.operacionesMeta = {
+                    current_page: data.data?.current_page || 1,
+                    last_page: data.data?.last_page || 1,
+                    total: data.data?.total || this.operacionesAuditoria.length,
+                };
             } catch (e) {
                 this.operacionesAuditoria = [];
+                this.operacionesMeta = { current_page: 1, last_page: 1, total: 0 };
             } finally { this.cargandoOperacionesAuditoria = false; }
         },
 
         limpiarFiltrosOperaciones() {
-            this.filtrosOperaciones = { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', fecha_desde: '', fecha_hasta: '' };
+            this.filtrosOperaciones = { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', entidad_id: '', fecha_desde: '', fecha_hasta: '', per_page: 25, page: 1 };
+            this.cargarOperacionesAuditoria();
+        },
+
+        cambiarPaginaOperaciones(page) {
+            if (page < 1 || page > this.operacionesMeta.last_page) return;
+            this.filtrosOperaciones.page = page;
             this.cargarOperacionesAuditoria();
         },
 
@@ -1256,6 +1282,7 @@ function seguridad() {
             if (this.filtrosOperaciones.modulo) params.set('modulo', this.filtrosOperaciones.modulo);
             if (this.filtrosOperaciones.accion) params.set('accion', this.filtrosOperaciones.accion);
             if (this.filtrosOperaciones.entidad_tipo) params.set('entidad_tipo', this.filtrosOperaciones.entidad_tipo);
+            if (this.filtrosOperaciones.entidad_id) params.set('entidad_id', this.filtrosOperaciones.entidad_id);
             if (this.filtrosOperaciones.fecha_desde) params.set('fecha_desde', this.filtrosOperaciones.fecha_desde);
             if (this.filtrosOperaciones.fecha_hasta) params.set('fecha_hasta', this.filtrosOperaciones.fecha_hasta);
             try {
