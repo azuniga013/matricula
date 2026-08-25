@@ -38,7 +38,15 @@ class ParametroGlobal extends Model
 
     public static function obtener(string $codigo, string $grupo = '01'): mixed
     {
-        return Cache::remember("parametro_global:{$grupo}:{$codigo}", 300, function () use ($codigo, $grupo) {
+        $ttl = max(0, (int) config('parametros_globales.cache_ttl_segundos', 300));
+
+        if ($ttl === 0) {
+            $param = self::where('grupo', $grupo)->where('codigo', $codigo)->where('estado', true)->first();
+
+            return $param?->valor;
+        }
+
+        return Cache::remember("parametro_global:{$grupo}:{$codigo}", $ttl, function () use ($codigo, $grupo) {
             $param = self::where('grupo', $grupo)->where('codigo', $codigo)->where('estado', true)->first();
             return $param?->valor;
         });
