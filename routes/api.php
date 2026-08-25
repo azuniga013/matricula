@@ -606,6 +606,12 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
         Route::get('/financieros/pagos-pendientes', [ReporteController::class, 'financierosPagosPendientes'])
             ->middleware('permission:reportes.consultar');
 
+        Route::get('/financieros/pagos-pendientes-por-estudiante', [ReporteController::class, 'financierosPagosPendientesPorEstudiante'])
+            ->middleware('permission:reportes.consultar');
+
+        Route::get('/financieros/pendientes-por-estudiante', [ReporteController::class, 'financierosPendientesPorEstudiante'])
+            ->middleware('permission:reportes.consultar');
+
         Route::get('/financieros/pagos-rechazados', [ReporteController::class, 'financierosPagosRechazados'])
             ->middleware('permission:reportes.consultar');
 
