@@ -148,7 +148,8 @@ class AuditoriaController extends Controller
             $query->where('creado_en', '<=', $request->fecha_hasta);
         }
 
-        $registros = $query->orderByDesc('creado_en')->paginate(50);
+        $perPage = min(max((int) $request->input('per_page', 25), 1), 100);
+        $registros = $query->orderByDesc('creado_en')->paginate($perPage);
 
         return response()->json([
             'resultado' => 'A',
@@ -196,7 +197,7 @@ class AuditoriaController extends Controller
 
         return response()->streamDownload(function () use ($registros) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['fecha', 'usuario', 'modulo', 'accion', 'entidad_tipo', 'entidad_id', 'descripcion']);
+            fputcsv($handle, ['fecha', 'usuario', 'modulo', 'accion', 'entidad_tipo', 'entidad_id', 'descripcion', 'valores_antes', 'valores_despues']);
             foreach ($registros as $item) {
                 fputcsv($handle, [
                     optional($item->creado_en)?->format('Y-m-d H:i:s'),
@@ -206,6 +207,8 @@ class AuditoriaController extends Controller
                     $item->entidad_tipo,
                     $item->entidad_id,
                     $item->descripcion,
+                    $item->valores_antes ? json_encode($item->valores_antes, JSON_UNESCAPED_UNICODE) : '',
+                    $item->valores_despues ? json_encode($item->valores_despues, JSON_UNESCAPED_UNICODE) : '',
                 ]);
             }
             fclose($handle);

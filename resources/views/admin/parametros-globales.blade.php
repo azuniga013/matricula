@@ -74,7 +74,7 @@
             </div>
             <form @submit.prevent="save()" class="p-6 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="label">Grupo *</label><input x-model="form.grupo" type="text" required maxlength="10" class="input" placeholder="01"></div>
+                    <div><label class="label">Grupo *</label><input x-model="form.grupo" type="text" required maxlength="50" class="input" placeholder="01"></div>
                     <div><label class="label">Tipo *</label>
                         <select x-model="form.tipo" required class="input">
                             <option value="texto">Texto</option>

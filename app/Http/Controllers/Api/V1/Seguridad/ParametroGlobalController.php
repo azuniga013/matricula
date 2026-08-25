@@ -53,7 +53,7 @@ class ParametroGlobalController extends Controller
     public function store(Request $request): JsonResponse
     {
         $datos = $request->validate([
-            'grupo' => 'required|string|max:10',
+            'grupo' => 'required|string|max:50',
             'codigo' => 'required|string|max:100',
             'nombre' => 'required|string|max:150',
             'valor' => 'nullable|string',

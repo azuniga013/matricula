@@ -939,13 +939,13 @@
 function seguridad() {
     return {
         loading: true, tab: 'usuarios', error: '',
-        usuarios: [], roles: [], docentes: [], sucursalesCatalogo: [], permisosPorModulo: {}, bitacora: [], operacionesAuditoria: [],
+        usuarios: [], roles: [], docentes: [], sucursalesCatalogo: [], permisosPorModulo: {}, bitacora: [], operacionesAuditoria: [], operacionesMeta: { current_page: 1, last_page: 1, total: 0 },
         flujosMatricula: [],
         conceptosPago: [], metodosPago: [],
         cargandoBitacora: false,
         filtros: { usuario_id: '', metodo: '', estado_http: '', fecha_desde: '', fecha_hasta: '', busqueda: '' },
         cargandoOperacionesAuditoria: false,
-        filtrosOperaciones: { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', fecha_desde: '', fecha_hasta: '' },
+        filtrosOperaciones: { usuario_id: '', modulo: '', accion: '', entidad_tipo: '', entidad_id: '', fecha_desde: '', fecha_hasta: '', per_page: 25, page: 1 },
         correos: [], cargandoCorreos: false,
         filtrosCorreos: { tipo: '', destinatario: '', estado: '', fecha_desde: '', fecha_hasta: '' },
         showCorreoModal: false, correoSeleccionado: null,
