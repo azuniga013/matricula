@@ -71,6 +71,8 @@ class SucursalController extends Controller
 
     public function show(Sucursal $sucursal): JsonResponse
     {
+        $sucursal->load(['modalidadesAtencion:id,codigo,nombre,tipo']);
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,

@@ -882,6 +882,9 @@ function catalogos() {
                 else if (f.type === 'checkboxes') this.formData[f.key] = [];
                 else this.formData[f.key] = '';
             });
+            if (type === 'sucursal') {
+                this.loadDynamicOptionsForTab('sucursales');
+            }
             this.showModal = true;
         },
 
@@ -901,6 +904,9 @@ function catalogos() {
                     this.formData[f.key] = item[f.key] ?? '';
                 }
             });
+            if (this.activeTab === 'sucursales') {
+                this.loadDynamicOptionsForTab('sucursales');
+            }
             this.showModal = true;
         },
 
