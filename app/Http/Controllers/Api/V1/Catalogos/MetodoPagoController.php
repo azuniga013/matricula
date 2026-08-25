@@ -69,6 +69,9 @@ class MetodoPagoController extends Controller
             unset($datos['permite_link_pago']);
         }
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $metodo = MetodoPago::create($datos);
 
@@ -127,6 +130,7 @@ class MetodoPagoController extends Controller
             unset($datos['permite_link_pago']);
         }
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $metodoPago->update($datos);
 

@@ -58,6 +58,7 @@ final class EloquentMatriculaRepositorio implements MatriculaRepositorio
             'estado' => 'en_revision',
             'fecha_confirmacion' => now(),
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 
@@ -74,6 +75,7 @@ final class EloquentMatriculaRepositorio implements MatriculaRepositorio
             'estado' => 'rechazado',
             'observaciones' => $motivo,
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 

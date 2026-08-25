@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Sucursal extends Model
 {
@@ -22,6 +23,8 @@ class Sucursal extends Model
         'estado',
         'creado_por',
         'actualizado_por',
+        'creado_en',
+        'actualizado_en',
     ];
 
     protected function casts(): array
@@ -52,6 +55,13 @@ class Sucursal extends Model
     public function ofertasAcademicas()
     {
         return $this->hasMany(OfertaAcademica::class, 'sucursal_id');
+    }
+
+    public function modalidadesAtencion(): BelongsToMany
+    {
+        return $this->belongsToMany(Modalidad::class, 'sucursal_modalidad_atencion', 'sucursal_id', 'modalidad_id')
+            ->withPivot('estado')
+            ->wherePivot('estado', 'activo');
     }
 
     public function scopeActivos($query)

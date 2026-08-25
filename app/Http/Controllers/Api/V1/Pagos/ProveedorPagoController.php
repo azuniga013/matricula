@@ -52,6 +52,7 @@ class ProveedorPagoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $usuarioId = $request->user()->id;
         $datos = $request->validate([
             'codigo' => 'required|string|max:20|unique:proveedores_pago,codigo',
             'nombre' => 'required|string|max:100',
@@ -62,8 +63,10 @@ class ProveedorPagoController extends Controller
         $proveedor = ProveedorPago::create([
             ...$datos,
             'activo' => $datos['activo'] ?? true,
-            'creado_por' => auth()->id(),
+            'creado_por' => $usuarioId,
+            'actualizado_por' => $usuarioId,
             'creado_en' => now(),
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([
@@ -76,6 +79,7 @@ class ProveedorPagoController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $usuarioId = $request->user()->id;
         $proveedor = ProveedorPago::findOrFail($id);
 
         $datos = $request->validate([
@@ -87,7 +91,7 @@ class ProveedorPagoController extends Controller
 
         $proveedor->update([
             ...$datos,
-            'actualizado_por' => auth()->id(),
+            'actualizado_por' => $usuarioId,
             'actualizado_en' => now(),
         ]);
 
@@ -123,7 +127,7 @@ class ProveedorPagoController extends Controller
         foreach ($configuracionFinal as $clave => $valor) {
             ConfiguracionProveedorPago::updateOrCreate(
                 ['proveedor_pago_id' => $proveedor->id, 'clave' => $clave],
-                ['valor' => (string) $valor]
+                ['valor' => (string) $valor, 'updated_at' => now(), 'creado_en' => now()]
             );
         }
 

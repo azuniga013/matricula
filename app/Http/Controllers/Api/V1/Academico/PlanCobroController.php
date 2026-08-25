@@ -54,6 +54,7 @@ class PlanCobroController extends Controller
 
         $userId = $request->user()->id;
         $datos['creado_por'] = $userId;
+        $ahora = now();
 
         $plan = PlanCobro::create([
             'codigo' => $datos['codigo'],
@@ -61,6 +62,9 @@ class PlanCobroController extends Controller
             'descripcion' => $datos['descripcion'] ?? null,
             'estado' => 'activo',
             'creado_por' => $userId,
+            'actualizado_por' => $userId,
+            'creado_en' => $ahora,
+            'actualizado_en' => $ahora,
         ]);
 
         foreach ($datos['detalles'] as $detalle) {
@@ -73,6 +77,9 @@ class PlanCobroController extends Controller
                 'dias_vencimiento' => $detalle['dias_vencimiento'] ?? 0,
                 'estado' => 'activo',
                 'creado_por' => $userId,
+                'actualizado_por' => $userId,
+                'creado_en' => $ahora,
+                'actualizado_en' => $ahora,
             ]);
         }
 
@@ -118,12 +125,14 @@ class PlanCobroController extends Controller
 
         $userId = $request->user()->id;
         $datos['actualizado_por'] = $userId;
+        $ahora = now();
 
         $planCobro->update([
             'nombre' => $datos['nombre'],
             'descripcion' => $datos['descripcion'] ?? null,
             'estado' => $datos['estado'] ?? $planCobro->estado,
             'actualizado_por' => $userId,
+            'actualizado_en' => $ahora,
         ]);
 
         if ($request->has('detalles')) {
@@ -134,6 +143,7 @@ class PlanCobroController extends Controller
                     DetallePlanCobro::where('id', $detalle['id'])->update([
                         'estado' => 'inactivo',
                         'actualizado_por' => $userId,
+                        'actualizado_en' => $ahora,
                     ]);
                     continue;
                 }
@@ -145,6 +155,7 @@ class PlanCobroController extends Controller
                     'monto' => $detalle['monto'],
                     'dias_vencimiento' => $detalle['dias_vencimiento'] ?? 0,
                     'actualizado_por' => $userId,
+                    'actualizado_en' => $ahora,
                 ];
 
                 if (!empty($detalle['id'])) {
@@ -154,6 +165,7 @@ class PlanCobroController extends Controller
                     $dataDetalle['plan_cobro_id'] = $planCobro->id;
                     $dataDetalle['estado'] = 'activo';
                     $dataDetalle['creado_por'] = $userId;
+                    $dataDetalle['creado_en'] = $ahora;
                     $nuevo = DetallePlanCobro::create($dataDetalle);
                     $existingIds[] = $nuevo->id;
                 }

@@ -68,6 +68,8 @@ final class GeneradorReciboCaja
                 'fecha_recibo' => $fechaRecibo,
                 'creado_por' => $creadoPor,
                 'creado_en' => $fechaRecibo,
+                'actualizado_por' => $creadoPor,
+                'actualizado_en' => $fechaRecibo,
             ]);
         } catch (UniqueConstraintViolationException $e) {
             return null;

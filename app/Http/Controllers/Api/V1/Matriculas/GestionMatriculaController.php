@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\{GestionMatricula, Matricula, OfertaAcademica, TipoGestionMatricula};
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class GestionMatriculaController extends Controller
@@ -69,6 +70,7 @@ class GestionMatriculaController extends Controller
 
     public function solicitar(Request $request): JsonResponse
     {
+        $usuarioId = (int) Auth::id();
         $request->validate([
             'matricula_id' => 'required|exists:matriculas,id',
             'tipo_gestion_matricula_id' => 'required|exists:tipos_gestion_matricula,id',
@@ -83,10 +85,13 @@ class GestionMatriculaController extends Controller
             'oferta_academica_destino_id' => $request->oferta_academica_destino_id,
             'oferta_academica_origen_id' => Matricula::find($request->matricula_id)->oferta_academica_id,
             'estado' => 'pendiente',
-            'solicitado_por' => auth()->id(),
+            'solicitado_por' => $usuarioId,
             'fecha_solicitud' => now(),
             'datos_antes' => Matricula::find($request->matricula_id)->toArray(),
-            'creado_por' => auth()->id(),
+            'creado_por' => $usuarioId,
+            'actualizado_por' => $usuarioId,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([
@@ -99,7 +104,8 @@ class GestionMatriculaController extends Controller
 
     public function aprobar(int $id): JsonResponse
     {
-        $resultado = DB::transaction(function () use ($id) {
+        $usuarioId = (int) Auth::id();
+        $resultado = DB::transaction(function () use ($id, $usuarioId) {
             $gestion = GestionMatricula::lockForUpdate()->findOrFail($id);
 
             if ($gestion->estado !== 'pendiente') {
@@ -111,9 +117,10 @@ class GestionMatriculaController extends Controller
 
             $gestion->update([
                 'estado' => 'aprobado',
-                'decidido_por' => auth()->id(),
+                'decidido_por' => $usuarioId,
                 'fecha_decision' => now(),
-                'actualizado_por' => auth()->id(),
+                'actualizado_por' => $usuarioId,
+                'actualizado_en' => now(),
             ]);
 
             match ($tipo->codigo) {
@@ -127,6 +134,8 @@ class GestionMatriculaController extends Controller
             $gestion->update([
                 'despues' => $matricula->fresh()->toArray(),
                 'estado' => 'ejecutado',
+                'actualizado_por' => $usuarioId,
+                'actualizado_en' => now(),
             ]);
 
             return ['ok' => true, 'gestion' => $gestion->fresh()];
@@ -150,6 +159,7 @@ class GestionMatriculaController extends Controller
 
     public function rechazar(int $id, Request $request): JsonResponse
     {
+        $usuarioId = (int) Auth::id();
         $request->validate([
             'motivo_decision' => 'required|string|max:500',
         ]);
@@ -166,10 +176,11 @@ class GestionMatriculaController extends Controller
 
         $gestion->update([
             'estado' => 'rechazado',
-            'decidido_por' => auth()->id(),
+            'decidido_por' => $usuarioId,
             'fecha_decision' => now(),
             'motivo_decision' => $request->motivo_decision,
-            'actualizado_por' => auth()->id(),
+            'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([
@@ -265,6 +276,7 @@ class GestionMatriculaController extends Controller
 
     private function validarYAplicarCambioOferta(GestionMatricula $gestion, Matricula $matricula, OfertaAcademica $ofertaAnterior, OfertaAcademica $nuevaOferta): void
     {
+        $usuarioId = (int) Auth::id();
 
         if ($nuevaOferta->cuposDisponibles() <= 0) {
             throw new \Exception('No hay cupos en la oferta destino');
@@ -273,6 +285,8 @@ class GestionMatriculaController extends Controller
         $gestion->update([
             'oferta_academica_origen_id' => $ofertaAnterior->id,
             'datos_antes' => $this->snapshotMatricula($matricula, $ofertaAnterior),
+            'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
         $ofertaAnterior->decrement('cupos_matriculados');
         if ($ofertaAnterior->estado === 'lleno') {
@@ -282,12 +296,16 @@ class GestionMatriculaController extends Controller
         $matricula->update([
             'oferta_academica_id' => $nuevaOferta->id,
             'sucursal_id' => $nuevaOferta->sucursal_id,
+            'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
 
         $nuevaOferta->increment('cupos_matriculados');
 
         $gestion->update([
             'despues' => $this->snapshotMatricula($matricula->fresh(), $nuevaOferta),
+            'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 
@@ -319,13 +337,14 @@ class GestionMatriculaController extends Controller
 
     private function aplicarRetiro(GestionMatricula $gestion, Matricula $matricula): void
     {
-        $matricula->update(['estado' => 'cancelado']);
+        $usuarioId = (int) Auth::id();
+        $matricula->update(['estado' => 'cancelado', 'actualizado_por' => $usuarioId, 'actualizado_en' => now()]);
         $oferta = OfertaAcademica::lockForUpdate()->findOrFail($matricula->oferta_academica_id);
         $oferta->decrement('cupos_matriculados');
         if ($oferta->estado === 'lleno') {
             $oferta->update(['estado' => 'abierto']);
         }
-        $matricula->obligaciones()->update(['estado' => 'cancelado']);
+        $matricula->obligaciones()->update(['estado' => 'cancelado', 'actualizado_por' => $usuarioId, 'actualizado_en' => now()]);
     }
 
     private function aplicarCancelacion(GestionMatricula $gestion, Matricula $matricula): void

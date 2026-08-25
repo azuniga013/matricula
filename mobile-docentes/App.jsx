@@ -62,6 +62,14 @@ const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}
 
 const MODULES = [
   {
+    id: 'alumnos',
+    title: 'Buscar Alumno',
+    detail: 'Busque si un estudiante está en alguno de sus horarios asignados.',
+    icon: 'search-outline',
+    iconBg: '#ede9fe',
+    iconColor: '#6d28d9',
+  },
+  {
     id: 'ofertas',
     title: 'Ofertas Académicas',
     detail: 'Consulte horarios, estudiantes y link de WhatsApp del período.',
@@ -550,6 +558,9 @@ export default function App() {
       />
     );
   }
+  if (module === 'alumnos') {
+    return <SearchStudentsScreen offers={items} openOffer={openOffer} back={() => setModule(null)} />;
+  }
   return (
     <OfferList
       module={MODULES.find((item) => item.id === module)}
@@ -565,6 +576,131 @@ export default function App() {
       sync={() => refresh(periodId)}
       syncing={syncing}
     />
+  );
+}
+
+function SearchStudentsScreen({ offers, openOffer, back }) {
+  const [query, setQuery] = useState('');
+  const referenceDate = today();
+
+  const results = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (term.length < 2) return [];
+
+    const grouped = new Map();
+    for (const offer of offers) {
+      const enrolled = cachedStudents(offer.id) || [];
+      for (const student of enrolled) {
+        const studentName = fullName(student);
+        const haystack = [student.codigo, studentName, student.email].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(term)) continue;
+
+        const attendanceRows = cachedAttendance(offer.id, referenceDate) || [];
+        const attendanceRow = attendanceRows.find((row) => String(row.matricula_id) === String(student.matricula_id));
+        const gradeRows = cachedGrades(offer.id) || [];
+        const gradeRow = gradeRows.find((row) => String(row.estudiante_id) === String(student.estudiante_id || student.id));
+
+        const studentKey = String(student.estudiante_id || student.id || student.matricula_id);
+        if (!grouped.has(studentKey)) {
+          grouped.set(studentKey, {
+            key: studentKey,
+            student,
+            studentName,
+            offers: [],
+          });
+        }
+
+        grouped.get(studentKey).offers.push({
+          offer,
+          attendanceLoaded: Boolean(attendanceRow),
+          attendanceStatus: attendanceRow?.estado || null,
+          gradeLoaded: Boolean(
+            gradeRow && (
+              gradeRow.nota_final !== null
+              && gradeRow.nota_final !== undefined
+              && String(gradeRow.nota_final) !== ''
+            )
+          ),
+          faltasLoaded: Boolean(gradeRow && gradeRow.faltas !== null && gradeRow.faltas !== undefined),
+        });
+      }
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => a.studentName.localeCompare(b.studentName));
+  }, [offers, query]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Button title="Menú" onPress={back} />
+        <View style={styles.headerGrow}>
+          <Text style={styles.title}>Buscar Alumno</Text>
+          <Text style={styles.sub}>Consulte si el alumno está en alguno de sus horarios</Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.list}>
+        <View style={extraStyles.infoCard}>
+          <Text style={extraStyles.infoTitle}>Búsqueda por alumno</Text>
+          <Text style={extraStyles.infoText}>Escriba nombre, apellido, código o correo. La búsqueda usa las ofertas que ya tiene sincronizadas en este dispositivo.</Text>
+        </View>
+
+        <TextInput
+          style={extraStyles.searchInput}
+          placeholder="Ej. Ana, EST-2026-0001, correo@dominio.com"
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+
+        {query.trim().length < 2 ? (
+          <View style={extraStyles.emptyCard}>
+            <Text style={styles.cardTitle}>Ingrese al menos 2 caracteres</Text>
+            <Text style={styles.muted}>La búsqueda se activará cuando escriba suficiente información del alumno.</Text>
+          </View>
+        ) : null}
+
+        {query.trim().length >= 2 && results.length === 0 ? (
+          <View style={extraStyles.emptyCard}>
+            <Text style={styles.cardTitle}>Sin coincidencias</Text>
+            <Text style={styles.muted}>No encontramos ese alumno dentro de sus horarios descargados.</Text>
+          </View>
+        ) : null}
+
+        {results.map(({ key, student, studentName, offers: matchedOffers }) => (
+          <View key={key} style={extraStyles.offerCard}>
+            <Text style={styles.cardTitle}>{student.codigo || 'Alumno'} · {studentName || 'Sin nombre'}</Text>
+            <Text style={styles.muted}>{student.email || 'Sin correo registrado'}</Text>
+            <Text style={extraStyles.helperText}>
+              Aparece en {matchedOffers.length} horario(s) asignado(s) a este docente.
+            </Text>
+            <Text style={extraStyles.helperText}>Referencia de asistencia: {referenceDate}</Text>
+
+            {matchedOffers.map(({ offer, attendanceLoaded, attendanceStatus, gradeLoaded, faltasLoaded }) => (
+              <View key={`${key}-${offer.id}`} style={extraStyles.matchCard}>
+                <View style={extraStyles.offerMetaRow}>
+                  <Text style={extraStyles.offerTag}>{offer.horario?.nombre || 'Sin horario'}</Text>
+                  <Text style={extraStyles.offerTagSoft}>{offer.periodo_academico?.codigo || offer.periodo_academico?.nombre || 'Período'}</Text>
+                </View>
+                <Text style={extraStyles.helperText}>Oferta: {offer.codigo} · {offer.nivel_academico?.nombre || 'Sin nivel'}</Text>
+                <View style={extraStyles.offerMetaRow}>
+                  <Text style={attendanceLoaded ? extraStyles.statusOk : extraStyles.statusPending}>
+                    {attendanceLoaded ? `Asistencia: ${attendanceStatus || 'cargada'}` : 'Asistencia hoy: pendiente'}
+                  </Text>
+                  <Text style={gradeLoaded || faltasLoaded ? extraStyles.statusOk : extraStyles.statusPending}>
+                    {gradeLoaded || faltasLoaded ? 'Calificación: registrada' : 'Calificación: pendiente'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={extraStyles.inlineOpenBtn} onPress={() => openOffer(offer.id)} activeOpacity={0.85}>
+                  <Text style={extraStyles.inlineOpenBtnText}>Abrir horario</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -1096,8 +1232,13 @@ const extraStyles = StyleSheet.create({
   offerAction: { backgroundColor: '#dbeafe', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   offerActionText: { color: '#1d4ed8', fontWeight: '700' },
   offerMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  matchCard: { backgroundColor: '#f8fafc', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 12, gap: 8 },
   offerTag: { backgroundColor: '#dcfce7', color: '#166534', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '700' },
   offerTagSoft: { backgroundColor: '#f1f5f9', color: '#475569', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '700' },
+  statusOk: { backgroundColor: '#dcfce7', color: '#166534', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '700' },
+  statusPending: { backgroundColor: '#fee2e2', color: '#b91c1c', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '700' },
+  inlineOpenBtn: { alignSelf: 'flex-start', backgroundColor: '#dbeafe', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+  inlineOpenBtnText: { color: '#1d4ed8', fontWeight: '700', fontSize: 13 },
   whatsappPanel: { marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e2e8f0', gap: 8 },
   primaryBlockBtn: { marginTop: 8, backgroundColor: '#1d4ed8', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryBlockBtnDisabled: { backgroundColor: '#93c5fd' },

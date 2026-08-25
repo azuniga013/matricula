@@ -20,7 +20,7 @@ class ReciboCaja extends Model
         'fecha_proceso',
         'fecha_recibo',
         'periodo', 'creado_por', 'anulado_por', 'fecha_anulacion',
-        'motivo_anulacion', 'veces_reimpreso', 'actualizado_por',
+        'motivo_anulacion', 'veces_reimpreso', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

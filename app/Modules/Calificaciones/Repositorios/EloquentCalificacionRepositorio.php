@@ -28,7 +28,16 @@ final class EloquentCalificacionRepositorio implements CalificacionRepositorio
 
     public function crearOActualizar(array $claves, array $atributos): Calificacion
     {
-        return Calificacion::updateOrCreate($claves, $atributos);
+        $calificacion = Calificacion::firstOrNew($claves);
+
+        if ($calificacion->exists) {
+            unset($atributos['codigo'], $atributos['creado_por'], $atributos['creado_en']);
+        }
+
+        $calificacion->fill($atributos);
+        $calificacion->save();
+
+        return $calificacion;
     }
 
     public function actualizar(Calificacion $calificacion, array $atributos): void

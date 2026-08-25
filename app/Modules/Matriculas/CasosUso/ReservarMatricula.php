@@ -84,6 +84,9 @@ final class ReservarMatricula
                 'estado' => 'reservada',
                 'fecha_reserva' => now(),
                 'creado_por' => $contexto->usuarioId(),
+                'actualizado_por' => $contexto->usuarioId(),
+                'creado_en' => now(),
+                'actualizado_en' => now(),
             ]);
 
             $this->repositorio->reservarCupo($oferta);

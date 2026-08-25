@@ -35,6 +35,9 @@ class PermisoController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $permiso = Permiso::create($datos);
 
@@ -67,6 +70,7 @@ class PermisoController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $permiso->update($datos);
 
@@ -83,6 +87,7 @@ class PermisoController extends Controller
         $permiso->update([
             'estado' => 'inactivo',
             'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([

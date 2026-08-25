@@ -23,6 +23,8 @@ class AsistenciaEstudiante extends Model
         'observacion',
         'registrado_por',
         'creado_por',
+        'creado_en',
+        'actualizado_en',
     ];
 
     protected function casts(): array
@@ -30,6 +32,8 @@ class AsistenciaEstudiante extends Model
         return [
             'fecha' => 'date',
             'cuenta_como_falta' => 'boolean',
+            'creado_en' => 'datetime',
+            'actualizado_en' => 'datetime',
         ];
     }
 

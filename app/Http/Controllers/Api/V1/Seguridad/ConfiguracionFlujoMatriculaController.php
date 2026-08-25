@@ -68,6 +68,10 @@ class ConfiguracionFlujoMatriculaController extends Controller
             'habilita_whatsapp' => $request->boolean('habilita_whatsapp', true),
             'habilita_reenganche' => $request->boolean('habilita_reenganche', true),
             'habilita_solicitud_link' => $request->boolean('habilita_solicitud_link', true),
+            'creado_por' => $request->user()->id,
+            'actualizado_por' => $request->user()->id,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
         ]);
         $cfg->conceptosPago()->sync(array_fill_keys($datos['concepto_pago_ids'], ['creado_por' => $request->user()->id, 'creado_en' => now()]));
         $metodos = array_unique(array_filter(array_map('intval', $request->input('metodo_pago_ids', [$datos['metodo_pago_id']]))));
@@ -126,6 +130,8 @@ class ConfiguracionFlujoMatriculaController extends Controller
             'habilita_whatsapp' => $request->boolean('habilita_whatsapp', true),
             'habilita_reenganche' => $request->boolean('habilita_reenganche', true),
             'habilita_solicitud_link' => $request->boolean('habilita_solicitud_link', true),
+            'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
         $cfg->conceptosPago()->sync(array_fill_keys($datos['concepto_pago_ids'], ['creado_por' => $request->user()->id, 'creado_en' => now()]));
         $metodos = array_unique(array_filter(array_map('intval', $request->input('metodo_pago_ids', [$datos['metodo_pago_id']]))));
@@ -136,7 +142,7 @@ class ConfiguracionFlujoMatriculaController extends Controller
     public function destroy(ConfiguracionFlujoMatricula $configuracionFlujoMatricula): JsonResponse
     {
         $cfg = $configuracionFlujoMatricula;
-        $cfg->update(['estado' => 'inactivo']);
+        $cfg->update(['estado' => 'inactivo', 'actualizado_por' => request()->user()->id, 'actualizado_en' => now()]);
         return response()->json(['resultado' => 'A', 'codigo' => 200, 'mensaje' => 'Configuración desactivada']);
     }
 

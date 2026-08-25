@@ -14,7 +14,7 @@ class PlanCobro extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'codigo', 'nombre', 'descripcion', 'estado', 'creado_por', 'actualizado_por',
+        'codigo', 'nombre', 'descripcion', 'estado', 'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

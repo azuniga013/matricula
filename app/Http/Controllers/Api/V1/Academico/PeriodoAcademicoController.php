@@ -45,6 +45,9 @@ class PeriodoAcademicoController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $periodo = PeriodoAcademico::create($datos);
 
@@ -76,6 +79,7 @@ class PeriodoAcademicoController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $periodoAcademico->update($datos);
 

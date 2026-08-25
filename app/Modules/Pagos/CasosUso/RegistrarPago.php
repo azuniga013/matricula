@@ -119,6 +119,8 @@ final class RegistrarPago
                     'fecha_aprobacion' => $solicitaLink ? null : $fechaProceso,
                     'creado_por' => $usuarioId,
                     'creado_en' => $fechaProceso,
+                    'actualizado_por' => $usuarioId,
+                    'actualizado_en' => $fechaProceso,
                 ]);
 
                 $this->efectos->asignarSesionCajaSiHaceFalta($pago, $usuarioId);

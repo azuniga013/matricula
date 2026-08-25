@@ -40,6 +40,9 @@ class RolController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $rol = Rol::create($datos);
 
@@ -73,6 +76,7 @@ class RolController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $rol->update($datos);
 
@@ -119,6 +123,9 @@ class RolController extends Controller
                         'permiso_id' => $permiso->id,
                         'estado' => 'activo',
                         'creado_por' => $usuarioId,
+                        'actualizado_por' => $usuarioId,
+                        'creado_en' => now(),
+                        'actualizado_en' => now(),
                     ]);
                 }
             }
@@ -151,6 +158,9 @@ class RolController extends Controller
                 $rolDestino->permisos()->attach($permiso->id, [
                     'estado' => 'activo',
                     'creado_por' => $request->user()->id,
+                    'actualizado_por' => $request->user()->id,
+                    'creado_en' => now(),
+                    'actualizado_en' => now(),
                 ]);
             }
         });

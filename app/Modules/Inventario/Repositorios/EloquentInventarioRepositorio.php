@@ -34,6 +34,7 @@ final class EloquentInventarioRepositorio implements InventarioRepositorio
         $inventario->update([
             'existencia_actual' => $existencia,
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 
@@ -42,6 +43,7 @@ final class EloquentInventarioRepositorio implements InventarioRepositorio
         return MovimientoInventarioLibro::create([
             ...$atributos,
             'creado_por' => $usuarioId,
+            'creado_en' => now(),
         ]);
     }
 

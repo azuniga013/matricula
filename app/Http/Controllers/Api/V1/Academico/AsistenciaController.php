@@ -160,6 +160,7 @@ class AsistenciaController extends Controller
                         'observacion' => $item['observacion'] ?? null,
                         'registrado_por' => $user->id,
                         'creado_por' => $user->id,
+                        'actualizado_en' => now(),
                     ]);
                 }
 

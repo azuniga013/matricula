@@ -184,6 +184,46 @@ class OfertaAcademicaTest extends TestCase
         $this->assertDatabaseMissing('ofertas_academicas', ['codigo' => $datos['codigo']]);
     }
 
+    public function test_no_permite_asignar_mismo_docente_en_mismo_horario_y_periodo(): void
+    {
+        OfertaAcademica::create($this->ofertaData([
+            'codigo' => 'SPS-2026I-ING1-INT-001',
+        ]));
+
+        $response = $this->postJson('/api/v1/ofertas/academicas', $this->ofertaData([
+            'codigo' => 'SPS-2026I-ING1-INT-002',
+        ]), $this->headers());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('codigo', 422)
+            ->assertJsonPath('mensaje', 'El docente ya tiene una oferta registrada en este mismo horario y período.');
+
+        $this->assertDatabaseMissing('ofertas_academicas', ['codigo' => 'SPS-2026I-ING1-INT-002']);
+    }
+
+    public function test_actualizar_oferta_no_permite_chocar_con_otra_del_mismo_docente(): void
+    {
+        $otraOferta = OfertaAcademica::create($this->ofertaData([
+            'codigo' => 'SPS-2026I-ING1-INT-001',
+            'horario_id' => $this->horario->id,
+        ]));
+
+        $oferta = OfertaAcademica::create($this->ofertaData([
+            'codigo' => 'SPS-2026I-ING1-INT-002',
+            'horario_id' => $this->horario->id,
+            'docente_id' => $this->docente->id,
+        ]));
+
+        $response = $this->postJson("/api/v1/ofertas/academicas/{$oferta->id}", [
+            'horario_id' => $otraOferta->horario_id,
+        ], $this->headers());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('resultado', 'R')
+            ->assertJsonPath('mensaje', 'El docente ya tiene una oferta registrada en este mismo horario y período.');
+    }
+
     public function test_listar_ofertas_academicas(): void
     {
         OfertaAcademica::factory()->count(3)->create([

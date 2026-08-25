@@ -13,6 +13,8 @@ class ConfiguracionProveedorPago extends Model
         'proveedor_pago_id',
         'clave',
         'valor',
+        'creado_en',
+        'updated_at',
     ];
 
     public function proveedorPago(): BelongsTo

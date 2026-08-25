@@ -36,6 +36,7 @@ final class ActualizarCalificacion
             'observaciones' => $datos['observaciones'] ?? $calificacion->observaciones,
             'estado' => 'corregido',
             'actualizado_por' => $contexto->usuarioId(),
+            'actualizado_en' => now(),
         ]);
 
         $this->repositorio->cargarRelaciones($calificacion);

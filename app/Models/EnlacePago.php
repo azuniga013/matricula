@@ -16,7 +16,7 @@ class EnlacePago extends Model
     protected $fillable = [
         'codigo', 'nombre', 'monto', 'concepto_pago_id', 'cuenta_bancaria_id',
         'fecha_vencimiento', 'usos_maximos', 'usos_actuales', 'estado',
-        'creado_por', 'actualizado_por',
+        'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

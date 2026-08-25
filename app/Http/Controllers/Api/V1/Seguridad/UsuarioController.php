@@ -85,6 +85,9 @@ class UsuarioController extends Controller
                 'sucursal_id' => $datos['sucursal_id'] ?? null,
                 'estado' => 'activo',
                 'creado_por' => $request->user()->id,
+                'actualizado_por' => $request->user()->id,
+                'creado_en' => now(),
+                'actualizado_en' => now(),
             ]);
 
             foreach ($datos['roles'] as $codigoRol) {
@@ -95,6 +98,9 @@ class UsuarioController extends Controller
                         'rol_id' => $rol->id,
                         'estado' => 'activo',
                         'creado_por' => $request->user()->id,
+                        'actualizado_por' => $request->user()->id,
+                        'creado_en' => now(),
+                        'actualizado_en' => now(),
                     ]);
                 }
             }
@@ -108,6 +114,9 @@ class UsuarioController extends Controller
                             'sucursal_id' => $sucursal->id,
                             'estado' => 'activo',
                             'creado_por' => $request->user()->id,
+                            'actualizado_por' => $request->user()->id,
+                            'creado_en' => now(),
+                            'actualizado_en' => now(),
                         ]);
                     }
                 }
@@ -156,6 +165,7 @@ class UsuarioController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         if (
             ($datos['estado'] ?? null) === 'inactivo'
@@ -240,6 +250,9 @@ class UsuarioController extends Controller
                         'rol_id' => $rol->id,
                         'estado' => 'activo',
                         'creado_por' => $request->user()->id,
+                        'actualizado_por' => $request->user()->id,
+                        'creado_en' => now(),
+                        'actualizado_en' => now(),
                     ]);
                 }
             }
@@ -277,6 +290,9 @@ class UsuarioController extends Controller
                         'sucursal_id' => $sucursal->id,
                         'estado' => 'activo',
                         'creado_por' => $request->user()->id,
+                        'actualizado_por' => $request->user()->id,
+                        'creado_en' => now(),
+                        'actualizado_en' => now(),
                     ]);
                 }
             }
@@ -304,6 +320,7 @@ class UsuarioController extends Controller
             'password' => Hash::make($datos['password']),
             'debe_cambiar_contrasena' => false,
             'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         $usuario->tokens()->delete();

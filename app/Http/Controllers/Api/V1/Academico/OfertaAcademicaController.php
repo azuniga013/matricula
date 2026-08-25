@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V1\Academico;
 
 use App\Http\Controllers\Controller;
-use App\Models\GrupoWhatsapp;
 use App\Models\OfertaAcademica;
+use App\Models\Modalidad;
 use App\Models\Sucursal;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +24,6 @@ class OfertaAcademicaController extends Controller
             'docente',
             'aula',
             'planCobro',
-            'grupoWhatsapp',
         ]);
 
         if ($request->filled('buscar')) {
@@ -83,11 +82,18 @@ class OfertaAcademicaController extends Controller
             'plan_cobro_id' => 'required|exists:planes_cobro,id',
             'cupo_maximo' => 'nullable|integer|min:1',
             'acepta_cambios_horario' => 'nullable|boolean',
-            'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
             'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'observaciones' => 'nullable|string',
             'codigo' => 'nullable|string|max:50|unique:ofertas_academicas,codigo',
         ]);
+
+        if ($respuesta = $this->validarChoqueHorarioDocente($datos['docente_id'], $datos['periodo_academico_id'], $datos['horario_id'])) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->validarSucursalParaModalidadAtencion((int) $datos['sucursal_id'], (int) $datos['modalidad_id'])) {
+            return $respuesta;
+        }
 
         $datos = $this->normalizarWhatsappOferta($datos);
 
@@ -103,13 +109,16 @@ class OfertaAcademicaController extends Controller
         }
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
         $datos['cupo_maximo'] = $datos['cupo_maximo'] ?? 25;
         $datos['estado'] = 'borrador';
 
         $oferta = OfertaAcademica::create($datos);
         $oferta->load([
             'sucursal', 'periodoAcademico', 'nivelAcademico.regimenAcademico',
-            'modalidad', 'horario', 'docente', 'aula', 'planCobro', 'grupoWhatsapp',
+            'modalidad', 'horario', 'docente', 'aula', 'planCobro',
         ]);
 
         return response()->json([
@@ -124,7 +133,7 @@ class OfertaAcademicaController extends Controller
     {
         $ofertaAcademica->load([
             'sucursal', 'periodoAcademico', 'nivelAcademico.regimenAcademico',
-            'modalidad', 'horario', 'docente', 'aula', 'planCobro.detalles.conceptoPago', 'grupoWhatsapp',
+            'modalidad', 'horario', 'docente', 'aula', 'planCobro.detalles.conceptoPago',
         ]);
 
         $ofertaAcademica->cupos_disponibles = $ofertaAcademica->cuposDisponibles();
@@ -151,15 +160,29 @@ class OfertaAcademicaController extends Controller
             'observaciones' => 'nullable|string',
             'plan_cobro_id' => 'sometimes|required|exists:planes_cobro,id',
             'acepta_cambios_horario' => 'nullable|boolean',
-            'grupo_whatsapp_id' => 'nullable|exists:grupos_whatsapp,id',
             'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'cupo_maximo' => 'nullable|integer|min:1',
             'estado' => 'sometimes|string|in:borrador,abierto,cerrado,cancelado',
         ]);
 
+        $docenteId = $datos['docente_id'] ?? $ofertaAcademica->docente_id;
+        $periodoId = $datos['periodo_academico_id'] ?? $ofertaAcademica->periodo_academico_id;
+        $horarioId = $datos['horario_id'] ?? $ofertaAcademica->horario_id;
+
+        if ($respuesta = $this->validarChoqueHorarioDocente($docenteId, $periodoId, $horarioId, $ofertaAcademica->id)) {
+            return $respuesta;
+        }
+
+        $sucursalId = (int) ($datos['sucursal_id'] ?? $ofertaAcademica->sucursal_id);
+        $modalidadId = (int) ($datos['modalidad_id'] ?? $ofertaAcademica->modalidad_id);
+        if ($respuesta = $this->validarSucursalParaModalidadAtencion($sucursalId, $modalidadId, $ofertaAcademica->id)) {
+            return $respuesta;
+        }
+
         $datos = $this->normalizarWhatsappOferta($datos);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         if (isset($datos['cupo_maximo'])) {
             $nuevoMax = $datos['cupo_maximo'];
@@ -198,7 +221,7 @@ class OfertaAcademicaController extends Controller
 
         $ofertaAcademica->load([
             'sucursal', 'periodoAcademico', 'nivelAcademico.regimenAcademico',
-            'modalidad', 'horario', 'docente', 'aula', 'planCobro', 'grupoWhatsapp',
+            'modalidad', 'horario', 'docente', 'aula', 'planCobro',
         ]);
 
         return response()->json([
@@ -256,6 +279,7 @@ class OfertaAcademicaController extends Controller
         $ofertaAcademica->update([
             'whatsapp_link_periodo' => $link !== '' ? $link : null,
             'actualizado_por' => $usuario->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([
@@ -273,10 +297,61 @@ class OfertaAcademicaController extends Controller
             $datos['whatsapp_grupo_nombre'] = $nombre !== '' ? $nombre : null;
         }
 
-        if (! empty($datos['grupo_whatsapp_id']) && empty($datos['whatsapp_grupo_nombre'])) {
-            $datos['whatsapp_grupo_nombre'] = GrupoWhatsapp::where('id', $datos['grupo_whatsapp_id'])->value('nombre');
+        return $datos;
+    }
+
+    private function validarChoqueHorarioDocente(int $docenteId, int $periodoId, int $horarioId, ?int $exceptoOfertaId = null): ?JsonResponse
+    {
+        $choque = OfertaAcademica::query()
+            ->where('docente_id', $docenteId)
+            ->where('periodo_academico_id', $periodoId)
+            ->where('horario_id', $horarioId)
+            ->when($exceptoOfertaId, fn ($q) => $q->where('id', '<>', $exceptoOfertaId))
+            ->first();
+
+        if (! $choque) {
+            return null;
         }
 
-        return $datos;
+        return response()->json([
+            'resultado' => 'R',
+            'codigo' => 422,
+            'mensaje' => 'El docente ya tiene una oferta registrada en este mismo horario y período.',
+            'errores' => [
+                'docente_id' => ['El docente no puede estar asignado a dos ofertas en el mismo horario del período.'],
+            ],
+            'data' => [
+                'oferta_existente' => [
+                    'id' => $choque->id,
+                    'codigo' => $choque->codigo,
+                ],
+            ],
+        ], 422);
+    }
+
+    private function validarSucursalParaModalidadAtencion(int $sucursalId, int $modalidadId, ?int $exceptoOfertaId = null): ?JsonResponse
+    {
+        $modalidad = Modalidad::find($modalidadId);
+        if (! $modalidad || $modalidad->tipo !== 'atencion') {
+            return null;
+        }
+
+        $sucursal = Sucursal::with('modalidadesAtencion')->find($sucursalId);
+        if (! $sucursal) {
+            return null;
+        }
+
+        if ($sucursal->modalidadesAtencion->contains('id', $modalidadId)) {
+            return null;
+        }
+
+        return response()->json([
+            'resultado' => 'R',
+            'codigo' => 422,
+            'mensaje' => 'La sucursal no tiene habilitada esta modalidad de atención.',
+            'errores' => [
+                'modalidad_id' => ['Seleccione una sucursal habilitada para esta modalidad de atención.'],
+            ],
+        ], 422);
     }
 }

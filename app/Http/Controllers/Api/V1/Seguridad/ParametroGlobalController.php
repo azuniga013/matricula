@@ -76,6 +76,9 @@ class ParametroGlobalController extends Controller
         }
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
         $datos['estado'] = $datos['estado'] ?? true;
 
         $parametro = ParametroGlobal::create($datos);
@@ -101,6 +104,7 @@ class ParametroGlobalController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $parametroGlobal->update($datos);
         ParametroGlobal::invalidarCache();

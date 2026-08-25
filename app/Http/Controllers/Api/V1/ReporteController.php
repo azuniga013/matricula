@@ -127,6 +127,12 @@ class ReporteController extends Controller
 
         $data = $mapa[$request->reporte]();
         $filas = isset($data['data']) ? ($data['data']['data'] ?? $data['data'] ?? []) : ($data ?? []);
+        if (is_object($filas)) {
+            $filas = (array) $filas;
+        }
+        if (is_array($filas) && !empty($filas) && !array_is_list($filas)) {
+            $filas = [$filas];
+        }
         $nombre = str_replace(['.', '/'], '_', $request->reporte);
 
         // Resumen de filtros aplicados
@@ -766,7 +772,7 @@ class ReporteController extends Controller
                 'estudiantes.correo',
                 'estudiantes.telefono',
                 DB::raw('COUNT(obligaciones_pago_estudiante.id) as obligaciones_pendientes'),
-                DB::raw('SUM(obligaciones_pago_estudiante.saldo_pendiente) as saldo_pendiente_total')
+                DB::raw('SUM(obligaciones_pago_estudiante.monto - obligaciones_pago_estudiante.monto_pagado) as saldo_pendiente_total')
             )
             ->groupBy(
                 'sucursales.id', 'sucursales.codigo', 'sucursales.nombre',

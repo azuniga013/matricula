@@ -16,6 +16,7 @@ final class EloquentReciboCajaRepositorio implements ReciboCajaRepositorio
         $recibo->update([
             'veces_reimpreso' => $recibo->veces_reimpreso + 1,
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 
@@ -27,6 +28,7 @@ final class EloquentReciboCajaRepositorio implements ReciboCajaRepositorio
             'fecha_anulacion' => now(),
             'motivo_anulacion' => $motivo,
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
     }
 }

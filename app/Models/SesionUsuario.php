@@ -20,6 +20,7 @@ class SesionUsuario extends Model
         'vencimiento',
         'revocado_en',
         'ultimo_acceso',
+        'creado_en',
     ];
 
     protected function casts(): array

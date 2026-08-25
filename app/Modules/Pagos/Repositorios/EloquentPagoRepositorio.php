@@ -30,6 +30,7 @@ final class EloquentPagoRepositorio implements PagoRepositorio
             'aprobado_por' => $usuarioId,
             'fecha_aprobacion' => now(),
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ]);
 
         return $pago;
@@ -43,6 +44,7 @@ final class EloquentPagoRepositorio implements PagoRepositorio
             'link_generado_en' => now(),
             'estado' => 'esperando_respuesta',
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ];
 
         if (Schema::hasColumn('pagos', 'link_pago_estado')) {
@@ -70,6 +72,7 @@ final class EloquentPagoRepositorio implements PagoRepositorio
             'fecha_rechazo' => now(),
             'motivo_rechazo' => $motivo,
             'actualizado_por' => $usuarioId,
+            'actualizado_en' => now(),
         ];
 
         if (Schema::hasColumn('pagos', 'link_pago_estado')) {

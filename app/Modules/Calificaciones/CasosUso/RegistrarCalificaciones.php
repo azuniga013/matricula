@@ -63,6 +63,9 @@ final class RegistrarCalificaciones
                         'estado' => 'registrado',
                         'observaciones' => $item['observaciones'] ?? null,
                         'creado_por' => $contexto->usuarioId(),
+                        'actualizado_por' => $contexto->usuarioId(),
+                        'creado_en' => now(),
+                        'actualizado_en' => now(),
                     ]
                 );
 

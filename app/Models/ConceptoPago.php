@@ -15,7 +15,7 @@ class ConceptoPago extends Model
     protected $fillable = [
         'codigo', 'nombre', 'tipo_monto', 'monto_fijo', 'monto_minimo', 'monto_maximo',
         'requiere_autorizacion_monto', 'descripcion', 'estado', 'portal_disponible',
-        'creado_por', 'actualizado_por',
+        'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

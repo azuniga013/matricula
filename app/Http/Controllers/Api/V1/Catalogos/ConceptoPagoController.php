@@ -65,6 +65,9 @@ class ConceptoPagoController extends Controller
 
         $datos['portal_disponible'] = filter_var($datos['portal_disponible'] ?? true, FILTER_VALIDATE_BOOLEAN);
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $concepto = ConceptoPago::create($datos);
 
@@ -120,6 +123,7 @@ class ConceptoPagoController extends Controller
             $datos['portal_disponible'] = filter_var($datos['portal_disponible'], FILTER_VALIDATE_BOOLEAN);
         }
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $conceptoPago->update($datos);
 

@@ -33,7 +33,10 @@ export default function DocenteHome({
   logout,
   dashboard,
 }) {
-  const docenteNombre = [user?.nombre, user?.apellido].filter(Boolean).join(' ') || user?.nombre || 'Docente';
+  const docenteNombre = user?.nombre || user?.name || 'Docente';
+  const docenteCorreo = user?.email || 'Sin correo registrado';
+  const docenteRol = user?.roles?.[0]?.nombre || user?.roles?.[0]?.codigo || 'Sin rol asignado';
+  const docenteSucursales = (user?.sucursales || []).map((item) => item?.nombre || item?.codigo).filter(Boolean).join(' · ') || 'Sin sucursales asignadas';
 
   return (
     <View style={styles.container}>
@@ -45,6 +48,7 @@ export default function DocenteHome({
           <View style={styles.heroGrow}>
             <Text style={styles.heroTitle}>Portal Docente</Text>
             <Text style={styles.heroName}>{docenteNombre}</Text>
+            <Text style={styles.heroEmail}>{docenteCorreo}</Text>
             <Text style={styles.heroMeta}>{online ? 'En linea' : 'Modo offline'} · {pendingCount} pendiente(s)</Text>
           </View>
         </View>
@@ -61,6 +65,29 @@ export default function DocenteHome({
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.profileCard}>
+          <View style={styles.profileRow}>
+            <View style={styles.profileIconWrap}>
+              <Ionicons name="person-circle-outline" size={24} color="#1d4ed8" />
+            </View>
+            <View style={styles.profileGrow}>
+              <Text style={styles.profileLabel}>Docente</Text>
+              <Text style={styles.profileName}>{docenteNombre}</Text>
+              <Text style={styles.profileEmail}>{docenteCorreo}</Text>
+            </View>
+          </View>
+          <View style={styles.profileMetaGrid}>
+            <View style={styles.profileMetaItem}>
+              <Text style={styles.profileMetaLabel}>Rol</Text>
+              <Text style={styles.profileMetaValue}>{docenteRol}</Text>
+            </View>
+            <View style={styles.profileMetaItem}>
+              <Text style={styles.profileMetaLabel}>Sucursales</Text>
+              <Text style={styles.profileMetaValue}>{docenteSucursales}</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Resumen rapido</Text>
           <Text style={styles.sectionText}>Acceso directo a su jornada y a los modulos principales.</Text>
@@ -124,6 +151,7 @@ const styles = StyleSheet.create({
   heroGrow: { flex: 1 },
   heroTitle: { color: '#bfdbfe', fontSize: 13, fontWeight: '600' },
   heroName: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 2 },
+  heroEmail: { color: '#dbeafe', fontSize: 13, marginTop: 4 },
   heroMeta: { color: '#dbeafe', fontSize: 12, marginTop: 4 },
   heroActions: { flexDirection: 'row', gap: 10 },
   primaryAction: {
@@ -150,6 +178,30 @@ const styles = StyleSheet.create({
   },
   secondaryActionText: { color: '#fff', fontWeight: '600' },
   scroll: { padding: 16, gap: 14 },
+  profileCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    padding: 16,
+  },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  profileIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileGrow: { flex: 1 },
+  profileLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' },
+  profileName: { fontSize: 18, fontWeight: '800', color: '#0f172a', marginTop: 2 },
+  profileEmail: { fontSize: 13, color: '#475569', marginTop: 4 },
+  profileMetaGrid: { marginTop: 14, gap: 10 },
+  profileMetaItem: { backgroundColor: '#f8fafc', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 12 },
+  profileMetaLabel: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' },
+  profileMetaValue: { fontSize: 14, fontWeight: '700', color: '#0f172a', marginTop: 4 },
   sectionHead: { gap: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
   sectionText: { fontSize: 13, color: '#64748b' },

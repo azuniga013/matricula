@@ -17,7 +17,7 @@ class Matricula extends Model
     protected $fillable = [
         'codigo', 'estudiante_id', 'oferta_academica_id', 'sucursal_id',
         'estado', 'fecha_reserva', 'fecha_confirmacion', 'observaciones',
-        'creado_por', 'actualizado_por',
+        'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

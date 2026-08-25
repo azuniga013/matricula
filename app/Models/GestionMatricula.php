@@ -17,7 +17,7 @@ class GestionMatricula extends Model
         'matricula_id', 'tipo_gestion_matricula_id', 'motivo', 'estado',
         'oferta_academica_origen_id', 'oferta_academica_destino_id', 'datos_antes', 'despues',
         'solicitado_por', 'decidido_por', 'fecha_solicitud', 'fecha_decision',
-        'motivo_decision', 'creado_por', 'actualizado_por',
+        'motivo_decision', 'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

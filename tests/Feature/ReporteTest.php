@@ -244,6 +244,22 @@ class ReporteTest extends TestCase
             ->assertJsonPath('resultado', 'A');
     }
 
+    public function test_exportar_recibos_por_orden_excel(): void
+    {
+        $response = $this->get('/api/v1/reportes/exportar?reporte=recibos.por-orden&formato=excel&fecha_desde=2026-01-01&fecha_hasta=2026-12-31', $this->headers());
+
+        $response->assertOk();
+        $this->assertStringContainsString('spreadsheetml.sheet', $response->headers->get('content-type'));
+    }
+
+    public function test_exportar_recibos_por_orden_pdf(): void
+    {
+        $response = $this->get('/api/v1/reportes/exportar?reporte=recibos.por-orden&formato=pdf&fecha_desde=2026-01-01&fecha_hasta=2026-12-31', $this->headers());
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+    }
+
     public function test_recibos_por_metodo(): void
     {
         $response = $this->getJson('/api/v1/reportes/recibos/por-metodo?fecha_desde=2026-01-01&fecha_hasta=2026-12-31', $this->headers());
@@ -299,5 +315,75 @@ class ReporteTest extends TestCase
         ]);
 
         $response->assertStatus(403);
+    }
+
+    public function test_exportar_todos_los_reportes_excel(): void
+    {
+        $reportes = [
+            'academicos.por-periodo',
+            'academicos.por-sucursal',
+            'academicos.por-nivel',
+            'academicos.por-docente',
+            'academicos.grupo',
+            'academicos.calificaciones-por-grupo',
+            'academicos.nivel-actual',
+            'financieros.por-concepto',
+            'financieros.por-metodo',
+            'financieros.por-sucursal',
+            'financieros.pagos-pendientes',
+            'financieros.pagos-pendientes-por-estudiante',
+            'financieros.pendientes-por-estudiante',
+            'financieros.pagos-rechazados',
+            'recibos.por-orden',
+            'recibos.por-metodo',
+            'recibos.por-concepto',
+            'recibos.por-concepto-detalle',
+            'recibos.anulados',
+            'caja.por-cajero',
+            'caja.resumen-diario',
+        ];
+
+        foreach ($reportes as $reporte) {
+            $url = '/api/v1/reportes/exportar?reporte=' . $reporte . '&formato=excel'
+                . '&fecha_desde=2026-01-01&fecha_hasta=2026-12-31'
+                . '&sucursal_id=' . $this->sucursal->id
+                . '&periodo_academico_id=' . $this->periodo->id
+                . '&oferta_academica_id=' . $this->oferta->id
+                . '&estudiante_id=' . $this->estudiante->id
+                . '&metodo_pago_id=' . $this->metodoPago->id;
+
+            $response = $this->get($url, $this->headers());
+
+            $this->assertTrue($response->isOk(), 'Fallo en exportar ' . $reporte . ' [excel]: ' . $response->getContent());
+            $contentType = $response->headers->get('content-type');
+            $this->assertNotNull($contentType);
+            $this->assertStringContainsString('spreadsheetml.sheet', $contentType);
+        }
+    }
+
+    public function test_exportar_reportes_pdf_bloque_a(): void { $this->assertExportesPdf(['academicos.por-periodo','academicos.por-sucursal','academicos.por-nivel','academicos.por-docente','academicos.nivel-actual']); }
+    public function test_exportar_reportes_pdf_bloque_b(): void { $this->assertExportesPdf(['academicos.grupo','academicos.calificaciones-por-grupo']); }
+    public function test_exportar_reportes_pdf_bloque_c(): void { $this->assertExportesPdf(['financieros.por-concepto','financieros.por-metodo','financieros.por-sucursal']); }
+    public function test_exportar_reportes_pdf_bloque_d(): void { $this->assertExportesPdf(['financieros.pagos-pendientes','financieros.pagos-pendientes-por-estudiante','financieros.pendientes-por-estudiante','financieros.pagos-rechazados']); }
+    public function test_exportar_reportes_pdf_bloque_e(): void { $this->assertExportesPdf(['recibos.por-orden','recibos.por-concepto','recibos.anulados']); }
+    public function test_exportar_reportes_pdf_bloque_f(): void { $this->assertExportesPdf(['recibos.por-metodo','recibos.por-concepto-detalle','caja.por-cajero','caja.resumen-diario']); }
+
+    private function assertExportesPdf(array $reportes): void
+    {
+        foreach ($reportes as $reporte) {
+            $url = '/api/v1/reportes/exportar?reporte=' . $reporte . '&formato=pdf'
+                . '&fecha_desde=2026-01-01&fecha_hasta=2026-12-31'
+                . '&sucursal_id=' . $this->sucursal->id
+                . '&periodo_academico_id=' . $this->periodo->id
+                . '&oferta_academica_id=' . $this->oferta->id
+                . '&estudiante_id=' . $this->estudiante->id
+                . '&metodo_pago_id=' . $this->metodoPago->id;
+
+            $response = $this->get($url, $this->headers());
+            $this->assertTrue($response->isOk(), 'Fallo en exportar ' . $reporte . ' [pdf]: ' . $response->getContent());
+            $contentType = $response->headers->get('content-type');
+            $this->assertNotNull($contentType);
+            $this->assertStringContainsString('application/pdf', $contentType);
+        }
     }
 }

@@ -21,6 +21,8 @@ class Modalidad extends Model
         'estado',
         'creado_por',
         'actualizado_por',
+        'creado_en',
+        'actualizado_en',
     ];
 
     protected function casts(): array

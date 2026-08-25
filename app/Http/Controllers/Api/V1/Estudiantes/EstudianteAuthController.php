@@ -327,7 +327,6 @@ class EstudianteAuthController extends Controller
                 'ofertaAcademica.nivelAcademico.regimenAcademico',
                 'ofertaAcademica.modalidad',
                 'ofertaAcademica.docente',
-                'ofertaAcademica.grupoWhatsapp',
                 'obligaciones' => fn ($q) => $q->whereIn('estado', ['pendiente', 'parcial'])->with('conceptoPago'),
             ])
             ->latest('fecha_reserva')
@@ -464,8 +463,8 @@ class EstudianteAuthController extends Controller
             ]);
 
         $whatsapp = null;
-        $whatsappLink = $ofertaActual?->whatsapp_link_periodo ?: $ofertaActual?->grupoWhatsapp?->link;
-        $whatsappGrupo = $ofertaActual?->whatsapp_grupo_nombre ?: $ofertaActual?->grupoWhatsapp?->nombre;
+        $whatsappLink = $ofertaActual?->whatsapp_link_periodo;
+        $whatsappGrupo = $ofertaActual?->whatsapp_grupo_nombre;
         if ($ofertaActual) {
             $whatsapp = [
                 'periodo_id' => $ofertaActual->periodo_academico_id,

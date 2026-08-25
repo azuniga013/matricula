@@ -46,6 +46,9 @@ class AulaController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $aula = Aula::create($datos);
         $aula->load('sucursal');
@@ -80,6 +83,7 @@ class AulaController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $aula->update($datos);
 

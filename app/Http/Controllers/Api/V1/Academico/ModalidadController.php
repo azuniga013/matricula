@@ -45,6 +45,9 @@ class ModalidadController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $modalidad = Modalidad::create($datos);
 
@@ -77,6 +80,7 @@ class ModalidadController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $modalidad->update($datos);
 

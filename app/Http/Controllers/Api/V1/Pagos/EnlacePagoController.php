@@ -53,6 +53,9 @@ class EnlacePagoController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
         $datos['usos_actuales'] = 0;
 
         $enlace = EnlacePago::create($datos);
@@ -92,6 +95,7 @@ class EnlacePagoController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $enlacePago->update($datos);
 
@@ -108,6 +112,7 @@ class EnlacePagoController extends Controller
         $enlacePago->update([
             'estado' => 'inactivo',
             'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([

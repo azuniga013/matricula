@@ -41,6 +41,9 @@ class DepartamentoAcademicoController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $departamento = DepartamentoAcademico::create($datos);
 
@@ -75,6 +78,7 @@ class DepartamentoAcademicoController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $departamentoAcademico->update($datos);
 

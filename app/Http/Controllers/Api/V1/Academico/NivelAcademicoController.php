@@ -90,6 +90,9 @@ class NivelAcademicoController extends Controller
             unset($datos['modalidades'], $datos['prerrequisitos']);
 
             $datos['creado_por'] = $request->user()->id;
+            $datos['actualizado_por'] = $request->user()->id;
+            $datos['creado_en'] = now();
+            $datos['actualizado_en'] = now();
 
             $nivel = NivelAcademico::create($datos);
 
@@ -195,6 +198,7 @@ class NivelAcademicoController extends Controller
             unset($datos['modalidades'], $datos['prerrequisitos']);
 
             $datos['actualizado_por'] = $request->user()->id;
+            $datos['actualizado_en'] = now();
 
             $nivelAcademico->update($datos);
 
@@ -222,6 +226,7 @@ class NivelAcademicoController extends Controller
         $nivelAcademico->update([
             'estado' => 'inactivo',
             'actualizado_por' => request()->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([

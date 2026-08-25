@@ -26,7 +26,6 @@ class OfertaAcademica extends Model
         'cupos_matriculados',
         'estado',
         'acepta_cambios_horario',
-        'grupo_whatsapp_id',
         'whatsapp_link_periodo',
         'whatsapp_grupo_nombre',
         'plan_cobro_id',
@@ -34,6 +33,8 @@ class OfertaAcademica extends Model
         'codigo',
         'creado_por',
         'actualizado_por',
+        'creado_en',
+        'actualizado_en',
     ];
 
     protected $appends = ['cupos_disponibles', 'plan_estudio_id'];
@@ -98,11 +99,6 @@ class OfertaAcademica extends Model
     public function planCobro(): BelongsTo
     {
         return $this->belongsTo(PlanCobro::class, 'plan_cobro_id');
-    }
-
-    public function grupoWhatsapp(): BelongsTo
-    {
-        return $this->belongsTo(GrupoWhatsapp::class, 'grupo_whatsapp_id');
     }
 
     public function creador(): BelongsTo

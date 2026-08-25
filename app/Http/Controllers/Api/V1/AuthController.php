@@ -11,6 +11,7 @@ use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -145,7 +146,7 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $usuario = $request->user() ?: auth()->user();
+        $usuario = $request->user() ?: Auth::user();
 
         if (! $usuario) {
             return response()->json([
@@ -190,6 +191,7 @@ class AuthController extends Controller
             'agente' => $request->userAgent(),
             'vencimiento' => now()->addMinutes(config('seguridad.sesiones.duracion_minutos', 480)),
             'ultimo_acceso' => now(),
+            'creado_en' => now(),
         ]);
     }
 
@@ -248,7 +250,7 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
-        auth()->login($usuario, $request->boolean('remember'));
+        Auth::login($usuario, $request->boolean('remember'));
 
         $this->registrarIntento($request, $usuario, 'exitoso');
         $usuario->forceFill(['bloqueado_hasta' => null])->save();
@@ -258,14 +260,14 @@ class AuthController extends Controller
 
     public function webLogout(Request $request)
     {
-        $usuario = auth()->user();
+        $usuario = Auth::user();
         if ($usuario) {
             SesionUsuario::where('usuario_id', $usuario->id)
                 ->whereNull('revocado_en')
                 ->update(['revocado_en' => now()]);
         }
 
-        auth()->logout();
+        Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -281,6 +283,7 @@ class AuthController extends Controller
             'agente' => $request->userAgent(),
             'resultado' => $resultado,
             'motivo' => $motivo,
+            'created_at' => now(),
         ]);
     }
 
@@ -303,6 +306,7 @@ class AuthController extends Controller
             $usuario->update([
                 'bloqueado_hasta' => now()->addMinutes($bloqueoMinutos),
                 'actualizado_por' => $usuario->id,
+                'actualizado_en' => now(),
             ]);
 
             $this->bitacora->registrarOperacionPermitida(

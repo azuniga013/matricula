@@ -13,7 +13,7 @@ class ParametroGlobal extends Model
     protected $table = 'parametros_globales';
     protected $fillable = [
         'grupo', 'codigo', 'nombre', 'valor', 'tipo', 'opciones',
-        'descripcion', 'estado', 'creado_por', 'actualizado_por',
+        'descripcion', 'estado', 'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

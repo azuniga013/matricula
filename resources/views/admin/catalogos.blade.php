@@ -637,6 +637,7 @@ function catalogos() {
                     { key: 'direccion', label: 'Dirección', type: 'text', required: false },
                     { key: 'telefono', label: 'Teléfono', type: 'text', required: false },
                     { key: 'correo', label: 'Correo', type: 'text', required: false },
+                    { key: 'modalidades_atencion', label: 'Modalidades de Atención', type: 'checkboxes', required: false, optionsEndpoint: 'modalidades?tipo=atencion' },
                 ],
                 departamentos: [
                     { key: 'codigo', label: 'Código', type: 'text', required: true },
@@ -768,6 +769,7 @@ function catalogos() {
                 planes: ['departamentos-academicos'],
                 niveles: ['versiones-plan-estudio', 'modalidades?tipo=regimen_academico', 'niveles-academicos'],
                 aulas: ['sucursales'],
+                sucursales: ['modalidades?tipo=atencion'],
                 conceptos: [],
                 metodos: [],
             };

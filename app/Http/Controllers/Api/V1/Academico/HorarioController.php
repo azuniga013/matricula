@@ -73,6 +73,9 @@ class HorarioController extends Controller
         }
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
         $datos['lunes'] = $datos['lunes'] ?? false;
         $datos['martes'] = $datos['martes'] ?? false;
         $datos['miercoles'] = $datos['miercoles'] ?? false;
@@ -135,6 +138,7 @@ class HorarioController extends Controller
         }
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
         $datos['lunes'] = $datos['lunes'] ?? false;
         $datos['martes'] = $datos['martes'] ?? false;
         $datos['miercoles'] = $datos['miercoles'] ?? false;

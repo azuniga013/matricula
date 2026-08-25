@@ -34,6 +34,9 @@ class ModuloController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $modulo = Modulo::create($datos);
 
@@ -66,6 +69,7 @@ class ModuloController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $modulo->update($datos);
 
@@ -82,6 +86,7 @@ class ModuloController extends Controller
         $modulo->update([
             'estado' => 'inactivo',
             'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([

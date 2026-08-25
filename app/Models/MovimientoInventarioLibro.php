@@ -25,6 +25,7 @@ class MovimientoInventarioLibro extends Model
         'referencia_type',
         'referencia_id',
         'creado_por',
+        'creado_en',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class MovimientoInventarioLibro extends Model
             'cantidad' => 'integer',
             'existencia_antes' => 'integer',
             'existencia_despues' => 'integer',
+            'creado_en' => 'datetime',
         ];
     }
 

@@ -17,7 +17,7 @@ class MetodoPago extends Model
         'codigo', 'nombre', 'descripcion', 'estado', 'portal_disponible',
         'permite_link_pago',
         'proveedor_pago_id',
-        'creado_por', 'actualizado_por',
+        'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

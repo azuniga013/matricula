@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Catalogos;
 
 use App\Http\Controllers\Controller;
+use App\Models\Modalidad;
 use App\Models\Sucursal;
 use App\Services\ResolutorAlcanceDatos;
 use Illuminate\Http\JsonResponse;
@@ -29,11 +30,14 @@ class SucursalController extends Controller
             $query->where('estado', $request->estado);
         }
 
+        $sucursales = $query->with(['modalidadesAtencion:id,codigo,nombre,tipo'])
+            ->get();
+
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'OK',
-            'data' => $query->get(),
+            'data' => $sucursales,
         ]);
     }
 
@@ -45,11 +49,18 @@ class SucursalController extends Controller
             'direccion' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:30',
             'correo' => 'nullable|email|max:150',
+            'modalidades_atencion' => 'nullable|array',
+            'modalidades_atencion.*' => 'integer|exists:modalidades,id',
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $sucursal = Sucursal::create($datos);
+        $this->sincronizarModalidadesAtencion($sucursal, $request->input('modalidades_atencion', []), $request->user()->id);
+        $sucursal->load(['modalidadesAtencion:id,codigo,nombre,tipo']);
 
         return response()->json([
             'resultado' => 'A',
@@ -77,17 +88,36 @@ class SucursalController extends Controller
             'telefono' => 'nullable|string|max:30',
             'correo' => 'nullable|email|max:150',
             'estado' => 'sometimes|string|in:activo,inactivo',
+            'modalidades_atencion' => 'nullable|array',
+            'modalidades_atencion.*' => 'integer|exists:modalidades,id',
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $sucursal->update($datos);
+        if ($request->has('modalidades_atencion')) {
+            $this->sincronizarModalidadesAtencion($sucursal, $request->input('modalidades_atencion', []), $request->user()->id);
+        }
+
+        $sucursal->load(['modalidadesAtencion:id,codigo,nombre,tipo']);
 
         return response()->json([
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'Sucursal actualizada exitosamente',
             'data' => $sucursal,
+        ]);
+    }
+
+    private function sincronizarModalidadesAtencion(Sucursal $sucursal, array $modalidadesIds, int $usuarioId): void
+    {
+        $modalidadesIds = array_values(array_filter(array_map('intval', $modalidadesIds)));
+        $modalidadesIds = Modalidad::query()->whereIn('id', $modalidadesIds)->where('tipo', 'atencion')->pluck('id')->all();
+
+        $sucursal->modalidadesAtencion()->syncWithPivotValues($modalidadesIds, [
+            'estado' => 'activo',
+            'actualizado_por' => $usuarioId,
         ]);
     }
 }

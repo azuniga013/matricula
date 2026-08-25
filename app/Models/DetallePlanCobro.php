@@ -15,7 +15,7 @@ class DetallePlanCobro extends Model
 
     protected $fillable = [
         'plan_cobro_id', 'concepto_pago_id', 'numero_cuota', 'nombre_cargo',
-        'monto', 'dias_vencimiento', 'estado', 'creado_por', 'actualizado_por',
+        'monto', 'dias_vencimiento', 'estado', 'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array

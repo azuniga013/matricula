@@ -37,6 +37,9 @@ class OpcionModuloController extends Controller
         ]);
 
         $datos['creado_por'] = $request->user()->id;
+        $datos['actualizado_por'] = $request->user()->id;
+        $datos['creado_en'] = now();
+        $datos['actualizado_en'] = now();
 
         $opcion = OpcionModulo::create($datos);
 
@@ -70,6 +73,7 @@ class OpcionModuloController extends Controller
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;
+        $datos['actualizado_en'] = now();
 
         $opcionModulo->update($datos);
 
@@ -86,6 +90,7 @@ class OpcionModuloController extends Controller
         $opcionModulo->update([
             'estado' => 'inactivo',
             'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
         ]);
 
         return response()->json([

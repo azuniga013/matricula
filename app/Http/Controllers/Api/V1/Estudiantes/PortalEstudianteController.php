@@ -677,7 +677,7 @@ class PortalEstudianteController extends Controller
         $estudiante = $request->attributes->get('estudiante');
 
         $pagos = $estudiante->pagos()
-            ->with(['conceptoPago', 'metodoPago', 'comprobantes', 'reciboCaja', 'matricula.ofertaAcademica.nivelAcademico', 'matricula.ofertaAcademica.grupoWhatsapp'])
+            ->with(['conceptoPago', 'metodoPago', 'comprobantes', 'reciboCaja', 'matricula.ofertaAcademica.nivelAcademico'])
             ->latest('creado_en')
             ->get()
             ->map(fn ($p) => [
@@ -1074,7 +1074,7 @@ class PortalEstudianteController extends Controller
 
         $matricula = $estudiante->matriculas()
             ->where('estado', 'matriculado')
-            ->with('ofertaAcademica.grupoWhatsapp')
+            ->with('ofertaAcademica')
             ->latest('fecha_confirmacion')
             ->first();
 
@@ -1122,12 +1122,12 @@ class PortalEstudianteController extends Controller
 
     private function resolverWhatsappLinkOferta($oferta): ?string
     {
-        return $oferta?->whatsapp_link_periodo ?: $oferta?->grupoWhatsapp?->link;
+        return $oferta?->whatsapp_link_periodo;
     }
 
     private function resolverWhatsappNombreOferta($oferta): ?string
     {
-        return $oferta?->whatsapp_grupo_nombre ?: $oferta?->grupoWhatsapp?->nombre;
+        return $oferta?->whatsapp_grupo_nombre;
     }
 
     public function misCertificados(Request $request): JsonResponse

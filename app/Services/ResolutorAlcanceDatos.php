@@ -67,7 +67,7 @@ class ResolutorAlcanceDatos
     {
         return in_array($entidad, [
             'sucursales', 'estudiantes', 'ofertas_academicas', 'matriculas', 'pagos',
-            'recibos_caja', 'sesiones_caja', 'aulas', 'grupos_whatsapp',
+            'recibos_caja', 'sesiones_caja', 'aulas',
             'inventario_libros',
         ]);
     }

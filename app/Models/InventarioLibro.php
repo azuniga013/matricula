@@ -22,6 +22,8 @@ class InventarioLibro extends Model
         'existencia_minima',
         'creado_por',
         'actualizado_por',
+        'creado_en',
+        'actualizado_en',
     ];
 
     protected function casts(): array
@@ -29,6 +31,8 @@ class InventarioLibro extends Model
         return [
             'existencia_actual' => 'integer',
             'existencia_minima' => 'integer',
+            'creado_en' => 'datetime',
+            'actualizado_en' => 'datetime',
         ];
     }
 

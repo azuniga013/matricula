@@ -16,7 +16,7 @@ class Calificacion extends Model
     protected $fillable = [
         'codigo', 'matricula_id', 'estudiante_id', 'oferta_academica_id',
         'nota_final', 'faltas', 'estado', 'observaciones', 'docente_id',
-        'creado_por', 'actualizado_por',
+        'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
     protected function casts(): array
