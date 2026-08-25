@@ -30,8 +30,7 @@ class SucursalController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        $sucursales = $query->with(['modalidadesAtencion:id,codigo,nombre,tipo'])
-            ->get();
+        $sucursales = $query->get();
 
         return response()->json([
             'resultado' => 'A',
