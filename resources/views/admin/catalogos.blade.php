@@ -888,25 +888,39 @@ function catalogos() {
             this.showModal = true;
         },
 
-        editItem(item) {
+        async editItem(item) {
             this.editing = true;
             this.editId = item.id;
             this.error = '';
-            this.formData = {};
-            this.currentFields.forEach(f => {
-                if (f.type === 'checkbox') {
-                    this.formData[f.key] = !!item[f.key];
-                } else if (f.type === 'checkboxes') {
-                    this.formData[f.key] = (item[f.key] || []).map(x => x.id ?? x.value ?? x);
-                } else if (f.type === 'date' && item[f.key]) {
-                    this.formData[f.key] = String(item[f.key]).slice(0, 10);
-                } else {
-                    this.formData[f.key] = item[f.key] ?? '';
-                }
-            });
             if (this.activeTab === 'sucursales') {
                 this.loadDynamicOptionsForTab('sucursales');
             }
+            let data = item;
+            if (this.activeTab === 'sucursales') {
+                try {
+                    const token = localStorage.getItem('auth_token');
+                    const res = await window.axios.get(`/api/v1/catalogos-academicos/sucursales/${item.id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.data?.resultado === 'A' && res.data?.data) {
+                        data = res.data.data;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+            this.formData = {};
+            this.currentFields.forEach(f => {
+                if (f.type === 'checkbox') {
+                    this.formData[f.key] = !!data[f.key];
+                } else if (f.type === 'checkboxes') {
+                    this.formData[f.key] = (data[f.key] || []).map(x => x.id ?? x.value ?? x);
+                } else if (f.type === 'date' && data[f.key]) {
+                    this.formData[f.key] = String(data[f.key]).slice(0, 10);
+                } else {
+                    this.formData[f.key] = data[f.key] ?? '';
+                }
+            });
             this.showModal = true;
         },
 
