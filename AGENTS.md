@@ -71,6 +71,7 @@ Las pruebas fuerzan SQLite en memoria, `RefreshDatabase`, cola síncrona y corre
 - `docs/ARQUITECTURA_RBAC.md`: flujo de autorización y alcances.
 - `docs/REGLAS_NEGOCIO_POR_DOMINIO.md`: reglas detalladas del Portal Académico y Portal del Estudiante.
 - `docs/PENDIENTES.md`: registro canónico de pendientes y estado de validación.
+- `docs/OPERACION_BITACORAS.md`: guía operativa para toggles, caché, retención y purga de bitácoras.
 - `docs/API_*.md`: contratos funcionales de cada módulo.
 - `docs/PRUEBAS_ACEPTACION_RESPONSIVE.md`: criterios de aceptación de interfaz.
 - `docs/DESPLIEGUE_SMARTERASP.md` contiene referencias antiguas a `backend/`/React; verificar siempre la configuración y los workflows antes de seguir esas rutas literalmente.
@@ -94,6 +95,8 @@ Usar este orden para resolver dudas antes de cambiar código:
    de caja.
 6. `docs/PENDIENTES.md`
    Registro operativo de fixes recientes, decisiones vigentes y evidencia.
+7. `docs/OPERACION_BITACORAS.md`
+   Guía operativa para administración, retención y purga de bitácoras.
 
 No usar como fuente principal `docs/avance.md`, `docs/spec-feed-planCobro.md`
 ni documentos históricos fechados; sirven solo como contexto o auditoría.
