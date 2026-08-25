@@ -64,7 +64,7 @@ const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}
 const offersForTeacher = (offers, docenteId) => {
   if (!docenteId) return [];
   const offersWithTeacher = offers.filter((offer) => offer && offer.docente_id !== undefined && offer.docente_id !== null);
-  if (!offersWithTeacher.length) return [];
+  if (!offersWithTeacher.length) return offers.filter(Boolean);
   return offersWithTeacher.filter((offer) => String(offer.docente_id) === String(docenteId));
 };
 const hasLegacyOffersWithoutTeacher = (offers) => offers.some((offer) => offer && (offer.docente_id === undefined || offer.docente_id === null));
