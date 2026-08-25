@@ -39,6 +39,7 @@ import {
   cachedGrades,
   cachedOffers,
   cachedStudents,
+  clearAcademicCache,
   clearLocalData,
   initDatabase,
   markError,
@@ -60,6 +61,13 @@ const toDateInput = (value) => {
 };
 const fromDateInput = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const fullName = (student) => `${student.nombre || ''} ${student.apellido || ''}`.trim();
+const offersForTeacher = (offers, docenteId) => {
+  if (!docenteId) return [];
+  const offersWithTeacher = offers.filter((offer) => offer && offer.docente_id !== undefined && offer.docente_id !== null);
+  if (!offersWithTeacher.length) return [];
+  return offersWithTeacher.filter((offer) => String(offer.docente_id) === String(docenteId));
+};
+const hasLegacyOffersWithoutTeacher = (offers) => offers.some((offer) => offer && (offer.docente_id === undefined || offer.docente_id === null));
 
 const MODULES = [
   {
@@ -200,9 +208,18 @@ export default function App() {
     const unsubscribe = NetInfo.addEventListener((state) => setOnline(Boolean(state.isConnected)));
 
     currentUser()
-      .then((profile) => {
+      .then(async (profile) => {
         if (!profile.docente_id) throw new Error('Esta cuenta no está vinculada a un docente');
+        const localOffers = cachedOffers();
+        if (hasLegacyOffersWithoutTeacher(localOffers)) {
+          clearAcademicCache();
+          setItems([]);
+        }
         setUser(profile);
+        setItems(offersForTeacher(cachedOffers(), profile.docente_id));
+        if (Boolean(await NetInfo.fetch().then((state) => state.isConnected))) {
+          await refresh(null, profile.docente_id);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -214,35 +231,37 @@ export default function App() {
   const pendingRows = useMemo(() => (databaseReady ? pending() : []), [databaseReady, items, selected, attendance, gradeRows, syncing, pendingVersion]);
   const recentErrors = useMemo(() => pendingRows.filter((item) => item.ultimo_error).slice(0, 3), [pendingRows]);
 
+  const teacherOffers = useMemo(() => offersForTeacher(items, user?.docente_id), [items, user?.docente_id]);
+
   const periods = useMemo(
     () =>
       Object.values(
-        items.reduce((all, offer) => {
+        teacherOffers.reduce((all, offer) => {
           const period = offer.periodo_academico;
           if (period?.id) all[period.id] = period;
           return all;
         }, {})
       ).sort((a, b) => String(b.nombre).localeCompare(String(a.nombre))),
-    [items]
+    [teacherOffers]
   );
 
   const visibleOffers = useMemo(
-    () => (periodId ? items.filter((item) => String(item.periodo_academico_id || item.periodo_academico?.id) === String(periodId)) : items),
-    [items, periodId]
+    () => (periodId ? teacherOffers.filter((item) => String(item.periodo_academico_id || item.periodo_academico?.id) === String(periodId)) : teacherOffers),
+    [teacherOffers, periodId]
   );
 
   const dashboard = useMemo(() => {
-    const studentsCount = items.reduce((total, offer) => total + cachedStudents(offer.id).length, 0);
+    const studentsCount = teacherOffers.reduce((total, offer) => total + cachedStudents(offer.id).length, 0);
     const primaryPeriod = periods[0];
     return {
-      offersCount: items.length,
+      offersCount: teacherOffers.length,
       studentsCount,
       periodsCount: periods.length,
       primaryPeriodLabel: primaryPeriod ? primaryPeriod.nombre || primaryPeriod.codigo || 'Período activo' : 'Sin períodos descargados',
     };
-  }, [items, periods]);
+  }, [teacherOffers, periods]);
 
-  async function refresh(filterPeriod = periodId) {
+  async function refresh(filterPeriod = periodId, docenteId = user?.docente_id) {
     if (!online) {
       Alert.alert('Sin conexión', 'Se muestran los datos descargados anteriormente.');
       return;
@@ -264,7 +283,7 @@ export default function App() {
         replaceGrades(offer.id, gradeData);
       }
 
-      setItems(cachedOffers());
+      setItems(offersForTeacher(cachedOffers(), docenteId));
       if (selected) await openOffer(selected.id);
       setSyncSummary({ type: 'ok', message: 'Datos descargados correctamente.' });
     } catch (error) {
@@ -446,7 +465,7 @@ export default function App() {
       else await clearBiometricCredentials();
 
       setUser(profile);
-      await refresh(null);
+      await refresh(null, profile.docente_id);
     } catch (error) {
       Alert.alert('No se pudo iniciar sesión', error.message);
     } finally {
@@ -474,7 +493,7 @@ export default function App() {
 
       const profile = await login(creds.email, creds.password);
       setUser(profile);
-      await refresh(null);
+      await refresh(null, profile.docente_id);
     } catch (error) {
       Alert.alert('No se pudo entrar con huella', error.message || 'Inténtelo de nuevo.');
     } finally {
@@ -560,7 +579,7 @@ export default function App() {
     );
   }
   if (module === 'alumnos') {
-    return <SearchStudentsScreen offers={items} openOffer={openOffer} back={() => setModule(null)} />;
+    return <SearchStudentsScreen offers={teacherOffers} openOffer={openOffer} back={() => setModule(null)} />;
   }
   return (
     <OfferList

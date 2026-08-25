@@ -57,3 +57,4 @@ export function pending() { return db.getAllSync('SELECT * FROM cola_sincronizac
 export function removePending(uuid) { db.runSync('DELETE FROM cola_sincronizacion WHERE uuid = ?', [uuid]); }
 export function markError(uuid, error) { db.runSync('UPDATE cola_sincronizacion SET reintentos = reintentos + 1, ultimo_error = ? WHERE uuid = ?', [String(error).slice(0, 500), uuid]); }
 export function clearLocalData() { db.execSync('DELETE FROM ofertas; DELETE FROM alumnos; DELETE FROM calificaciones; DELETE FROM asistencias; DELETE FROM cola_sincronizacion;'); }
+export function clearAcademicCache() { db.execSync('DELETE FROM ofertas; DELETE FROM alumnos; DELETE FROM calificaciones; DELETE FROM asistencias;'); }

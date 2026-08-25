@@ -209,6 +209,7 @@ class DocenteMovilController extends Controller
             'id' => $oferta->id,
             'codigo' => $oferta->codigo,
             'estado' => $oferta->estado,
+            'docente_id' => $oferta->docente_id,
             'whatsapp_grupo_nombre' => $oferta->whatsapp_grupo_nombre,
             'whatsapp_link_periodo' => $oferta->whatsapp_link_periodo,
             'periodo_academico_id' => $oferta->periodo_academico_id,
