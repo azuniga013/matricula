@@ -158,7 +158,15 @@ function parametrosGlobales() {
                     payload.opciones = this.form.opcionesTexto.split('\n').map(s => s.trim()).filter(s => s);
                 }
                 if (this.editId) {
-                    await window.axios.post(`/api/v1/seguridad/parametros-globales/${this.editId}`, payload, h);
+                    const updatePayload = {
+                        nombre: payload.nombre,
+                        valor: payload.valor,
+                        tipo: payload.tipo,
+                        descripcion: payload.descripcion,
+                        estado: payload.estado,
+                    };
+                    if (payload.opciones) updatePayload.opciones = payload.opciones;
+                    await window.api.actualizar(`/api/v1/seguridad/parametros-globales/${this.editId}`, updatePayload, h);
                 } else {
                     await window.axios.post('/api/v1/seguridad/parametros-globales', payload, h);
                 }
@@ -170,7 +178,7 @@ function parametrosGlobales() {
         async deleteItem(p) {
             if (!confirm(`¿Eliminar el parámetro "${p.codigo}"?`)) return;
             try {
-                await window.axios.post(`/api/v1/seguridad/parametros-globales/${p.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                await window.api.actualizar(`/api/v1/seguridad/parametros-globales/${p.id}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
                 await this.load(); this.toast('Parámetro eliminado', 'success');
             } catch(e) { this.toast('Error al eliminar', 'error'); }
         },
