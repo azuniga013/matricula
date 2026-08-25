@@ -11,9 +11,11 @@ class ParametroGlobal extends Model
     use HasFactory;
 
     protected $table = 'parametros_globales';
+    public $timestamps = true;
+
     protected $fillable = [
         'grupo', 'codigo', 'nombre', 'valor', 'tipo', 'opciones',
-        'descripcion', 'estado', 'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
+        'descripcion', 'estado', 'creado_por', 'actualizado_por',
     ];
 
     protected function casts(): array
@@ -21,8 +23,8 @@ class ParametroGlobal extends Model
         return [
             'estado' => 'boolean',
             'opciones' => 'array',
-            'creado_en' => 'datetime',
-            'actualizado_en' => 'datetime',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 
