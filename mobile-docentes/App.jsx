@@ -153,7 +153,7 @@ const summarizePendingPayload = (operation) => {
       ].filter(Boolean).join(' · ');
     }
 
-    if (operation.tipo === 'calificaciones') {
+    if (operation.tipo === 'calificacion') {
       return [
         data.estudiante_id ? `Estudiante: ${data.estudiante_id}` : null,
         data.nota_final !== undefined && data.nota_final !== null ? `Nota: ${data.nota_final}` : 'Nota: sin asignar',
@@ -306,7 +306,7 @@ export default function App() {
         const data = JSON.parse(operation.datos);
         try {
           if (operation.tipo === 'asistencia') await saveAttendance(operation.uuid, operation.oferta_id, data.fecha, data);
-          if (operation.tipo === 'calificaciones') await saveGrades(operation.uuid, operation.oferta_id, data);
+          if (operation.tipo === 'calificacion') await saveGrades(operation.uuid, operation.oferta_id, data);
           removePending(operation.uuid);
           setPendingVersion((value) => value + 1);
           procesadas++;
@@ -442,7 +442,7 @@ export default function App() {
       };
     });
 
-    calificaciones.forEach((item) => queue('calificaciones', selected.id, item));
+    calificaciones.forEach((item) => queue('calificacion', selected.id, item));
     if (!online) {
       Alert.alert('Guardado local', 'Las calificaciones quedan pendientes de sincronización hasta recuperar internet.');
       return;
@@ -1014,7 +1014,27 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
             </View>
           ) : null}
 
-          {isGrades ? <Text style={extraStyles.helperText}>Ingrese nota final y faltas por estudiante. Puede dejar campos vacíos si aún no aplica.</Text> : null}
+          {isGrades ? (
+            <View style={extraStyles.metricRow}>
+              <View style={extraStyles.metricPill}>
+                <Text style={extraStyles.metricPillLabel}>Capturados</Text>
+                <Text style={extraStyles.metricPillValue}>{filteredStudents.filter((student) => {
+                  const id = student.estudiante_id || student.id;
+                  const row = grades[id] || {};
+                  return String(row.nota_final || '').trim() !== '' || String(row.faltas ?? '').trim() !== '' || String(row.observaciones || '').trim() !== '';
+                }).length}</Text>
+              </View>
+              <View style={extraStyles.metricPill}>
+                <Text style={extraStyles.metricPillLabel}>Pendientes</Text>
+                <Text style={extraStyles.metricPillValue}>{filteredStudents.length - filteredStudents.filter((student) => {
+                  const id = student.estudiante_id || student.id;
+                  const row = grades[id] || {};
+                  return String(row.nota_final || '').trim() !== '' || String(row.faltas ?? '').trim() !== '' || String(row.observaciones || '').trim() !== '';
+                }).length}</Text>
+              </View>
+            </View>
+          ) : null}
+          {isGrades ? <Text style={extraStyles.helperText}>Ingrese nota final, faltas y observaciones. El grupo se guarda completo con un solo botón al final.</Text> : null}
         </View>
 
         <TextInput
@@ -1040,36 +1060,69 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
             const selectedAttendance = attendance[student.matricula_id];
             return (
               <TouchableOpacity key={student.matricula_id} style={styles.card} onPress={() => setMarking(student)} activeOpacity={0.85}>
-                <View style={styles.studentRow}>
-                  <View style={styles.studentRowGrow}>
-                    <Text style={styles.cardTitle}>{fullName(student)}</Text>
-                    <Text style={styles.muted}>{student.codigo}</Text>
+                <View style={extraStyles.studentHeadRow}>
+                  <View style={extraStyles.studentIdentity}>
+                    <Text style={styles.cardTitle}>{student.codigo || 'Sin código'}</Text>
+                    <Text style={extraStyles.studentName}>{fullName(student) || 'Sin nombre'}</Text>
                   </View>
-                  <Text style={[styles.badge, estadoBadge(selectedAttendance?.estado).badge]}>{estadoBadge(selectedAttendance?.estado).label}</Text>
+                  <View style={[styles.badge, estadoBadge(selectedAttendance?.estado).badge, extraStyles.statusBadgePill]}>
+                    <Text style={{ color: estadoBadge(selectedAttendance?.estado).badge.color, fontWeight: '700', fontSize: 12 }}>
+                      {estadoBadge(selectedAttendance?.estado).label}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={extraStyles.helperText}>Toque para cambiar el estado de asistencia.</Text>
+                <Text style={extraStyles.helperText}>Toque para marcar presente, falta, justificada o tardanza.</Text>
               </TouchableOpacity>
             );
           }
 
           return (
             <View key={student.matricula_id} style={styles.card}>
-              <Text style={styles.cardTitle}>{student.codigo} · {fullName(student)}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nota final"
-                keyboardType="decimal-pad"
-                value={String(row.nota_final ?? '')}
-                onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, nota_final: value } })}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Faltas"
-                keyboardType="number-pad"
-                value={String(row.faltas ?? 0)}
-                onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, faltas: value } })}
-              />
-              <Text style={extraStyles.helperText}>Los cambios se guardan localmente y luego se sincronizan.</Text>
+              <View style={extraStyles.studentHeadRow}>
+                <View style={extraStyles.studentIdentity}>
+                  <Text style={styles.cardTitle}>{student.codigo || 'Sin código'}</Text>
+                  <Text style={extraStyles.studentName}>{fullName(student) || 'Sin nombre'}</Text>
+                </View>
+                <View style={extraStyles.studentBadge}>
+                  <Text style={extraStyles.studentBadgeText}>{student.matricula_id ? 'Matriculado' : 'Sin matrícula'}</Text>
+                </View>
+              </View>
+
+              <View style={extraStyles.gradeGrid}>
+                <View style={extraStyles.gradeField}>
+                  <Text style={styles.fieldLabel}>Nota final</Text>
+                  <TextInput
+                    style={[styles.input, extraStyles.compactInput]}
+                    placeholder="0-100"
+                    keyboardType="decimal-pad"
+                    value={String(row.nota_final ?? '')}
+                    onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, nota_final: value } })}
+                  />
+                </View>
+                <View style={extraStyles.gradeField}>
+                  <Text style={styles.fieldLabel}>Faltas</Text>
+                  <TextInput
+                    style={[styles.input, extraStyles.compactInput]}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    value={String(row.faltas ?? 0)}
+                    onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, faltas: value } })}
+                  />
+                </View>
+              </View>
+
+              <View style={extraStyles.gradeField}>
+                <Text style={styles.fieldLabel}>Observaciones</Text>
+                <TextInput
+                  style={[styles.input, extraStyles.notesInput]}
+                  placeholder="Comentarios breves"
+                  value={String(row.observaciones ?? '')}
+                  onChangeText={(value) => setGrades({ ...grades, [id]: { ...row, observaciones: value } })}
+                  multiline
+                />
+              </View>
+
+              <Text style={extraStyles.helperText}>Se guarda todo el grupo de una vez al final. Puede avanzar de alumno en alumno sin perder lo capturado.</Text>
             </View>
           );
         })}
@@ -1106,6 +1159,12 @@ function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
+        <View style={extraStyles.infoCard}>
+          <Text style={extraStyles.infoTitle}>{student.codigo || 'Sin código'}</Text>
+          <Text style={extraStyles.infoText}>{fullName(student) || 'Sin nombre'}</Text>
+          <Text style={extraStyles.helperText}>{offer.codigo} · {offer.horario?.nombre || 'Horario'}</Text>
+        </View>
+
         <Text style={styles.section}>Marcar asistencia</Text>
         {ATT_STATES.map((state) => (
           <TouchableOpacity
@@ -1113,7 +1172,7 @@ function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
             style={[styles.flag, current.estado === state.value && { borderColor: state.color, backgroundColor: `${state.color}14` }]}
             onPress={() => setEstado(state.value)}
           >
-            <View style={styles.studentRow}>
+            <View style={extraStyles.attendanceOptionRow}>
               <View style={styles.studentRowGrow}>
                 <Text style={styles.flagLabel}>{state.label}</Text>
                 <Text style={styles.muted}>{state.note}</Text>
@@ -1126,7 +1185,9 @@ function MarkingStudent({ offer, student, attendance, setAttendance, back }) {
         ))}
 
         <Text style={styles.muted}>Seleccione el estado y regrese para continuar. Luego presione Guardar y sincronizar al final de la lista.</Text>
-        <Button title="Guardar estado" onPress={() => { setEstado(current.estado); back(); }} />
+        <TouchableOpacity style={extraStyles.primaryBlockBtn} onPress={() => { setEstado(current.estado); back(); }} activeOpacity={0.85}>
+          <Text style={extraStyles.primaryBlockBtnText}>Guardar estado</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1243,6 +1304,17 @@ const extraStyles = StyleSheet.create({
   infoTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a' },
   infoText: { color: '#475569', lineHeight: 20 },
   helperText: { color: '#64748b', fontSize: 12, lineHeight: 18 },
+  studentHeadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  studentIdentity: { flex: 1, gap: 2 },
+  studentName: { fontSize: 14, color: '#475569', lineHeight: 19 },
+  studentBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
+  studentBadgeText: { fontSize: 11, fontWeight: '700', color: '#1d4ed8' },
+  statusBadgePill: { paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  gradeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  gradeField: { flex: 1, minWidth: '48%' },
+  compactInput: { marginTop: 6 },
+  notesInput: { minHeight: 72, textAlignVertical: 'top', marginTop: 6 },
+  attendanceOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   metricRow: { flexDirection: 'row', gap: 10 },
   metricPill: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#dbeafe' },
   metricPillLabel: { fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: '700' },

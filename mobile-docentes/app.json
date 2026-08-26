@@ -3,12 +3,12 @@
     "name": "Cursos SVP Docentes",
     "slug": "cursos-svp-docentes",
     "owner": "azuniga013",
-    "version": "0.1.14",
+    "version": "0.1.17",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.cursossanvicente.docentes",
-      "versionCode": 15
+      "versionCode": 18
     },
     "extra": {
       "apiUrl": "https://matricula.cursossanvicente.com/api/v1",

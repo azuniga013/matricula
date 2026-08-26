@@ -260,6 +260,53 @@ class DocenteMovilTest extends TestCase
         ]);
     }
 
+    public function test_sincronizacion_calificacion_requiere_matricula_activa_en_la_oferta(): void
+    {
+        $estudiante = Estudiante::factory()->create(['sucursal_id' => $this->ofertaPropia->sucursal_id]);
+
+        $this->ofertaPropia->loadMissing(['periodoAcademico', 'nivelAcademico', 'modalidad', 'horario', 'aula']);
+        $otraOferta = OfertaAcademica::create([
+            'codigo' => 'OF-DOC-3',
+            'sucursal_id' => $this->ofertaPropia->sucursal_id,
+            'periodo_academico_id' => $this->ofertaPropia->periodo_academico_id,
+            'nivel_academico_id' => $this->ofertaPropia->nivel_academico_id,
+            'modalidad_id' => $this->ofertaPropia->modalidad_id,
+            'horario_id' => $this->ofertaPropia->horario_id,
+            'docente_id' => $this->ofertaPropia->docente_id,
+            'aula_id' => $this->ofertaPropia->aula_id,
+            'plan_cobro_id' => $this->ofertaPropia->plan_cobro_id,
+            'cupo_maximo' => 25,
+            'estado' => 'abierto',
+        ]);
+
+        Matricula::create([
+            'codigo' => 'MAT-AJENA-001',
+            'estudiante_id' => $estudiante->id,
+            'oferta_academica_id' => $otraOferta->id,
+            'sucursal_id' => $this->ofertaPropia->sucursal_id,
+            'estado' => 'matriculado',
+            'fecha_reserva' => now(),
+            'fecha_confirmacion' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/docente-movil/sincronizar', [
+            'operaciones' => [[
+                'uuid' => '44444444-4444-4444-8444-444444444444',
+                'tipo' => 'calificacion',
+                'oferta_academica_id' => $this->ofertaPropia->id,
+                'datos' => [
+                    'estudiante_id' => $estudiante->id,
+                    'nota_final' => 90,
+                    'faltas' => 0,
+                ],
+            ]],
+        ], $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('data.operaciones.0.estado', 'rechazada')
+            ->assertJsonPath('data.operaciones.0.codigo', 404);
+    }
+
     public function test_sincronizacion_reintenta_uuid_sin_duplicar_operacion(): void
     {
         $payload = [
