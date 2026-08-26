@@ -314,6 +314,14 @@ class DocenteMovilController extends Controller
         }
 
         $estudianteId = (int) ($operacion['datos']['estudiante_id'] ?? 0);
+        $matricula = Matricula::where('oferta_academica_id', $oferta->id)
+            ->where('estudiante_id', $estudianteId)
+            ->where('estado', 'matriculado')
+            ->first();
+        if (! $matricula) {
+            return $this->resultadoOperacion($operacion, 'rechazada', 404, 'Estudiante no matriculado en la oferta académica');
+        }
+
         $calificacionExistente = Calificacion::where('oferta_academica_id', $oferta->id)
             ->where('estudiante_id', $estudianteId)
             ->first();

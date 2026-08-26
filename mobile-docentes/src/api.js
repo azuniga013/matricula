@@ -17,12 +17,30 @@ async function request(path, options = {}) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.resultado === 'R') {
-    const error = new Error(body.mensaje || 'No fue posible comunicarse con el servidor');
+    const detalle = body.codigo_error ? `${body.codigo_error}: ${body.mensaje || 'Error del servidor'}` : (body.mensaje || 'No fue posible comunicarse con el servidor');
+    const error = new Error(detalle);
     error.status = response.status;
     error.body = body;
     throw error;
   }
   return body.data;
+}
+
+function asegurarOperacionAplicada(data) {
+  const operacion = data?.operaciones?.[0];
+  if (operacion?.estado === 'aplicada') return data;
+
+  const codigo = Number(operacion?.codigo) || 422;
+  const mensaje = operacion?.mensaje || 'El servidor no confirmó el guardado de esta operación.';
+  const error = new Error(mensaje);
+  error.status = codigo;
+  error.body = {
+    resultado: 'R',
+    codigo,
+    codigo_error: `${codigo}_SINCRONIZACION_RECHAZADA`,
+    mensaje,
+  };
+  throw error;
 }
 
 export async function login(email, password) {
@@ -85,7 +103,7 @@ export async function updateWhatsappPeriodLink(offerId, whatsapp_link_periodo, w
 }
 
 export async function saveAttendance(uuid, offerId, date, attendance) {
-  return request('/docente-movil/sincronizar', {
+  const data = await request('/docente-movil/sincronizar', {
     method: 'POST',
     body: JSON.stringify({
       operaciones: [{
@@ -97,6 +115,7 @@ export async function saveAttendance(uuid, offerId, date, attendance) {
       }],
     }),
   });
+  return asegurarOperacionAplicada(data);
 }
 
 export async function attendanceForOffer(offerId, date) {
@@ -105,7 +124,7 @@ export async function attendanceForOffer(offerId, date) {
 }
 
 export async function saveGrades(uuid, offerId, calificacion) {
-  return request('/docente-movil/sincronizar', {
+  const data = await request('/docente-movil/sincronizar', {
     method: 'POST',
     body: JSON.stringify({
       operaciones: [{
@@ -116,4 +135,5 @@ export async function saveGrades(uuid, offerId, calificacion) {
       }],
     }),
   });
+  return asegurarOperacionAplicada(data);
 }

@@ -307,6 +307,25 @@ class DocenteMovilTest extends TestCase
             ->assertJsonPath('data.operaciones.0.codigo', 404);
     }
 
+    public function test_sincronizacion_rechaza_uuid_invalido(): void
+    {
+        $response = $this->postJson('/api/v1/docente-movil/sincronizar', [
+            'operaciones' => [[
+                'uuid' => 'identificador-local-invalido',
+                'tipo' => 'calificacion',
+                'oferta_academica_id' => $this->ofertaPropia->id,
+                'datos' => [
+                    'estudiante_id' => $this->estudiantePropio->id,
+                    'nota_final' => 90,
+                    'faltas' => 0,
+                ],
+            ]],
+        ], $this->headers());
+
+        $response->assertUnprocessable();
+        $this->assertArrayHasKey('operaciones.0.uuid', $response->json('errores'));
+    }
+
     public function test_sincronizacion_reintenta_uuid_sin_duplicar_operacion(): void
     {
         $payload = [

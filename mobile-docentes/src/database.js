@@ -16,6 +16,19 @@ export function initDatabase() {
 const now = () => new Date().toISOString();
 const parse = (rows) => rows.map((row) => JSON.parse(row.datos));
 
+function generarUuid() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (caracter) => {
+    const aleatorio = Math.floor(Math.random() * 16);
+    const valor = caracter === 'x' ? aleatorio : ((aleatorio & 0x3) | 0x8);
+
+    return valor.toString(16);
+  });
+}
+
 export function replaceOffers(items) {
   db.withTransactionSync(() => {
     db.execSync('DELETE FROM ofertas');
@@ -49,7 +62,7 @@ export function replaceAttendance(offerId, fecha, items) {
 export function cachedAttendance(offerId, fecha) { return parse(db.getAllSync('SELECT datos FROM asistencias WHERE oferta_id = ? AND fecha = ?', [offerId, fecha])); }
 
 export function queue(type, offerId, data) {
-  const uuid = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const uuid = generarUuid();
   db.runSync('INSERT INTO cola_sincronizacion (uuid, tipo, oferta_id, datos, creado_en) VALUES (?, ?, ?, ?, ?)', [uuid, type, offerId, JSON.stringify(data), now()]);
   return uuid;
 }

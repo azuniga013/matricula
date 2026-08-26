@@ -313,6 +313,9 @@ export default function App() {
         } catch (error) {
           markError(operation.uuid, error.message);
           errorSincronizacion = error.message || 'El servidor no pudo guardar la información.';
+          if (error.body?.codigo_error) {
+            errorSincronizacion = `${error.body.codigo_error}: ${error.body.mensaje || errorSincronizacion}`;
+          }
           if (error.status === 401) {
             await logout();
             setUser(null);
@@ -323,8 +326,16 @@ export default function App() {
             break;
           }
           if (error.status === 422) {
-            errorSincronizacion = 'El servidor rechazó el guardado (respuesta local pendiente). Revisa la oferta; si no tiene estudiantes, descárgala con internet.';
-            break;
+            errorSincronizacion = error.body?.codigo_error
+              ? `${error.body.codigo_error}: ${error.body.mensaje || 'El servidor rechazó el guardado.'}`
+              : 'El servidor rechazó el guardado (respuesta local pendiente). Revisa la oferta; si no tiene estudiantes, descárgala con internet.';
+            continue;
+          }
+          if (error.status === 404) {
+            errorSincronizacion = error.body?.codigo_error
+              ? `${error.body.codigo_error}: ${error.body.mensaje || 'Registro no encontrado.'}`
+              : 'Algunos registros ya no existen en el servidor. Se conservan para revisar.';
+            continue;
           }
           if (error.status === 403) break;
         }
