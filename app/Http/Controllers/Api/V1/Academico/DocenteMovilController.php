@@ -11,6 +11,7 @@ use App\Models\SincronizacionDocenteMovil;
 use App\Modules\Calificaciones\CasosUso\ActualizarCalificacion;
 use App\Modules\Calificaciones\CasosUso\RegistrarCalificaciones;
 use App\Modules\Comun\ContextoUsuario;
+use App\Services\RecalcularFaltasCalificacion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -292,6 +293,10 @@ class DocenteMovilController extends Controller
                 'creado_por' => $usuario->id,
             ]
         );
+
+        if ($asistencia->cuenta_como_falta) {
+            app(RecalcularFaltasCalificacion::class)->ejecutar($matriculaId);
+        }
 
         return $this->resultadoOperacion($operacion, 'aplicada', 200, 'Asistencia aplicada', [
             'id' => $asistencia->id,

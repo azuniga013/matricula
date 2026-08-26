@@ -10,6 +10,7 @@ use App\Models\Estudiante;
 use App\Models\Horario;
 use App\Models\Matricula;
 use App\Models\Modalidad;
+use App\Models\Calificacion;
 use App\Models\Modulo;
 use App\Models\NivelAcademico;
 use App\Models\OfertaAcademica;
@@ -257,6 +258,45 @@ class DocenteMovilTest extends TestCase
         $this->assertDatabaseHas('historial_academico', [
             'estudiante_id' => $this->estudiantePropio->id,
             'oferta_academica_id' => $this->ofertaPropia->id,
+        ]);
+    }
+
+    public function test_sincronizacion_asistencia_con_falta_actualiza_faltas_de_calificacion(): void
+    {
+        Calificacion::create([
+            'codigo' => 'CAL-001',
+            'estudiante_id' => $this->estudiantePropio->id,
+            'matricula_id' => $this->matriculaPropia->id,
+            'oferta_academica_id' => $this->ofertaPropia->id,
+            'nota_final' => 90,
+            'faltas' => 0,
+            'observaciones' => null,
+            'estado' => 'registrado',
+        ]);
+
+        $response = $this->postJson('/api/v1/docente-movil/sincronizar', [
+            'operaciones' => [
+                [
+                    'uuid' => '33333333-3333-4333-8333-333333333333',
+                    'tipo' => 'asistencia',
+                    'oferta_academica_id' => $this->ofertaPropia->id,
+                    'fecha' => '2026-08-11',
+                    'datos' => [
+                        'matricula_id' => $this->matriculaPropia->id,
+                        'estado' => 'falta',
+                        'cuenta_como_falta' => true,
+                    ],
+                ],
+            ],
+        ], $this->headers());
+
+        $response->assertOk()
+            ->assertJsonPath('data.operaciones.0.estado', 'aplicada');
+
+        $this->assertDatabaseHas('calificaciones', [
+            'estudiante_id' => $this->estudiantePropio->id,
+            'oferta_academica_id' => $this->ofertaPropia->id,
+            'faltas' => 1,
         ]);
     }
 

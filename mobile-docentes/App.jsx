@@ -960,7 +960,6 @@ function OfferList({ module, offers, periods, periodId, selectPeriod, open, back
 function StudentList({ module, offer, students, attendance, setAttendance, grades, setGrades, date, setDate, online, saveAttendance, saveGrades, changeDate, back }) {
   const isAttendance = module === 'asistencia';
   const isGrades = module === 'calificaciones';
-  const [marking, setMarking] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshingDate, setRefreshingDate] = useState(false);
   const [query, setQuery] = useState('');
@@ -971,8 +970,14 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
     return students.filter((student) => [student.codigo, fullName(student)].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
   }, [students, query]);
 
-  if (isAttendance && marking) {
-    return <MarkingStudent offer={offer} student={marking} attendance={attendance} setAttendance={setAttendance} back={() => setMarking(null)} />;
+  function marcarAsistencia(matriculaId, estado) {
+    setAttendance((actual) => ({
+      ...actual,
+      [matriculaId]: {
+        ...(actual[matriculaId] || { observacion: '' }),
+        estado,
+      },
+    }));
   }
 
   async function pickDate(event, picked) {
@@ -1070,7 +1075,7 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
           if (isAttendance) {
             const selectedAttendance = attendance[student.matricula_id];
             return (
-              <TouchableOpacity key={student.matricula_id} style={styles.card} onPress={() => setMarking(student)} activeOpacity={0.85}>
+              <View key={student.matricula_id} style={styles.card}>
                 <View style={extraStyles.studentHeadRow}>
                   <View style={extraStyles.studentIdentity}>
                     <Text style={styles.cardTitle}>{student.codigo || 'Sin código'}</Text>
@@ -1082,8 +1087,26 @@ function StudentList({ module, offer, students, attendance, setAttendance, grade
                     </Text>
                   </View>
                 </View>
-                <Text style={extraStyles.helperText}>Toque para marcar presente, falta, justificada o tardanza.</Text>
-              </TouchableOpacity>
+                <View style={extraStyles.attendanceQuickActions}>
+                  {ATT_STATES.map((state) => {
+                    const active = selectedAttendance?.estado === state.value;
+                    return (
+                      <TouchableOpacity
+                        key={state.value}
+                        style={[
+                          extraStyles.attendanceQuickMark,
+                          { borderColor: state.color },
+                          active && { backgroundColor: state.color },
+                        ]}
+                        onPress={() => marcarAsistencia(student.matricula_id, state.value)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[extraStyles.attendanceQuickMarkText, { color: active ? '#fff' : state.color }]}>{state.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             );
           }
 
@@ -1326,6 +1349,9 @@ const extraStyles = StyleSheet.create({
   compactInput: { marginTop: 6 },
   notesInput: { minHeight: 72, textAlignVertical: 'top', marginTop: 6 },
   attendanceOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  attendanceQuickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  attendanceQuickMark: { flexGrow: 1, minWidth: '21%', borderWidth: 1, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', backgroundColor: '#fff' },
+  attendanceQuickMarkText: { fontSize: 12, fontWeight: '800' },
   metricRow: { flexDirection: 'row', gap: 10 },
   metricPill: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#dbeafe' },
   metricPillLabel: { fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: '700' },

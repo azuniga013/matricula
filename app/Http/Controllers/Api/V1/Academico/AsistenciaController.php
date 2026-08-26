@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AsistenciaEstudiante;
 use App\Models\Matricula;
 use App\Models\OfertaAcademica;
+use App\Services\RecalcularFaltasCalificacion;
 use App\Services\ResolutorAlcanceDatos;
 use App\Services\ServicioBitacora;
 use Illuminate\Http\JsonResponse;
@@ -167,6 +168,10 @@ class AsistenciaController extends Controller
 
                 if (in_array($asistencia->estado, ['falta', 'tardanza'], true)) {
                     $asistenciasNotificables[] = $asistencia->id;
+                }
+
+                if ($asistencia->cuenta_como_falta) {
+                    app(RecalcularFaltasCalificacion::class)->ejecutar($asistencia->matricula_id);
                 }
 
                 $registradas++;
