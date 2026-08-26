@@ -429,7 +429,9 @@ class PagoTest extends TestCase
         $response = $this->postJson('/api/v1/enlaces-pago', [
             'codigo' => 'LNK-TEST-001',
             'nombre' => 'Link Test',
+            'enlace_url' => 'https://pagos.ejemplo.com/link-test-001',
             'monto' => 1200.00,
+            'metodo_pago_id' => $this->metodoLinkId,
             'concepto_pago_id' => $this->conceptoMatId,
             'cuenta_bancaria_id' => $cuenta->id,
             'usos_maximos' => 50,
@@ -452,6 +454,8 @@ class PagoTest extends TestCase
 
         EnlacePago::create([
             'codigo' => 'LNK-LIST', 'nombre' => 'Link List', 'monto' => 500.00,
+            'enlace_url' => 'https://pagos.ejemplo.com/list',
+            'metodo_pago_id' => $this->metodoLinkId,
             'concepto_pago_id' => $this->conceptoMatId, 'cuenta_bancaria_id' => $cuenta->id,
             'usos_maximos' => 10, 'usos_actuales' => 0, 'estado' => 'activo',
             'creado_en' => now(), 'actualizado_en' => now(),
@@ -474,6 +478,8 @@ class PagoTest extends TestCase
 
         $enlace = EnlacePago::create([
             'codigo' => 'LNK-DEL', 'nombre' => 'Link Delete', 'monto' => 500.00,
+            'enlace_url' => 'https://pagos.ejemplo.com/delete',
+            'metodo_pago_id' => $this->metodoLinkId,
             'concepto_pago_id' => $this->conceptoMatId, 'cuenta_bancaria_id' => $cuenta->id,
             'usos_maximos' => 10, 'usos_actuales' => 0, 'estado' => 'activo',
             'creado_en' => now(), 'actualizado_en' => now(),
@@ -497,6 +503,8 @@ class PagoTest extends TestCase
 
         $enlace = EnlacePago::create([
             'codigo' => 'LNK-DISP', 'nombre' => 'Link Disponible', 'monto' => 1200.00,
+            'enlace_url' => 'https://pagos.ejemplo.com/disponible',
+            'metodo_pago_id' => $this->metodoLinkId,
             'concepto_pago_id' => $this->conceptoMatId, 'cuenta_bancaria_id' => $cuenta->id,
             'usos_maximos' => 10, 'usos_actuales' => 0, 'estado' => 'activo',
             'fecha_vencimiento' => '2026-12-31', 'creado_en' => now(), 'actualizado_en' => now(),
@@ -507,7 +515,7 @@ class PagoTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
 
-        $this->assertDatabaseHas('enlaces_pago', ['id' => $enlace->id, 'usos_actuales' => 1]);
+        $this->assertDatabaseHas('enlaces_pago', ['id' => $enlace->id, 'usos_actuales' => 1, 'estado_operativo' => 'reservado']);
     }
 
     public function test_requiere_permiso_para_registrar(): void
@@ -584,12 +592,100 @@ class PagoTest extends TestCase
         ], $this->headers());
 
         $response->assertCreated()
-            ->assertJsonPath('data.estado', 'solicita_link');
+            ->assertJsonPath('data.estado', 'esperando_respuesta')
+            ->assertJsonPath('data.link_pago_url', $enlace->enlace_url)
+            ->assertJsonPath('data.link_pago_estado', 'enviado');
 
         $this->assertDatabaseHas('enlaces_pago', [
             'id' => $enlace->id,
             'estado_operativo' => 'reservado',
             'usos_actuales' => 1,
+            'asignado_a_pago_id' => $response->json('data.id'),
+            'asignado_a_estudiante_id' => $this->estudiante->id,
+        ]);
+    }
+
+    public function test_aprobar_pago_marca_enlace_anticipado_como_usado(): void
+    {
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-ANT-USED',
+            'nombre' => 'Link anticipado usado',
+            'enlace_url' => 'https://pago.ejemplo/used',
+            'monto_objetivo' => 1200.00,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers());
+
+        $pagoId = $response->json('data.id');
+
+        Pago::where('id', $pagoId)->update([
+            'estado' => 'en_revision',
+            'link_pago_estado' => 'ejecutado',
+            'confirmado_por_estudiante_en' => now(),
+        ]);
+
+        $this->postJson("/api/v1/pagos/{$pagoId}/aprobar", [], $this->headers())
+            ->assertOk();
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'usado',
+        ]);
+    }
+
+    public function test_rechazar_pago_marca_enlace_anticipado_como_desuso(): void
+    {
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-ANT-DESUSO',
+            'nombre' => 'Link anticipado desuso',
+            'enlace_url' => 'https://pago.ejemplo/desuso',
+            'monto_objetivo' => 1200.00,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers());
+
+        $pagoId = $response->json('data.id');
+
+        Pago::where('id', $pagoId)->update([
+            'estado' => 'en_revision',
+            'link_pago_estado' => 'ejecutado',
+            'confirmado_por_estudiante_en' => now(),
+        ]);
+
+        $this->postJson("/api/v1/pagos/{$pagoId}/rechazar", ['motivo_rechazo' => 'Prueba'], $this->headers())
+            ->assertOk();
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'desuso',
         ]);
     }
 

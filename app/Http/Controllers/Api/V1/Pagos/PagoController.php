@@ -197,13 +197,6 @@ class PagoController extends Controller
             ], $resultado->codigo());
         }
 
-        $respuesta = response()->json([
-            'resultado' => 'A',
-            'codigo' => 201,
-            'mensaje' => $resultado->mensaje(),
-            'data' => $resultado->data()['pago'],
-        ], 201);
-
         $pagoCreado = $resultado->data()['pago'];
         if (($request->boolean('solicitar_link') || (($pagoCreado['link_pago_url'] ?? null) === null && ($pagoCreado->link_pago_url ?? null) === null)) && $request->filled('metodo_pago_id') && $request->filled('monto')) {
             $pagoId = is_array($pagoCreado) ? ($pagoCreado['id'] ?? null) : ($pagoCreado->id ?? null);
@@ -212,6 +205,7 @@ class PagoController extends Controller
                 $link = app(ResolverEnlacePagoDisponible::class)->resolver((int) $request->metodo_pago_id, (float) $request->monto, (int) $pagoId, $estudianteId);
                 if ($link) {
                     Pago::where('id', $pagoId)->update([
+                        'estado' => 'esperando_respuesta',
                         'link_pago_url' => $link->enlace_url,
                         'link_pago_estado' => 'enviado',
                         'link_generado_por' => $request->user()->id,
@@ -221,7 +215,17 @@ class PagoController extends Controller
             }
         }
 
-        $pagoData = $resultado->data()['pago'];
+        $pagoData = is_array($pagoCreado)
+            ? Pago::find($pagoCreado['id'] ?? 0)?->toArray()
+            : $pagoCreado->fresh()?->toArray();
+
+        $respuesta = response()->json([
+            'resultado' => 'A',
+            'codigo' => 201,
+            'mensaje' => $resultado->mensaje(),
+            'data' => $pagoData,
+        ], 201);
+
         app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'pagos', 'registrar', 'pagos', is_array($pagoData) ? ($pagoData['id'] ?? null) : ($pagoData->id ?? null), null, $pagoData, 'Registro de pago');
 
         return $respuesta;

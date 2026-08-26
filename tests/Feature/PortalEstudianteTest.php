@@ -19,6 +19,7 @@ use App\Models\NivelAcademico;
 use App\Models\OfertaAcademica;
 use App\Models\Pago;
 use App\Models\PeriodoAcademico;
+use App\Models\EnlacePago;
 use App\Models\PlanCobro;
 use App\Models\PlanEstudio;
 use App\Models\ReciboCaja;
@@ -451,6 +452,7 @@ class PortalEstudianteTest extends TestCase
             'matricula_id' => $matricula->id,
             'metodo_pago_id' => $metodoLink->id,
             'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
         ], $this->studentHeaders());
 
         $response->assertCreated()
@@ -502,6 +504,179 @@ class PortalEstudianteTest extends TestCase
             ->whereIn('estado', ['solicita_link', 'esperando_respuesta', 'en_revision'])
             ->count();
         $this->assertEquals(1, $pagosConSolicitud, 'Solo debe existir una solicitud de link en proceso');
+    }
+
+    public function test_registrar_pago_link_automatico_usa_enlace_valido(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $metodoLink->update(['permite_link_pago' => true]);
+
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-PORTAL-001',
+            'nombre' => 'Link portal matrícula',
+            'enlace_url' => 'https://pago.ejemplo/portal-001',
+            'monto_objetivo' => 2300.00,
+            'metodo_pago_id' => $metodoLink->id,
+            'concepto_pago_id' => $matricula->obligaciones()->first()->concepto_pago_id,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
+        ], $this->studentHeaders());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.estado', 'esperando_respuesta');
+
+        $this->assertDatabaseHas('pagos', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $matricula->id,
+            'estado' => 'esperando_respuesta',
+            'link_pago_url' => $enlace->enlace_url,
+            'link_pago_estado' => 'enviado',
+        ]);
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'reservado',
+            'usos_actuales' => 1,
+        ]);
+    }
+
+    public function test_registrar_pago_link_automatico_rechaza_enlace_invalido(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $metodoLink->update(['permite_link_pago' => true]);
+
+        EnlacePago::create([
+            'codigo' => 'LNK-PORTAL-INV-001',
+            'nombre' => 'Link portal inválido',
+            'enlace_url' => 'no-es-una-url',
+            'monto_objetivo' => 2300.00,
+            'metodo_pago_id' => $metodoLink->id,
+            'concepto_pago_id' => $matricula->obligaciones()->first()->concepto_pago_id,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
+        ], $this->studentHeaders());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.estado', 'solicita_link');
+
+        $this->assertDatabaseHas('pagos', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $matricula->id,
+            'estado' => 'solicita_link',
+            'link_pago_url' => null,
+        ]);
+    }
+
+    public function test_confirmar_link_pago_automatico_marca_enlace_usado(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $metodoLink->update(['permite_link_pago' => true]);
+
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-PORTAL-USED',
+            'nombre' => 'Link portal usado',
+            'enlace_url' => 'https://pago.ejemplo/portal-used',
+            'monto_objetivo' => 2300.00,
+            'metodo_pago_id' => $metodoLink->id,
+            'concepto_pago_id' => $matricula->obligaciones()->first()->concepto_pago_id,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
+        ], $this->studentHeaders());
+
+        $this->postJson('/api/v1/estudiantes/confirmar-link-pago', [
+            'pago_id' => $response->json('data.pago_id'),
+        ], $this->studentHeaders())->assertOk();
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'usado',
+        ]);
+    }
+
+    public function test_reenganchar_pago_link_automatico_marca_enlace_desuso(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders());
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        $metodoLink = MetodoPago::where('codigo', 'LNK')->firstOrFail();
+        $metodoLink->update(['permite_link_pago' => true]);
+
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-PORTAL-DESUSO',
+            'nombre' => 'Link portal desuso',
+            'enlace_url' => 'https://pago.ejemplo/portal-desuso',
+            'monto_objetivo' => 2300.00,
+            'metodo_pago_id' => $metodoLink->id,
+            'concepto_pago_id' => $matricula->obligaciones()->first()->concepto_pago_id,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => $metodoLink->id,
+            'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
+        ], $this->studentHeaders());
+
+        $this->postJson('/api/v1/estudiantes/reenganchar-flujo-pago', [
+            'pago_id' => $response->json('data.pago_id'),
+        ], $this->studentHeaders())->assertOk();
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'desuso',
+        ]);
     }
 
     public function test_reenganchar_flujo_pago_reencauza_matricula_y_pago(): void

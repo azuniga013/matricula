@@ -531,6 +531,21 @@ class PortalEstudianteController extends Controller
                 'link_generado_en' => $linkAuto ? now() : null,
             ]);
 
+            if ($linkAuto) {
+                $linkAuto->update([
+                    'asignado_a_pago_id' => $pago->id,
+                    'asignado_a_estudiante_id' => $estudiante->id,
+                    'actualizado_en' => now(),
+                ]);
+
+                $pago->update([
+                    'estado' => 'esperando_respuesta',
+                    'link_pago_url' => $linkAuto->enlace_url,
+                    'link_pago_estado' => 'enviado',
+                    'link_generado_en' => now(),
+                ]);
+            }
+
             $obligacionesMap = $obligaciones->keyBy('id');
             foreach ($obligacionIds as $oid) {
                 $obligacion = $obligacionesMap->get($oid);
@@ -562,10 +577,12 @@ class PortalEstudianteController extends Controller
                 'codigo' => $resultado->codigo,
                 'monto' => $resultado->monto,
                 'obligaciones_seleccionadas' => $obligacionIds,
-                'estado' => $resultado->estado,
-                'estado_pago' => $resultado->estado,
+                'estado' => $resultado->fresh()->estado,
+                'estado_pago' => $resultado->fresh()->estado,
                 'estado_matricula' => $matricula->estado,
                 'alerta_duplicado' => (bool) $resultado->fresh()->alerta_duplicado,
+                'link_pago_url' => $resultado->fresh()->link_pago_url,
+                'link_pago_estado' => $resultado->fresh()->link_pago_estado,
             ],
         ], 201);
     }

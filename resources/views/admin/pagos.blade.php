@@ -377,6 +377,11 @@
                     <div class="col-span-2">
                         <label class="label">URL del enlace *</label>
                         <textarea x-model="formEnlace.enlace_url" rows="3" required class="input font-mono text-sm" placeholder="https://..."></textarea>
+                        <p class="mt-1 text-xs text-gray-500">Pegue aquí la URL real del banco o proveedor. El código interno no sustituye este campo.</p>
+                    </div>
+                    <div>
+                        <label class="label">Método de pago *</label>
+                        <select x-model="formEnlace.metodo_pago_id" class="input" required><option value="">Seleccionar...</option><template x-for="m in metodos" :key="m.id"><option :value="m.id" x-text="m.codigo + ' — ' + m.nombre"></option></template></select>
                     </div>
                     <div>
                         <label class="label">Concepto</label>
@@ -862,7 +867,7 @@ function pagos() {
         siguienteReciboCargado: false,
         enlacesPago: [], cuentasBancarias: [],
         showModalEnlace: false, editandoEnlace: false, savingEnlace: false, errorEnlace: '',
-        formEnlace: { codigo: '', nombre: '', enlace_url: '', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' },
+        formEnlace: { codigo: '', nombre: '', enlace_url: '', monto: '', monto_objetivo: '', metodo_pago_id: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' },
         editandoEnlaceId: null,
         showModalLinkPago: false, savingLinkPago: false, errorLinkPago: '', linkPagoActual: null, linkPagoInput: '', linkPagoValido: false,
 
@@ -1283,7 +1288,7 @@ function pagos() {
         abrirModalEnlace() {
             this.editandoEnlace = false;
             this.editandoEnlaceId = null;
-            this.formEnlace = { codigo: 'LNK-' + Date.now(), nombre: 'Link anticipado', enlace_url: '', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' };
+            this.formEnlace = { codigo: 'LNK-' + Date.now(), nombre: 'Link anticipado', enlace_url: '', monto: '', monto_objetivo: '', metodo_pago_id: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' };
             this.errorEnlace = '';
             this.showModalEnlace = true;
         },
@@ -1297,6 +1302,7 @@ function pagos() {
                 enlace_url: e.enlace_url || '',
                 monto: e.monto || '',
                 monto_objetivo: e.monto_objetivo || e.monto || '',
+                metodo_pago_id: e.metodo_pago_id || '',
                 concepto_pago_id: e.concepto_pago_id || '',
                 cuenta_bancaria_id: e.cuenta_bancaria_id || '',
                 fecha_vencimiento: e.fecha_vencimiento ? String(e.fecha_vencimiento).slice(0, 10) : '',

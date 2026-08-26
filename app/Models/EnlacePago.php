@@ -14,7 +14,7 @@ class EnlacePago extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'codigo', 'nombre', 'enlace_url', 'monto', 'monto_objetivo', 'concepto_pago_id', 'cuenta_bancaria_id',
+        'codigo', 'nombre', 'enlace_url', 'monto', 'monto_objetivo', 'concepto_pago_id', 'metodo_pago_id', 'cuenta_bancaria_id',
         'fecha_vencimiento', 'usos_maximos', 'usos_actuales', 'estado', 'estado_operativo',
         'asignado_a_pago_id', 'asignado_a_estudiante_id', 'fecha_asignacion', 'fecha_uso', 'observaciones',
         'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
@@ -43,6 +43,11 @@ class EnlacePago extends Model
     public function cuentaBancaria(): BelongsTo
     {
         return $this->belongsTo(CuentaBancaria::class, 'cuenta_bancaria_id');
+    }
+
+    public function metodoPago(): BelongsTo
+    {
+        return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
     }
 
     public function estaDisponible(): bool

@@ -11,7 +11,7 @@ class EnlacePagoController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = EnlacePago::with(['conceptoPago', 'cuentaBancaria']);
+        $query = EnlacePago::with(['conceptoPago', 'metodoPago', 'cuentaBancaria']);
 
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
@@ -48,6 +48,7 @@ class EnlacePagoController extends Controller
             'monto' => 'nullable|numeric|min:0',
             'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
+            'metodo_pago_id' => 'required|exists:metodos_pago,id',
             'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'fecha_vencimiento' => 'nullable|date',
             'usos_maximos' => 'nullable|integer|min:1',
@@ -62,7 +63,7 @@ class EnlacePagoController extends Controller
         $datos['usos_actuales'] = 0;
 
         $enlace = EnlacePago::create($datos);
-        $enlace->load(['conceptoPago', 'cuentaBancaria']);
+        $enlace->load(['conceptoPago', 'metodoPago', 'cuentaBancaria']);
 
         return response()->json([
             'resultado' => 'A',
@@ -74,7 +75,7 @@ class EnlacePagoController extends Controller
 
     public function show(EnlacePago $enlacePago): JsonResponse
     {
-        $enlacePago->load(['conceptoPago', 'cuentaBancaria']);
+        $enlacePago->load(['conceptoPago', 'metodoPago', 'cuentaBancaria']);
 
         return response()->json([
             'resultado' => 'A',
@@ -93,6 +94,7 @@ class EnlacePagoController extends Controller
             'monto' => 'nullable|numeric|min:0',
             'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
+            'metodo_pago_id' => 'sometimes|exists:metodos_pago,id',
             'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'fecha_vencimiento' => 'nullable|date',
             'usos_maximos' => 'nullable|integer|min:1',
@@ -109,7 +111,7 @@ class EnlacePagoController extends Controller
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'Enlace de pago actualizado exitosamente',
-            'data' => $enlacePago,
+            'data' => $enlacePago->load(['conceptoPago', 'metodoPago', 'cuentaBancaria']),
         ]);
     }
 
@@ -130,7 +132,7 @@ class EnlacePagoController extends Controller
 
     public function disponibles(Request $request): JsonResponse
     {
-        $query = EnlacePago::with(['conceptoPago', 'cuentaBancaria'])
+        $query = EnlacePago::with(['conceptoPago', 'metodoPago', 'cuentaBancaria'])
             ->where('estado', 'activo')
             ->where('estado_operativo', 'disponible')
             ->where(function ($q) {
