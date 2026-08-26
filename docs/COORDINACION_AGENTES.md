@@ -171,7 +171,7 @@ pruebas directas de casos de uso) y `docs/PENDIENTES.md` (conteos P-002/P-035).
   link desde la oferta. La APK docente ya compila (`expo export`) con edición
   del link del período en `Ofertas Académicas`. Si otro agente toca WhatsApp,
   no reintroducir `grupo_whatsapp_id` como requisito operativo.
-- 2026-08-24: Para `P-052`, evitar rediseñar todo desde `App.jsx` en paralelo. Extraer componentes primero y dejar un agente integrador para el montaje final del `Portal Docente` y del menú principal.
+- 2026-08-24: Para el frente APK docente (`P-052`), evitar rediseñar todo desde `App.jsx` en paralelo. Extraer componentes primero y dejar un agente integrador para el montaje final del `Portal Docente` y del menú principal.
 - 2026-08-24: Seguridad/RBAC quedó alineado a permisos finos por submódulo en
   `routes/api.php` (`seguridad.usuarios.*`, `seguridad.roles.*`, etc.). Si otro
   agente modifica pruebas o seeders de seguridad, asumir que los permisos
