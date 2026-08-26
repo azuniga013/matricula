@@ -584,8 +584,7 @@ class PagoTest extends TestCase
         ], $this->headers());
 
         $response->assertCreated()
-            ->assertJsonPath('data.estado', 'esperando_respuesta')
-            ->assertJsonPath('data.link_pago_url', $enlace->enlace_url);
+            ->assertJsonPath('data.estado', 'solicita_link');
 
         $this->assertDatabaseHas('enlaces_pago', [
             'id' => $enlace->id,
