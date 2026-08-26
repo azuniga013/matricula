@@ -18,6 +18,7 @@ estado transitorio, los acuerdos de interfaz y las zonas de colisión.
 | Agente APK docente home (P-052, 2026-08-24) | Pantalla inicial `Portal Docente`, resumen del docente y tarjetas informativas | Mientras se trabaje en paralelo, reservar `mobile-docentes/src/components/DocenteHome*`, `mobile-docentes/src/hooks/useDocenteHome*` y cualquier extractor nuevo del home. No mezclar cambios grandes directos en `mobile-docentes/App.jsx` sin coordinar el punto de montaje. |
 | Agente APK docente menú (P-052, 2026-08-24) | Menú principal visual con iconos y descripciones por módulo | Reservar `mobile-docentes/src/components/MainMenu*`, `mobile-docentes/src/components/MenuCard*`, assets/iconografía local y estilos compartidos del menú. No cambiar la carga de datos del dashboard docente. |
 | Agente APK docente UX módulos (P-052, 2026-08-24) | Navegación y UX de Ofertas, Asistencia, Calificaciones y Sincronización después del rediseño del home | No tocar componentes del home ni del menú; concentrarse en pantallas internas (`OfferList`, asistencia, calificaciones, sincronización) y en la transición desde el menú nuevo. |
+| Agente pagos links anticipados (P-059, 2026-08-24) | Flujo de enlaces de pago anticipados por monto y reasignación automática en pagos/portal estudiante | `app/Http/Controllers/Api/V1/Pagos/EnlacePagoController.php`, `app/Models/EnlacePago.php`, `app/Http/Controllers/Api/V1/Pagos/PagoController.php`, `app/Http/Controllers/Api/V1/Estudiantes/PortalEstudianteController.php`, `resources/views/admin/pagos.blade.php`, `resources/views/estudiante/pagos.blade.php`, `tests/Feature/PagoTest.php`, `tests/Feature/PortalEstudianteTest.php`, `docs/PENDIENTES.md` |
 
 ## Acuerdos del frente docente
 
@@ -25,6 +26,7 @@ estado transitorio, los acuerdos de interfaz y las zonas de colisión.
 - 2026-08-24: el frente docente conserva solo `Mis Horarios`, `Asistencias`, `Calificaciones` y `APK Docentes` como accesos visibles.
 - 2026-08-24: si otro agente toca vistas docentes, debe respetar el mismo criterio de visibilidad y no reintroducir módulos administrativos completos en ese menú.
 - 2026-08-24: si se necesita endurecer más, la siguiente capa a coordinar es el bloqueo de rutas directas, no el menú.
+- 2026-08-24: el frente `P-059` debe considerar la captura mínima para enlaces de pago: `Código` y `Nombre` preferiblemente `readonly`, y todo dato que venga de otros procesos (cuenta bancaria, estado operativo inicial, referencia derivada) no debe requerirse manualmente en la pantalla.
 
 ## Estado actual del frente docente
 

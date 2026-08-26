@@ -24,6 +24,7 @@ use App\Services\DetectorPagoDuplicado;
 use App\Services\Pagos\ValidadorReglasPago;
 use App\Modules\Matriculas\Servicios\ValidadorPrerrequisitos as ValidadorPrerrequisitosMatricula;
 use App\Services\ResolutorFlujoMatricula;
+use App\Services\ResolverEnlacePagoDisponible;
 use App\Services\ServicioNomenclatura;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -505,6 +506,11 @@ class PortalEstudianteController extends Controller
                 anio: date('Y'),
             );
 
+            $linkAuto = null;
+            if ($solicitaLink) {
+                $linkAuto = app(ResolverEnlacePagoDisponible::class)->resolver((int) $datos['metodo_pago_id'], (float) $montoTotal);
+            }
+
             $pago = Pago::create([
                 'codigo' => $codigoPago['codigo'],
                 'estudiante_id' => $estudiante->id,
@@ -514,11 +520,15 @@ class PortalEstudianteController extends Controller
                 'cuenta_bancaria_id' => $cuentaBancaria?->id,
                 'sucursal_id' => $estudiante->sucursal_id,
                 'monto' => $montoTotal,
-                'estado' => $solicitaLink ? 'solicita_link' : 'pendiente',
+                'estado' => $solicitaLink ? ($linkAuto ? 'esperando_respuesta' : 'solicita_link') : 'pendiente',
                 'referencia_externa' => $referenciaLimpia ?? ($datos['referencia'] ?? null),
                 'fecha_proceso' => $fechaProcesoCarbon,
                 'fecha_deposito' => $fechaProcesoCarbon,
                 'creado_en' => $fechaProcesoCarbon,
+                'link_pago_url' => $linkAuto?->link,
+                'link_pago_estado' => $linkAuto ? 'enviado' : null,
+                'link_generado_por' => $linkAuto ? null : null,
+                'link_generado_en' => $linkAuto ? now() : null,
             ]);
 
             $obligacionesMap = $obligaciones->keyBy('id');

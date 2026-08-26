@@ -363,15 +363,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="label">Código *</label>
-                        <input x-model="formEnlace.codigo" type="text" required maxlength="50" class="input" placeholder="LNK-...">
+                        <input x-model="formEnlace.codigo" type="text" required maxlength="50" class="input" placeholder="LNK-..." readonly>
                     </div>
                     <div>
-                        <label class="label">Monto (L)</label>
-                        <input x-model.number="formEnlace.monto" type="number" step="0.01" min="0" class="input" placeholder="Dejar vacío si es variable">
+                        <label class="label">Monto Objetivo (L)</label>
+                        <input x-model.number="formEnlace.monto_objetivo" type="number" step="0.01" min="0" class="input" placeholder="Monto a cubrir">
                     </div>
                     <div class="col-span-2">
                         <label class="label">Nombre *</label>
-                        <input x-model="formEnlace.nombre" type="text" required maxlength="150" class="input">
+                        <input x-model="formEnlace.nombre" type="text" required maxlength="150" class="input" readonly>
                     </div>
                     <div>
                         <label class="label">Concepto</label>
@@ -379,7 +379,7 @@
                     </div>
                     <div>
                         <label class="label">Cuenta Bancaria</label>
-                        <select x-model="formEnlace.cuenta_bancaria_id" class="input"><option value="">Seleccionar...</option><template x-for="cb in cuentasBancarias" :key="cb.id"><option :value="cb.id" x-text="cb.banco + ' — ' + cb.numero_cuenta"></option></template></select>
+                        <select x-model="formEnlace.cuenta_bancaria_id" class="input" disabled><option value="">Seleccionar...</option><template x-for="cb in cuentasBancarias" :key="cb.id"><option :value="cb.id" x-text="cb.banco + ' — ' + cb.numero_cuenta"></option></template></select>
                     </div>
                     <div>
                         <label class="label">Usos Máximos</label>
@@ -391,10 +391,14 @@
                     </div>
                     <div>
                         <label class="label">Estado</label>
-                        <select x-model="formEnlace.estado" class="input">
+                        <select x-model="formEnlace.estado" class="input" disabled>
                             <option value="activo">Activo</option>
                             <option value="inactivo">Inactivo</option>
                         </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label">Observaciones</label>
+                        <textarea x-model="formEnlace.observaciones" class="input" rows="3" maxlength="500"></textarea>
                     </div>
                 </div>
                 <div x-show="errorEnlace" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3"><p class="text-sm text-red-600" x-text="errorEnlace"></p></div>
@@ -1274,7 +1278,7 @@ function pagos() {
         abrirModalEnlace() {
             this.editandoEnlace = false;
             this.editandoEnlaceId = null;
-            this.formEnlace = { codigo: '', nombre: '', monto: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo' };
+            this.formEnlace = { codigo: 'LNK-' + Date.now(), nombre: 'Link anticipado', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' };
             this.errorEnlace = '';
             this.showModalEnlace = true;
         },
@@ -1286,11 +1290,13 @@ function pagos() {
                 codigo: e.codigo || '',
                 nombre: e.nombre || '',
                 monto: e.monto || '',
+                monto_objetivo: e.monto_objetivo || e.monto || '',
                 concepto_pago_id: e.concepto_pago_id || '',
                 cuenta_bancaria_id: e.cuenta_bancaria_id || '',
                 fecha_vencimiento: e.fecha_vencimiento ? String(e.fecha_vencimiento).slice(0, 10) : '',
                 usos_maximos: e.usos_maximos || '',
                 estado: e.estado || 'activo',
+                observaciones: e.observaciones || '',
             };
             this.errorEnlace = '';
             this.showModalEnlace = true;
@@ -1302,6 +1308,7 @@ function pagos() {
             const h = { headers: { Authorization: `Bearer ${token}` } };
             const payload = { ...this.formEnlace };
             if (!payload.monto) payload.monto = null;
+            if (!payload.monto_objetivo) payload.monto_objetivo = null;
             if (!payload.concepto_pago_id) payload.concepto_pago_id = null;
             if (!payload.cuenta_bancaria_id) payload.cuenta_bancaria_id = null;
             if (!payload.fecha_vencimiento) payload.fecha_vencimiento = null;

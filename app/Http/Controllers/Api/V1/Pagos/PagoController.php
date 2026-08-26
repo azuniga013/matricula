@@ -14,6 +14,7 @@ use App\Modules\Pagos\CasosUso\RechazarPago;
 use App\Modules\Pagos\CasosUso\RegistrarPago;
 use App\Modules\Pagos\CasosUso\SubirComprobantePago;
 use App\Modules\Comun\ContextoUsuario;
+use App\Services\ResolverEnlacePagoDisponible;
 use App\Services\ResolutorAlcanceDatos;
 use App\Services\ResolutorFlujoMatricula;
 use App\Services\ServicioBitacora;
@@ -202,6 +203,22 @@ class PagoController extends Controller
             'mensaje' => $resultado->mensaje(),
             'data' => $resultado->data()['pago'],
         ], 201);
+
+        $pagoCreado = $resultado->data()['pago'];
+        if (($request->boolean('solicitar_link') || (($pagoCreado['link_pago_url'] ?? null) === null && ($pagoCreado->link_pago_url ?? null) === null)) && $request->filled('metodo_pago_id') && $request->filled('monto')) {
+            $link = app(ResolverEnlacePagoDisponible::class)->resolver((int) $request->metodo_pago_id, (float) $request->monto);
+            if ($link) {
+                $pagoId = is_array($pagoCreado) ? ($pagoCreado['id'] ?? null) : ($pagoCreado->id ?? null);
+                if ($pagoId) {
+                    Pago::where('id', $pagoId)->update([
+                        'link_pago_url' => $link->link,
+                        'link_pago_estado' => 'enviado',
+                        'link_generado_por' => $request->user()->id,
+                        'link_generado_en' => now(),
+                    ]);
+                }
+            }
+        }
 
         $pagoData = $resultado->data()['pago'];
         app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'pagos', 'registrar', 'pagos', is_array($pagoData) ? ($pagoData['id'] ?? null) : ($pagoData->id ?? null), null, $pagoData, 'Registro de pago');

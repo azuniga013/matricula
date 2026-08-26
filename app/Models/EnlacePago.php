@@ -14,8 +14,9 @@ class EnlacePago extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'codigo', 'nombre', 'monto', 'concepto_pago_id', 'cuenta_bancaria_id',
-        'fecha_vencimiento', 'usos_maximos', 'usos_actuales', 'estado',
+        'codigo', 'nombre', 'monto', 'monto_objetivo', 'concepto_pago_id', 'cuenta_bancaria_id',
+        'fecha_vencimiento', 'usos_maximos', 'usos_actuales', 'estado', 'estado_operativo',
+        'asignado_a_pago_id', 'asignado_a_estudiante_id', 'fecha_asignacion', 'fecha_uso', 'observaciones',
         'creado_por', 'actualizado_por', 'creado_en', 'actualizado_en',
     ];
 
@@ -23,11 +24,14 @@ class EnlacePago extends Model
     {
         return [
             'monto' => 'decimal:2',
+            'monto_objetivo' => 'decimal:2',
             'fecha_vencimiento' => 'date',
             'usos_maximos' => 'integer',
             'usos_actuales' => 'integer',
             'creado_en' => 'datetime',
             'actualizado_en' => 'datetime',
+            'fecha_asignacion' => 'datetime',
+            'fecha_uso' => 'datetime',
         ];
     }
 

@@ -45,10 +45,12 @@ class EnlacePagoController extends Controller
             'codigo' => 'required|string|max:50|unique:enlaces_pago,codigo',
             'nombre' => 'required|string|max:150',
             'monto' => 'nullable|numeric|min:0',
+            'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
             'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'fecha_vencimiento' => 'nullable|date',
             'usos_maximos' => 'nullable|integer|min:1',
+            'observaciones' => 'nullable|string|max:500',
             'estado' => 'sometimes|string|in:activo,inactivo',
         ]);
 
@@ -87,10 +89,12 @@ class EnlacePagoController extends Controller
             'codigo' => 'sometimes|string|max:50|unique:enlaces_pago,codigo,' . $enlacePago->id,
             'nombre' => 'sometimes|string|max:150',
             'monto' => 'nullable|numeric|min:0',
+            'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
             'cuenta_bancaria_id' => 'nullable|exists:cuentas_bancarias,id',
             'fecha_vencimiento' => 'nullable|date',
             'usos_maximos' => 'nullable|integer|min:1',
+            'observaciones' => 'nullable|string|max:500',
             'estado' => 'sometimes|string|in:activo,inactivo',
         ]);
 
@@ -126,6 +130,7 @@ class EnlacePagoController extends Controller
     {
         $query = EnlacePago::with(['conceptoPago', 'cuentaBancaria'])
             ->where('estado', 'activo')
+            ->where('estado_operativo', 'disponible')
             ->where(function ($q) {
                 $q->whereNull('fecha_vencimiento')
                     ->orWhere('fecha_vencimiento', '>=', now()->toDateString());
@@ -140,7 +145,10 @@ class EnlacePagoController extends Controller
         }
 
         if ($request->filled('monto')) {
-            $query->where('monto', $request->monto);
+            $query->where(function ($q) use ($request) {
+                $q->where('monto_objetivo', $request->monto)
+                    ->orWhereNull('monto_objetivo');
+            });
         }
 
         $enlaces = $query->orderBy('creado_en', 'desc')->get();
@@ -163,7 +171,13 @@ class EnlacePagoController extends Controller
             ], 422);
         }
 
-        $enlacePago->increment('usos_actuales');
+        $enlacePago->update([
+            'usos_actuales' => $enlacePago->usos_actuales + 1,
+            'estado_operativo' => 'reservado',
+            'fecha_asignacion' => now(),
+            'actualizado_por' => $request->user()->id,
+            'actualizado_en' => now(),
+        ]);
 
         return response()->json([
             'resultado' => 'A',
