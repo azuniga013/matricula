@@ -6,6 +6,8 @@ use App\Modules\Comun\ContextoUsuario;
 use App\Modules\Comun\ResultadoCasoUso;
 use App\Modules\Pagos\Repositorios\PagoRepositorio;
 use App\Modules\Pagos\Servicios\AplicadorEfectosPago;
+use App\Models\EnlacePago;
+use App\Services\ResolverEnlacePagoDisponible;
 use Illuminate\Support\Facades\DB;
 
 final class RechazarPago
@@ -13,6 +15,7 @@ final class RechazarPago
     public function __construct(
         private readonly PagoRepositorio $repositorio,
         private readonly AplicadorEfectosPago $efectos,
+        private readonly ResolverEnlacePagoDisponible $resolverEnlace,
     ) {}
 
     public function ejecutar(int $pagoId, string $motivo, ContextoUsuario $contexto): ResultadoCasoUso
@@ -29,6 +32,12 @@ final class RechazarPago
 
             $usuarioId = $contexto->usuarioId();
             $this->repositorio->marcarRechazado($pago, $motivo, $usuarioId);
+            if ($pago->link_pago_url) {
+                $enlace = EnlacePago::where('enlace_url', $pago->link_pago_url)->first();
+                if ($enlace) {
+                    $this->resolverEnlace->marcarDesuso($enlace);
+                }
+            }
             $this->efectos->cancelarAplicacionesPendientes($pagoId);
             $this->efectos->revertirMatriculaAlRechazar($pago, $usuarioId);
 

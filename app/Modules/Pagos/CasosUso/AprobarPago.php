@@ -7,6 +7,8 @@ use App\Modules\Comun\ResultadoCasoUso;
 use App\Modules\Pagos\Repositorios\PagoRepositorio;
 use App\Modules\Pagos\Servicios\AplicadorEfectosPago;
 use App\Modules\Pagos\Servicios\GeneradorReciboCaja;
+use App\Models\EnlacePago;
+use App\Services\ResolverEnlacePagoDisponible;
 use Illuminate\Support\Facades\DB;
 
 final class AprobarPago
@@ -15,6 +17,7 @@ final class AprobarPago
         private readonly PagoRepositorio $repositorio,
         private readonly AplicadorEfectosPago $efectos,
         private readonly GeneradorReciboCaja $generadorRecibo,
+        private readonly ResolverEnlacePagoDisponible $resolverEnlace,
     ) {}
 
     public function ejecutar(int $pagoId, ContextoUsuario $contexto): ResultadoCasoUso
@@ -40,6 +43,12 @@ final class AprobarPago
             }
 
             $this->repositorio->aprobar($pago, $usuarioId);
+            if ($pago->link_pago_url) {
+                $enlace = EnlacePago::where('enlace_url', $pago->link_pago_url)->first();
+                if ($enlace) {
+                    $this->resolverEnlace->marcarUsado($enlace);
+                }
+            }
             $this->efectos->asignarSesionCajaSiHaceFalta($pago, $usuarioId);
             $this->efectos->confirmarMatriculaSiCorresponde($pago, $usuarioId);
             $this->efectos->aplicarAObligacionesPendientes($pago, $usuarioId);

@@ -206,12 +206,13 @@ class PagoController extends Controller
 
         $pagoCreado = $resultado->data()['pago'];
         if (($request->boolean('solicitar_link') || (($pagoCreado['link_pago_url'] ?? null) === null && ($pagoCreado->link_pago_url ?? null) === null)) && $request->filled('metodo_pago_id') && $request->filled('monto')) {
-            $link = app(ResolverEnlacePagoDisponible::class)->resolver((int) $request->metodo_pago_id, (float) $request->monto);
-            if ($link) {
-                $pagoId = is_array($pagoCreado) ? ($pagoCreado['id'] ?? null) : ($pagoCreado->id ?? null);
-                if ($pagoId) {
+            $pagoId = is_array($pagoCreado) ? ($pagoCreado['id'] ?? null) : ($pagoCreado->id ?? null);
+            $estudianteId = (int) $request->estudiante_id;
+            if ($pagoId) {
+                $link = app(ResolverEnlacePagoDisponible::class)->resolver((int) $request->metodo_pago_id, (float) $request->monto, (int) $pagoId, $estudianteId);
+                if ($link) {
                     Pago::where('id', $pagoId)->update([
-                        'link_pago_url' => $link->link,
+                        'link_pago_url' => $link->enlace_url,
                         'link_pago_estado' => 'enviado',
                         'link_generado_por' => $request->user()->id,
                         'link_generado_en' => now(),

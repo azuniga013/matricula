@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 class ResolverEnlacePagoDisponible
 {
-    public function resolver(int $metodoPagoId, float $monto): ?EnlacePago
+    public function resolver(int $metodoPagoId, float $monto, ?int $pagoId = null, ?int $estudianteId = null): ?EnlacePago
     {
-        return DB::transaction(function () use ($metodoPagoId, $monto) {
+        return DB::transaction(function () use ($metodoPagoId, $monto, $pagoId, $estudianteId) {
             $enlace = EnlacePago::query()
                 ->where('metodo_pago_id', $metodoPagoId)
                 ->where('estado', 'activo')
@@ -30,9 +30,15 @@ class ResolverEnlacePagoDisponible
                 return null;
             }
 
+            if (empty($enlace->enlace_url) || ! filter_var($enlace->enlace_url, FILTER_VALIDATE_URL)) {
+                return null;
+            }
+
             $enlace->update([
                 'estado_operativo' => 'reservado',
                 'fecha_asignacion' => now(),
+                'asignado_a_pago_id' => $pagoId,
+                'asignado_a_estudiante_id' => $estudianteId,
             ]);
 
             return $enlace->fresh();

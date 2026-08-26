@@ -44,6 +44,7 @@ class EnlacePagoController extends Controller
         $datos = $request->validate([
             'codigo' => 'required|string|max:50|unique:enlaces_pago,codigo',
             'nombre' => 'required|string|max:150',
+            'enlace_url' => 'required|url|max:500',
             'monto' => 'nullable|numeric|min:0',
             'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
@@ -88,6 +89,7 @@ class EnlacePagoController extends Controller
         $datos = $request->validate([
             'codigo' => 'sometimes|string|max:50|unique:enlaces_pago,codigo,' . $enlacePago->id,
             'nombre' => 'sometimes|string|max:150',
+            'enlace_url' => 'sometimes|url|max:500',
             'monto' => 'nullable|numeric|min:0',
             'monto_objetivo' => 'nullable|numeric|min:0',
             'concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
@@ -174,6 +176,8 @@ class EnlacePagoController extends Controller
         $enlacePago->update([
             'usos_actuales' => $enlacePago->usos_actuales + 1,
             'estado_operativo' => 'reservado',
+            'asignado_a_pago_id' => $request->input('pago_id'),
+            'asignado_a_estudiante_id' => $request->input('estudiante_id'),
             'fecha_asignacion' => now(),
             'actualizado_por' => $request->user()->id,
             'actualizado_en' => now(),

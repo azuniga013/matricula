@@ -292,7 +292,7 @@
                 <div class="card">
                     <div class="table-container">
                         <table class="table">
-                            <thead><tr><th>Código</th><th>Nombre</th><th>Concepto</th><th>Monto</th><th>Banco</th><th>Usos</th><th>Vence</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
+                            <thead><tr><th>Código</th><th>Nombre</th><th>Concepto</th><th>Monto</th><th>Banco</th><th>Usos</th><th>Vence</th><th>Estado</th><th>Operativo</th><th class="text-right">Acciones</th></tr></thead>
                             <tbody>
                                 <template x-for="e in enlacesPago" :key="e.id">
                                     <tr>
@@ -304,6 +304,7 @@
                                         <td class="text-xs" x-text="(e.usos_actuales || 0) + (e.usos_maximos ? ' / ' + e.usos_maximos : ' / ∞')"></td>
                                         <td class="text-gray-500 text-xs" x-text="e.fecha_vencimiento || '-'"></td>
                                         <td><span :class="e.estado === 'activo' ? 'badge-success' : 'badge-danger'" class="badge" x-text="e.estado"></span></td>
+                                        <td><span class="badge badge-info" x-text="e.estado_operativo || 'disponible'"></span></td>
                                         <td class="text-right whitespace-nowrap">
                                             <button x-show="api.hasPermission('pagos.enlaces-pago.modificar')" @click="editarEnlace(e)" class="btn btn-ghost btn-sm">Editar</button>
                                             <button x-show="api.hasPermission('pagos.enlaces-pago.eliminar')" @click="eliminarEnlace(e)" class="btn btn-ghost btn-sm text-red-500">Eliminar</button>
@@ -311,7 +312,7 @@
                                     </tr>
                                 </template>
                                 <template x-if="enlacesPago.length === 0">
-                                    <tr><td colspan="9" class="text-center py-10 text-gray-400 text-sm">No hay enlaces de pago configurados</td></tr>
+                                    <tr><td colspan="10" class="text-center py-10 text-gray-400 text-sm">No hay enlaces de pago configurados</td></tr>
                                 </template>
                             </tbody>
                         </table>
@@ -372,6 +373,10 @@
                     <div class="col-span-2">
                         <label class="label">Nombre *</label>
                         <input x-model="formEnlace.nombre" type="text" required maxlength="150" class="input" readonly>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label">URL del enlace *</label>
+                        <textarea x-model="formEnlace.enlace_url" rows="3" required class="input font-mono text-sm" placeholder="https://..."></textarea>
                     </div>
                     <div>
                         <label class="label">Concepto</label>
@@ -857,7 +862,7 @@ function pagos() {
         siguienteReciboCargado: false,
         enlacesPago: [], cuentasBancarias: [],
         showModalEnlace: false, editandoEnlace: false, savingEnlace: false, errorEnlace: '',
-        formEnlace: { codigo: '', nombre: '', monto: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo' },
+        formEnlace: { codigo: '', nombre: '', enlace_url: '', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' },
         editandoEnlaceId: null,
         showModalLinkPago: false, savingLinkPago: false, errorLinkPago: '', linkPagoActual: null, linkPagoInput: '', linkPagoValido: false,
 
@@ -1278,7 +1283,7 @@ function pagos() {
         abrirModalEnlace() {
             this.editandoEnlace = false;
             this.editandoEnlaceId = null;
-            this.formEnlace = { codigo: 'LNK-' + Date.now(), nombre: 'Link anticipado', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' };
+            this.formEnlace = { codigo: 'LNK-' + Date.now(), nombre: 'Link anticipado', enlace_url: '', monto: '', monto_objetivo: '', concepto_pago_id: '', cuenta_bancaria_id: '', fecha_vencimiento: '', usos_maximos: '', estado: 'activo', observaciones: '' };
             this.errorEnlace = '';
             this.showModalEnlace = true;
         },
@@ -1289,6 +1294,7 @@ function pagos() {
             this.formEnlace = {
                 codigo: e.codigo || '',
                 nombre: e.nombre || '',
+                enlace_url: e.enlace_url || '',
                 monto: e.monto || '',
                 monto_objetivo: e.monto_objetivo || e.monto || '',
                 concepto_pago_id: e.concepto_pago_id || '',

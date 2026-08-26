@@ -28,6 +28,7 @@ use App\Models\Rol;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VersionPlanEstudio;
+use App\Services\ResolverEnlacePagoDisponible;
 use App\Modules\Comun\ContextoUsuario;
 use App\Modules\Pagos\CasosUso\ActualizarLinkPago;
 use App\Modules\Pagos\CasosUso\AprobarPago;
@@ -555,6 +556,42 @@ class PagoTest extends TestCase
             'link_pago_url' => 'https://pago.ejemplo/test-link',
         ]);
 
+    }
+
+    public function test_registrar_pago_asigna_link_anticipado_disponible(): void
+    {
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-ANT-001',
+            'nombre' => 'Link anticipado matrícula',
+            'enlace_url' => 'https://pago.ejemplo/ant-001',
+            'monto_objetivo' => 1200.00,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'estado' => 'activo',
+            'estado_operativo' => 'disponible',
+            'usos_actuales' => 0,
+            'creado_en' => now(),
+            'actualizado_en' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/registrar', [
+            'estudiante_id' => $this->estudiante->id,
+            'matricula_id' => $this->matricula->id,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'monto' => 1200.00,
+            'solicitar_link' => true,
+        ], $this->headers());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.estado', 'esperando_respuesta')
+            ->assertJsonPath('data.link_pago_url', $enlace->enlace_url);
+
+        $this->assertDatabaseHas('enlaces_pago', [
+            'id' => $enlace->id,
+            'estado_operativo' => 'reservado',
+            'usos_actuales' => 1,
+        ]);
     }
 
     public function test_listar_solicitudes_de_link_incluye_pagos_solicita_link(): void

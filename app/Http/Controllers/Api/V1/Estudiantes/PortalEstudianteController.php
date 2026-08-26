@@ -508,7 +508,7 @@ class PortalEstudianteController extends Controller
 
             $linkAuto = null;
             if ($solicitaLink) {
-                $linkAuto = app(ResolverEnlacePagoDisponible::class)->resolver((int) $datos['metodo_pago_id'], (float) $montoTotal);
+                $linkAuto = app(ResolverEnlacePagoDisponible::class)->resolver((int) $datos['metodo_pago_id'], (float) $montoTotal, null, $estudiante->id);
             }
 
             $pago = Pago::create([
@@ -525,7 +525,7 @@ class PortalEstudianteController extends Controller
                 'fecha_proceso' => $fechaProcesoCarbon,
                 'fecha_deposito' => $fechaProcesoCarbon,
                 'creado_en' => $fechaProcesoCarbon,
-                'link_pago_url' => $linkAuto?->link,
+                'link_pago_url' => $linkAuto?->enlace_url,
                 'link_pago_estado' => $linkAuto ? 'enviado' : null,
                 'link_generado_por' => $linkAuto ? null : null,
                 'link_generado_en' => $linkAuto ? now() : null,
@@ -968,6 +968,15 @@ class PortalEstudianteController extends Controller
             'confirmado_por_estudiante_en' => now(),
         ]);
 
+        if ($pago->link_pago_url) {
+            $enlace = EnlacePago::where('enlace_url', $pago->link_pago_url)
+                ->where('estado_operativo', 'reservado')
+                ->first();
+            if ($enlace) {
+                app(ResolverEnlacePagoDisponible::class)->marcarUsado($enlace);
+            }
+        }
+
         if ($pago->matricula_id) {
             Matricula::where('id', $pago->matricula_id)->where('estado', 'reservada')->update(['estado' => 'en_revision']);
         }
@@ -1021,6 +1030,15 @@ class PortalEstudianteController extends Controller
                 'fecha_rechazo' => null,
                 'actualizado_por' => null,
             ]);
+
+            if ($pago->link_pago_url) {
+                $enlace = EnlacePago::where('enlace_url', $pago->link_pago_url)
+                    ->whereIn('estado_operativo', ['reservado', 'usado'])
+                    ->first();
+                if ($enlace) {
+                    app(ResolverEnlacePagoDisponible::class)->marcarDesuso($enlace);
+                }
+            }
 
             if (in_array($matricula->estado, ['en_revision', 'rechazado'])) {
                 $matricula->update([
