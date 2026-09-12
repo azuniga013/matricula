@@ -14,7 +14,7 @@ final class EloquentMatriculaRepositorio implements MatriculaRepositorio
 
     public function ofertaConDetallesParaBloqueo(int $id): ?OfertaAcademica
     {
-        return OfertaAcademica::with('nivelAcademico.versionPlanEstudio', 'planCobro.detalles.conceptoPago')
+        return OfertaAcademica::with('periodoAcademico', 'nivelAcademico.versionPlanEstudio', 'planCobro.detalles.conceptoPago')
             ->lockForUpdate()
             ->find($id);
     }

@@ -44,6 +44,7 @@ class PlanEstudioController extends Controller
             'codigo' => 'required|string|max:50|unique:planes_estudio,codigo',
             'nombre' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
+            'permite_progresion_mismo_periodo' => 'sometimes|boolean',
         ]);
 
         $datos['creado_por'] = $request->user()->id;
@@ -82,6 +83,7 @@ class PlanEstudioController extends Controller
             'nombre' => 'required|string|max:150',
             'descripcion' => 'nullable|string',
             'estado' => 'sometimes|string|in:activo,inactivo',
+            'permite_progresion_mismo_periodo' => 'sometimes|boolean',
         ]);
 
         $datos['actualizado_por'] = $request->user()->id;

@@ -18,6 +18,8 @@ class PeriodoAcademico extends Model
         'nombre',
         'fecha_inicio',
         'fecha_fin',
+        'fecha_inicio_matricula',
+        'fecha_cierre_matricula',
         'estado',
         'creado_por',
         'actualizado_por',
@@ -30,6 +32,8 @@ class PeriodoAcademico extends Model
         return [
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
+            'fecha_inicio_matricula' => 'date',
+            'fecha_cierre_matricula' => 'date',
             'creado_en' => 'datetime',
             'actualizado_en' => 'datetime',
         ];
@@ -67,5 +71,15 @@ class PeriodoAcademico extends Model
         return $this->estado === 'activo'
             && $this->fecha_inicio->lte(today())
             && $this->fecha_fin->gte(today());
+    }
+
+    public function estaAbiertoParaMatricula(): bool
+    {
+        $inicio = $this->fecha_inicio_matricula ?? $this->fecha_inicio;
+        $cierre = $this->fecha_cierre_matricula ?? $this->fecha_fin;
+
+        return $this->estado === 'activo'
+            && $inicio?->lte(today())
+            && $cierre?->gte(today());
     }
 }

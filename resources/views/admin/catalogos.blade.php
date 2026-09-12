@@ -662,6 +662,7 @@ function catalogos() {
                     { key: 'codigo', label: 'Código', type: 'text', required: true },
                     { key: 'nombre', label: 'Nombre', type: 'text', required: true },
                     { key: 'descripcion', label: 'Descripción', type: 'textarea', required: false },
+                    { key: 'permite_progresion_mismo_periodo', label: 'Permitir progresión en el mismo período (intensivo)', type: 'checkbox', required: false },
                     { key: 'estado', label: 'Estado', type: 'select', required: false, options: [
                         { value: 'activo', label: 'Activo' },
                         { value: 'inactivo', label: 'Inactivo' },
@@ -718,6 +719,8 @@ function catalogos() {
                     { key: 'nombre', label: 'Nombre', type: 'text', required: true },
                     { key: 'fecha_inicio', label: 'Fecha Inicio', type: 'date', required: true },
                     { key: 'fecha_fin', label: 'Fecha Fin', type: 'date', required: true },
+                    { key: 'fecha_inicio_matricula', label: 'Inicio de Matrícula', type: 'date', required: false },
+                    { key: 'fecha_cierre_matricula', label: 'Cierre de Matrícula', type: 'date', required: false },
                     { key: 'estado', label: 'Estado', type: 'select', required: true, options: [
                         { value: 'activo', label: 'Activo' },
                         { value: 'cerrado', label: 'Cerrado' },

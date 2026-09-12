@@ -43,6 +43,10 @@ final class ReservarMatricula
                 return ResultadoCasoUso::error(422, 'La oferta no está abierta para matrícula');
             }
 
+            if (! $oferta->periodoAcademico?->estaAbiertoParaMatricula()) {
+                return ResultadoCasoUso::error(422, 'La matrícula está cerrada para este período', '422_MATRICULA_CERRADA');
+            }
+
             if ($oferta->cuposDisponibles() <= 0) {
                 return ResultadoCasoUso::error(422, 'No hay cupos disponibles');
             }

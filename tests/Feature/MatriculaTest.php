@@ -83,8 +83,8 @@ class MatriculaTest extends TestCase
         $this->periodo = PeriodoAcademico::create([
             'codigo' => '2026-I',
             'nombre' => 'Semestre 1',
-            'fecha_inicio' => '2026-01-15',
-            'fecha_fin' => '2026-06-30',
+            'fecha_inicio' => now()->subDay()->toDateString(),
+            'fecha_fin' => now()->addMonths(4)->toDateString(),
             'estado' => 'activo',
         ]);
 
@@ -423,6 +423,31 @@ class MatriculaTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('resultado', 'R')
             ->assertJsonPath('mensaje', 'Debe finalizar administrativamente y pagar los siguientes niveles: Inglés 1');
+
+        ObligacionPagoEstudiante::where('matricula_id', $matriculaPreviaId)->update([
+            'monto_pagado' => 700,
+            'estado' => 'pagado',
+        ]);
+
+        $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $oferta2->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
+        ], $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('mensaje', 'No puede reservar el siguiente nivel en el mismo período académico. Seleccione una oferta de un período posterior.');
+
+        $this->nivel->versionPlanEstudio->planEstudio->update([
+            'permite_progresion_mismo_periodo' => true,
+        ]);
+
+        $this->postJson('/api/v1/matriculas/reservar', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $oferta2->id,
+            'plan_estudio_id' => $this->nivel->versionPlanEstudio->plan_estudio_id,
+        ], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('resultado', 'A');
     }
 
     public function test_confirmar_matricula_genera_obligaciones(): void

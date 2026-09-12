@@ -198,8 +198,8 @@ class PortalEstudianteController extends Controller
                 ->response($request);
         }
 
-        if (! $oferta->periodoAcademico?->estaAbierto()) {
-            return RespuestaError::make('422_PERIODO_NO_ABIERTO', 422, 'El período académico no está abierto para matrícula')
+        if (! $oferta->periodoAcademico?->estaAbiertoParaMatricula()) {
+            return RespuestaError::make('422_MATRICULA_CERRADA', 422, 'La matrícula está cerrada para este período')
                 ->response($request);
         }
 

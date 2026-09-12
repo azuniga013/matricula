@@ -42,6 +42,15 @@ class PeriodoAcademicoController extends Controller
             'nombre' => 'required|string|max:150',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after:fecha_inicio',
+            'fecha_inicio_matricula' => 'nullable|date|after_or_equal:fecha_inicio|before_or_equal:fecha_fin',
+            'fecha_cierre_matricula' => [
+                'nullable', 'date', 'after_or_equal:fecha_inicio', 'before_or_equal:fecha_fin',
+                function (string $atributo, mixed $valor, \Closure $fallar) use ($request): void {
+                    if ($valor && $request->filled('fecha_inicio_matricula') && $valor < $request->input('fecha_inicio_matricula')) {
+                        $fallar('La fecha de cierre de matrícula debe ser posterior o igual a su fecha de inicio.');
+                    }
+                },
+            ],
         ]);
 
         $datos['creado_por'] = $request->user()->id;
@@ -75,6 +84,15 @@ class PeriodoAcademicoController extends Controller
             'nombre' => 'required|string|max:150',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after:fecha_inicio',
+            'fecha_inicio_matricula' => 'nullable|date|after_or_equal:fecha_inicio|before_or_equal:fecha_fin',
+            'fecha_cierre_matricula' => [
+                'nullable', 'date', 'after_or_equal:fecha_inicio', 'before_or_equal:fecha_fin',
+                function (string $atributo, mixed $valor, \Closure $fallar) use ($request): void {
+                    if ($valor && $request->filled('fecha_inicio_matricula') && $valor < $request->input('fecha_inicio_matricula')) {
+                        $fallar('La fecha de cierre de matrícula debe ser posterior o igual a su fecha de inicio.');
+                    }
+                },
+            ],
             'estado' => 'sometimes|string|in:activo,cerrado,inactivo',
         ]);
 

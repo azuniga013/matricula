@@ -20,6 +20,7 @@ class PlanEstudio extends Model
         'nombre',
         'descripcion',
         'estado',
+        'permite_progresion_mismo_periodo',
         'creado_por',
         'actualizado_por',
         'creado_en',
@@ -29,6 +30,7 @@ class PlanEstudio extends Model
     protected function casts(): array
     {
         return [
+            'permite_progresion_mismo_periodo' => 'boolean',
             'creado_en' => 'datetime',
             'actualizado_en' => 'datetime',
         ];

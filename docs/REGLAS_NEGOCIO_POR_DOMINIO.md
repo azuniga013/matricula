@@ -212,6 +212,21 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
   matrícula. No se guarda un plan directo en el estudiante.
 - Antes de reservar o confirmar validar oferta abierta, cupo, prerrequisitos y
   conflictos de horario.
+- La vigencia académica del período y la ventana de matrícula son conceptos
+  independientes. El período puede seguir activo para clases, consultas y
+  operación histórica mientras la matrícula ya está cerrada.
+- La matrícula debe tener una ventana explícita de apertura y cierre. Fuera de
+  ella no se permiten nuevas reservas, aunque el período esté activo y la
+  oferta tenga cupo.
+- El cierre de matrícula no bloquea pagos, carga de comprobantes, aprobación o
+  rechazo de pagos, reenganche, recibos ni la consulta de obligaciones y del
+  historial asociados a una matrícula ya existente.
+- Por defecto, un estudiante no puede reservar el nivel siguiente dentro del
+  mismo período en el que cursó o aprobó el prerrequisito. La oferta del nivel
+  siguiente debe pertenecer a un período posterior.
+- Un plan de estudio puede habilitar expresamente la progresión dentro del mismo
+  período para programas intensivos; la excepción debe quedar auditable y no
+  aplicarse por omisión.
 - Para reservar el siguiente nivel no basta con haber tenido matrícula previa.
   El prerrequisito solo se considera cumplido cuando el nivel anterior está
   aprobado académicamente (`historial_academico` aprobado, calificación

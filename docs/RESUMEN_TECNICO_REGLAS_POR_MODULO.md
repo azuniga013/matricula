@@ -12,6 +12,12 @@
   `matriculado` para avanzar de nivel.
 - La reserva genera obligaciones dentro de la misma transacción; si falla la
   validación del plan de cobro, no se crea matrícula incompleta.
+- La ventana de matrícula es independiente de la vigencia académica del
+  período: cerrarla impide reservas nuevas, pero nunca pagos, comprobantes,
+  recibos ni consultas de matrículas existentes.
+- La progresión al nivel siguiente se realiza en un período posterior al del
+  prerrequisito, salvo que el plan intensivo autorice explícitamente avanzar en
+  el mismo período.
 
 ## Ofertas Académicas
 

@@ -12,7 +12,7 @@ final class ValidadorPrerrequisitos
 {
     public function validar(int $estudianteId, int $ofertaAcademicaId): ?string
     {
-        $oferta = OfertaAcademica::with('nivelAcademico.prerrequisitos')->findOrFail($ofertaAcademicaId);
+        $oferta = OfertaAcademica::with('nivelAcademico.prerrequisitos', 'nivelAcademico.versionPlanEstudio.planEstudio', 'periodoAcademico')->findOrFail($ofertaAcademicaId);
         $nivel = $oferta->nivelAcademico;
 
         if (! $nivel || $nivel->prerrequisitos->isEmpty()) {
@@ -77,6 +77,18 @@ final class ValidadorPrerrequisitos
         }
 
         if (empty($faltantesAcademicos) && empty($faltantesAdministrativos)) {
+            $plan = $nivel->versionPlanEstudio?->planEstudio;
+            if (! $plan?->permite_progresion_mismo_periodo && $oferta->periodo_academico_id) {
+                $aproboEnMismoPeriodo = HistorialAcademico::where('estudiante_id', $estudianteId)
+                    ->whereIn('nivel_academico_id', $prerrequisitosIds)
+                    ->where('estado', 'aprobado')
+                    ->where('periodo_academico_id', $oferta->periodo_academico_id)
+                    ->exists();
+                if ($aproboEnMismoPeriodo) {
+                    return 'No puede reservar el siguiente nivel en el mismo período académico. Seleccione una oferta de un período posterior.';
+                }
+            }
+
             return null;
         }
 

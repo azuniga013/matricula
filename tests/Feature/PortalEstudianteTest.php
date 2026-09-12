@@ -251,7 +251,23 @@ class PortalEstudianteTest extends TestCase
         ], $this->studentHeaders());
 
         $response->assertStatus(422)
-            ->assertJsonPath('codigo_error', '422_PERIODO_NO_ABIERTO');
+            ->assertJsonPath('codigo_error', '422_MATRICULA_CERRADA');
+
+        $this->assertDatabaseCount('matriculas', 0);
+    }
+
+    public function test_no_reservar_cuando_la_ventana_de_matricula_esta_cerrada_pero_el_periodo_sigue_activo(): void
+    {
+        PeriodoAcademico::whereKey($this->oferta->periodo_academico_id)->update([
+            'fecha_inicio_matricula' => now()->subMonth()->toDateString(),
+            'fecha_cierre_matricula' => now()->subDay()->toDateString(),
+        ]);
+
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('codigo_error', '422_MATRICULA_CERRADA');
 
         $this->assertDatabaseCount('matriculas', 0);
     }
@@ -478,6 +494,30 @@ class PortalEstudianteTest extends TestCase
 
         $misPagos = $this->getJson('/api/v1/estudiantes/mis-pagos', $this->studentHeaders());
         $misPagos->assertOk()->assertJsonFragment(['estado' => 'solicita_link']);
+    }
+
+    public function test_registrar_pago_sigue_disponible_despues_del_cierre_del_periodo(): void
+    {
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders())->assertCreated();
+
+        $matricula = Matricula::where('estudiante_id', $this->estudiante->id)->firstOrFail();
+        PeriodoAcademico::whereKey($this->oferta->periodo_academico_id)->update([
+            'fecha_inicio_matricula' => now()->subMonth()->toDateString(),
+            'fecha_cierre_matricula' => now()->subDay()->toDateString(),
+            'fecha_fin' => now()->subDay()->toDateString(),
+            'estado' => 'cerrado',
+        ]);
+
+        $this->postJson('/api/v1/estudiantes/registrar-pago', [
+            'matricula_id' => $matricula->id,
+            'metodo_pago_id' => MetodoPago::where('codigo', 'LNK')->value('id'),
+            'obligacion_ids' => $matricula->obligaciones()->pluck('id')->all(),
+            'solicitar_link' => true,
+        ], $this->studentHeaders())
+            ->assertCreated()
+            ->assertJsonPath('data.estado', 'solicita_link');
     }
 
     public function test_no_puede_solicitar_link_doble_para_misma_obligacion(): void
