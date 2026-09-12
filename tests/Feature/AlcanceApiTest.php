@@ -5,8 +5,11 @@ namespace Tests\Feature;
 use App\Models\Aula;
 use App\Models\DepartamentoAcademico;
 use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\EvaluacionNivelacion;
 use App\Models\Horario;
 use App\Models\Modalidad;
+use App\Models\Matricula;
 use App\Models\Modulo;
 use App\Models\NivelAcademico;
 use App\Models\OfertaAcademica;
@@ -229,6 +232,41 @@ class AlcanceApiTest extends TestCase
             ->assertJsonCount(0, 'data');
     }
 
+    public function test_nivelaciones_respeta_sucursal_en_listado_y_anulacion(): void
+    {
+        $modulo = Modulo::create(['codigo' => 'nivelaciones', 'nombre' => 'Nivelaciones', 'estado' => 'activo', 'orden' => 8]);
+        $opcion = OpcionModulo::create(['modulo_id' => $modulo->id, 'codigo' => 'nivelaciones.gestion', 'nombre' => 'Gestión', 'estado' => 'activo']);
+        foreach (['consultar', 'anular'] as $accion) {
+            $permiso = Permiso::create([
+                'opcion_modulo_id' => $opcion->id,
+                'codigo' => 'nivelaciones.'.$accion,
+                'nombre' => ucfirst($accion),
+                'accion' => $accion,
+                'estado' => 'activo',
+            ]);
+            $this->rol->permisos()->attach($permiso->id, ['estado' => 'activo']);
+        }
+        $this->ofertaSPS->update(['tipo_oferta' => 'nivelacion']);
+        $this->ofertaTGU->update(['tipo_oferta' => 'nivelacion']);
+        $evaluacionSPS = $this->crearEvaluacionNivelacion($this->ofertaSPS, $this->sucursalSPS, 'NIV-SPS-001');
+        $evaluacionTGU = $this->crearEvaluacionNivelacion($this->ofertaTGU, $this->sucursalTGU, 'NIV-TGU-001');
+
+        $usuario = $this->crearUsuarioConRol('Nivelaciones SPS', 'nivelaciones-sps@test.com');
+        $usuario->sucursales()->attach($this->sucursalSPS->id, ['estado' => 'activo']);
+        $headers = ['Authorization' => 'Bearer '.$usuario->createToken('test')->plainTextToken];
+
+        $this->getJson('/api/v1/nivelaciones', $headers)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.id', $evaluacionSPS->id);
+
+        $this->postJson("/api/v1/nivelaciones/{$evaluacionTGU->id}/anular", [
+            'motivo_anulacion' => 'No corresponde a esta sucursal.',
+        ], $headers)
+            ->assertForbidden()
+            ->assertJsonPath('codigo_error', '403_SIN_ALCANCE');
+    }
+
     public function test_docente_solo_ve_sus_ofertas(): void
     {
         $docente = $this->ofertaSPS->docente;
@@ -294,5 +332,27 @@ class AlcanceApiTest extends TestCase
         $usuario->roles()->attach($this->rol->id, ['estado' => 'activo']);
 
         return $usuario;
+    }
+
+    private function crearEvaluacionNivelacion(OfertaAcademica $oferta, Sucursal $sucursal, string $codigo): EvaluacionNivelacion
+    {
+        $estudiante = Estudiante::factory()->create(['sucursal_id' => $sucursal->id]);
+        $matricula = Matricula::create([
+            'codigo' => 'MAT-'.$codigo,
+            'estudiante_id' => $estudiante->id,
+            'oferta_academica_id' => $oferta->id,
+            'sucursal_id' => $sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+
+        return EvaluacionNivelacion::create([
+            'codigo' => $codigo,
+            'estudiante_id' => $estudiante->id,
+            'matricula_examen_id' => $matricula->id,
+            'oferta_examen_id' => $oferta->id,
+            'nota_obtenida' => 40,
+            'aprobado' => false,
+            'estado' => 'rechazada',
+        ]);
     }
 }

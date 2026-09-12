@@ -196,6 +196,23 @@ class ReporteTest extends TestCase
             ->assertJsonPath('data.nivel_codigo', 'ING-1');
     }
 
+    public function test_reportes_academicos_regulares_excluyen_matriculas_de_nivelacion(): void
+    {
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+
+        $this->getJson('/api/v1/reportes/academicos/por-periodo?periodo_academico_id='.$this->periodo->id, $this->headers())
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/v1/reportes/academicos/grupo?oferta_academica_id='.$this->oferta->id, $this->headers())
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/v1/reportes/academicos/nivel-actual?estudiante_id='.$this->estudiante->id, $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data', null);
+    }
+
     public function test_ingresos_por_concepto(): void
     {
         $response = $this->getJson('/api/v1/reportes/financieros/por-concepto?fecha_desde=2026-01-01&fecha_hasta=2026-12-31', $this->headers());
