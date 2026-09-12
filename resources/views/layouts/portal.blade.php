@@ -131,9 +131,15 @@
 
         window.extractError = function(err, fallback) {
             const body = err?.response?.data;
-            return body?.mensaje || body?.mensaje_usuario || body?.message || body?.error || 
-                (body?.errores ? Object.values(body.errores).flat().join(', ') : null) || 
-                fallback || 'Error inesperado';
+            const errores = body?.errores ? Object.values(body.errores).flat().filter(Boolean) : [];
+            if (errores.length) return errores.join(', ');
+
+            const mensaje = body?.mensaje_usuario || body?.mensaje || body?.message || body?.error;
+            if (mensaje && !/^(validation\.|SQLSTATE|Illuminate\\|ErrorException|Undefined |Attempt to |Call to )/i.test(mensaje)) return mensaje;
+
+            if (!err?.response) return 'No se pudo conectar con el servidor. Revise su conexión e intente nuevamente.';
+            if (err.response.status >= 500) return 'Ocurrió un problema en el servidor. Intente nuevamente más tarde.';
+            return fallback || 'No se pudo completar la operación.';
         };
         window.extractErrorCode = function(err) {
             return err?.response?.data?.codigo_error || null;

@@ -75,9 +75,12 @@
                     }
                     return msgs.join(' | ');
                 }
-                return d.mensaje || d.mensaje_usuario || d.message || d.error || fallback;
+                var mensaje = d.mensaje_usuario || d.mensaje || d.message || d.error;
+                if (mensaje && !/^(validation\.|SQLSTATE|Illuminate\\|ErrorException|Undefined |Attempt to |Call to )/i.test(mensaje)) return mensaje;
+                if (err.response.status >= 500) return 'Ocurrió un problema en el servidor. Intente nuevamente más tarde.';
+                return fallback || 'No se pudo completar la activación.';
             }
-            return (err && err.message) || fallback;
+            return 'No se pudo conectar con el servidor. Revise su conexión e intente nuevamente.';
         };
 
         (function() {

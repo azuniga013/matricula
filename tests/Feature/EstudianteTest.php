@@ -133,6 +133,28 @@ class EstudianteTest extends TestCase
         $this->assertDatabaseHas('accesos_estudiante', ['email' => 'pedro@test.com']);
     }
 
+    public function test_registro_primer_ingreso_muestra_errores_de_validacion_en_espanol(): void
+    {
+        Estudiante::factory()->create([
+            'identidad' => '0801-2000-99999',
+            'correo' => 'existente@test.com',
+            'sucursal_id' => $this->sucursal->id,
+        ]);
+
+        $this->postJson('/api/v1/estudiantes/registro', [
+            'identidad' => '0801-2000-99999',
+            'nombre' => 'Pedro',
+            'apellido' => 'Sánchez',
+            'correo' => 'existente@test.com',
+            'sucursal_id' => $this->sucursal->id,
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errores.identidad.0', 'El valor de identidad ya está registrado.')
+            ->assertJsonPath('errores.correo.0', 'El valor de correo electrónico ya está registrado.');
+    }
+
     public function test_login_estudiante(): void
     {
         $estudiante = Estudiante::factory()->create(['sucursal_id' => $this->sucursal->id, 'estado' => 'activo']);

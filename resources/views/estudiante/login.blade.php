@@ -88,9 +88,14 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
     <script>
         window.extractError = function(err, fallback) {
-            if (!err || !err.response) return fallback || 'Error de conexión';
+            if (!err || !err.response) return 'No se pudo conectar con el servidor. Revise su conexión e intente nuevamente.';
             var data = err.response.data;
-            return data.mensaje || data.mensaje_usuario || data.message || data.error || fallback || 'Error desconocido';
+            var errores = data.errores ? Object.values(data.errores).flat().filter(Boolean) : [];
+            if (errores.length) return errores.join(', ');
+            var mensaje = data.mensaje_usuario || data.mensaje || data.message || data.error;
+            if (mensaje && !/^(validation\.|SQLSTATE|Illuminate\\|ErrorException|Undefined |Attempt to |Call to )/i.test(mensaje)) return mensaje;
+            if (err.response.status >= 500) return 'Ocurrió un problema en el servidor. Intente nuevamente más tarde.';
+            return fallback || 'No se pudo iniciar sesión.';
         };
         window.extractErrorCode = function(err) {
             if (!err || !err.response || !err.response.data) return null;
