@@ -156,6 +156,15 @@ class DenegacionRbacTest extends TestCase
             ->assertJsonPath('resultado', 'R');
     }
 
+    public function test_nivelaciones_listar_requiere_permiso(): void
+    {
+        [, $usuario] = $this->crearUsuarioSinPermisos('sin-nivelaciones@test.com');
+
+        $this->getJson('/api/v1/nivelaciones', $this->headersToken($usuario))
+            ->assertForbidden()
+            ->assertJsonPath('resultado', 'R');
+    }
+
     public function test_pagos_listar_requiere_permiso(): void
     {
         [, $usuario] = $this->crearUsuarioSinPermisos('sin-pagos@test.com');

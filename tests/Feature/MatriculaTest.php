@@ -26,6 +26,7 @@ use App\Modules\Matriculas\CasosUso\CancelarMatricula;
 use App\Modules\Matriculas\CasosUso\ConfirmarMatricula;
 use App\Modules\Matriculas\CasosUso\ReservarMatricula;
 use App\Modules\Nivelaciones\CasosUso\RegistrarResultadoNivelacion;
+use App\Modules\Nivelaciones\CasosUso\AnularResultadoNivelacion;
 use App\Modules\Comun\ContextoUsuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -538,6 +539,38 @@ class MatriculaTest extends TestCase
             'estado' => 'rechazada',
             'nivel_academico_id' => null,
             'nivel_recomendado_id' => null,
+        ]);
+        $this->assertDatabaseCount('historial_academico', 0);
+    }
+
+    public function test_anular_resultado_de_nivelacion_inhabilita_su_aprobacion_sin_crear_historial(): void
+    {
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+        $matriculaExamen = \App\Models\Matricula::create([
+            'codigo' => 'MAT-NIV-003',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+        $evaluacion = app(RegistrarResultadoNivelacion::class)->ejecutar($matriculaExamen, [
+            'nota_obtenida' => 40,
+            'aprobado' => false,
+        ], new ContextoUsuario($this->admin->id))->data()['evaluacion'];
+
+        $resultado = app(AnularResultadoNivelacion::class)->ejecutar(
+            $evaluacion,
+            'Resultado capturado por error.',
+            new ContextoUsuario($this->admin->id),
+        );
+
+        $this->assertTrue($resultado->ok());
+        $this->assertDatabaseHas('evaluaciones_nivelacion', [
+            'id' => $evaluacion->id,
+            'estado' => 'anulada',
+            'aprobado' => false,
+            'motivo_anulacion' => 'Resultado capturado por error.',
+            'evaluado_por' => $this->admin->id,
         ]);
         $this->assertDatabaseCount('historial_academico', 0);
     }
