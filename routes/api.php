@@ -393,7 +393,7 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
             ->middleware('permission:pagos.aprobar');
 
         Route::post('/{id}/link-pago', [PagoController::class, 'actualizarLink'])
-            ->middleware('permission:pagos.modificar');
+            ->middleware('permission:pagos.enlaces-pago.modificar');
 
         Route::match(['DELETE', 'POST'], '/{id}/eliminar-total', [PagoController::class, 'eliminarTotal'])
             ->middleware('permission:pagos.eliminar');
@@ -418,16 +418,16 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
             ->middleware('permission:pagos.consultar');
 
         Route::post('/', [EnlacePagoController::class, 'store'])
-            ->middleware('permission:pagos.crear');
+            ->middleware('permission:pagos.enlaces-pago.crear');
 
         Route::get('/{enlacePago}', [EnlacePagoController::class, 'show'])
             ->middleware('permission:pagos.consultar');
 
-        Route::match(['PUT', 'POST'], '/{enlacePago}', [EnlacePagoController::class, 'update'])
-            ->middleware('permission:pagos.modificar');
+        Route::match(['PUT', 'PATCH', 'POST'], '/{enlacePago}/actualizar', [EnlacePagoController::class, 'update'])
+            ->middleware('permission:pagos.enlaces-pago.modificar');
 
         Route::match(['DELETE', 'POST'], '/{enlacePago}', [EnlacePagoController::class, 'destroy'])
-            ->middleware('permission:pagos.eliminar');
+            ->middleware('permission:pagos.enlaces-pago.eliminar');
 
         Route::post('/{enlacePago}/usar', [EnlacePagoController::class, 'usar'])
             ->middleware('permission:pagos.crear');

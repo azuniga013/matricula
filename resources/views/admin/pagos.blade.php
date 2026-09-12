@@ -108,7 +108,7 @@
                                     <td class="text-xs text-gray-500 truncate max-w-[240px]" x-text="p.link_pago_url || 'Pendiente de carga'"></td>
                                     <td class="text-right">
                                         <div class="flex items-center justify-end gap-1">
-                                            <button @click="abrirModalLinkPago(p)" class="btn btn-ghost btn-sm text-brand-600">Cargar enlace</button>
+                                            <button x-show="api.hasPermission('pagos.enlaces-pago.modificar')" @click="abrirModalLinkPago(p)" class="btn btn-ghost btn-sm text-brand-600">Cargar enlace</button>
                                             <button x-show="flujo.habilita_aprobacion_pago && api.hasPermission('pagos.aprobar') && p.estado === 'solicita_link'" @click="abrirRechazo(p)" class="btn btn-ghost btn-sm text-red-600">Rechazar</button>
                                             <button x-show="api.hasPermission('pagos.eliminar')" @click="eliminarPagoTotal(p)" class="btn btn-danger btn-sm">Eliminar</button>
                                         </div>
@@ -1327,7 +1327,7 @@ function pagos() {
             if (!payload.usos_maximos) payload.usos_maximos = null;
             try {
                 const { data } = this.editandoEnlace
-                    ? await window.axios.post(`/api/v1/enlaces-pago/${this.editandoEnlaceId}`, payload, h)
+                    ? await window.api.actualizar(`/api/v1/enlaces-pago/${this.editandoEnlaceId}/actualizar`, payload, h)
                     : await window.axios.post('/api/v1/enlaces-pago', payload, h);
                 if (data.resultado === 'A') {
                     this.showModalEnlace = false;
@@ -1343,7 +1343,7 @@ function pagos() {
             if (!confirm('¿Está seguro de eliminar este enlace de pago?')) return;
             const token = localStorage.getItem('auth_token');
             try {
-                const { data } = await window.axios.post(`/api/v1/enlaces-pago/${e.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/enlaces-pago/${e.id}/eliminar`, {}, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.toast('Enlace eliminado', 'success');
                     await this.loadEnlaces();

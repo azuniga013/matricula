@@ -92,7 +92,7 @@ return [
                 'pagos.obligaciones' => ['nombre' => 'Obligaciones', 'ruta' => '/pagos/obligaciones'],
                 'pagos.enlaces-pago' => ['nombre' => 'Enlaces de Pago', 'ruta' => '/pagos/enlaces-pago'],
             ],
-            'acciones' => ['consultar', 'crear', 'modificar', 'aprobar', 'anular'],
+            'acciones' => ['consultar', 'crear', 'modificar', 'eliminar', 'aprobar', 'anular'],
         ],
 
         'caja' => [

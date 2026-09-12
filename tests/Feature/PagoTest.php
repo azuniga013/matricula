@@ -29,6 +29,7 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VersionPlanEstudio;
 use App\Services\ResolverEnlacePagoDisponible;
+use App\Services\CachePermisosService;
 use App\Modules\Comun\ContextoUsuario;
 use App\Modules\Pagos\CasosUso\ActualizarLinkPago;
 use App\Modules\Pagos\CasosUso\AprobarPago;
@@ -175,12 +176,23 @@ class PagoTest extends TestCase
     {
         $modulo = Modulo::create(['codigo' => 'pagos', 'nombre' => 'Pagos', 'estado' => 'activo', 'orden' => 7]);
         $opcion = OpcionModulo::create(['modulo_id' => $modulo->id, 'codigo' => 'pagos.general', 'nombre' => 'General', 'estado' => 'activo']);
+        $opcionEnlaces = OpcionModulo::create(['modulo_id' => $modulo->id, 'codigo' => 'pagos.enlaces-pago', 'nombre' => 'Enlaces de Pago', 'estado' => 'activo']);
 
         foreach (['consultar', 'crear', 'modificar', 'eliminar', 'aprobar'] as $accion) {
             Permiso::create([
                 'opcion_modulo_id' => $opcion->id,
                 'codigo' => 'pagos.'.$accion,
                 'nombre' => ucfirst($accion),
+                'accion' => $accion,
+                'estado' => 'activo',
+            ]);
+        }
+
+        foreach (['consultar', 'crear', 'modificar', 'eliminar'] as $accion) {
+            Permiso::create([
+                'opcion_modulo_id' => $opcionEnlaces->id,
+                'codigo' => 'pagos.enlaces-pago.'.$accion,
+                'nombre' => 'Enlaces de Pago '.ucfirst($accion),
                 'accion' => $accion,
                 'estado' => 'activo',
             ]);
@@ -466,6 +478,33 @@ class PagoTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
             ->assertJsonCount(1, 'data');
+    }
+
+    public function test_actualizar_enlace_pago_requiere_y_acepta_permiso_especifico(): void
+    {
+        $enlace = EnlacePago::create([
+            'codigo' => 'LNK-EDIT', 'nombre' => 'Link original', 'monto' => 500.00,
+            'enlace_url' => 'https://pagos.ejemplo.com/original',
+            'metodo_pago_id' => $this->metodoLinkId,
+            'concepto_pago_id' => $this->conceptoMatId,
+            'usos_actuales' => 0, 'estado' => 'activo',
+            'creado_en' => now(), 'actualizado_en' => now(),
+        ]);
+        $rol = Rol::create(['codigo' => 'TEST_ENLACES', 'nombre' => 'Enlaces', 'estado' => 'activo']);
+        $permiso = Permiso::where('codigo', 'pagos.enlaces-pago.modificar')->firstOrFail();
+        $rol->permisos()->attach($permiso->id, ['estado' => 'activo']);
+        $usuario = User::factory()->create(['estado' => 'activo']);
+        $usuario->roles()->attach($rol->id, ['estado' => 'activo']);
+        app(CachePermisosService::class)->invalidarPermisos($usuario->id);
+        $token = $usuario->createToken('enlaces')->plainTextToken;
+
+        $respuesta = $this->postJson("/api/v1/enlaces-pago/{$enlace->id}/actualizar", [
+            'nombre' => 'Link actualizado',
+        ], ['Authorization' => "Bearer {$token}"]);
+        $respuesta
+            ->assertOk()
+            ->assertJsonPath('resultado', 'A')
+            ->assertJsonPath('data.nombre', 'Link actualizado');
     }
 
     public function test_eliminar_enlace_pago(): void
