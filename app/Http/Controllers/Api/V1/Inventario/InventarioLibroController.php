@@ -23,6 +23,7 @@ class InventarioLibroController extends Controller
             'sucursal_id' => 'nullable|exists:sucursales,id',
             'libro_id' => 'nullable|exists:libros,id',
             'stock_bajo' => 'nullable|boolean',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
         $query = InventarioLibro::with([
@@ -47,7 +48,10 @@ class InventarioLibroController extends Controller
             'resultado' => 'A',
             'codigo' => 0,
             'mensaje' => 'OK',
-            'data' => $query->orderBy('inventario_libros.sucursal_id')->orderBy('inventario_libros.existencia_actual')->get(),
+            'data' => $query
+                ->orderBy('inventario_libros.sucursal_id')
+                ->orderBy('inventario_libros.existencia_actual')
+                ->paginate($request->integer('per_page', 25)),
         ]);
     }
 

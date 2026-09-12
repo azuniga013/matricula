@@ -21,7 +21,7 @@
     <div class="border-b border-gray-200 mb-6">
         <nav class="flex space-x-1">
             <template x-for="t in [{id:'libros',label:'Catálogo de Libros'},{id:'stock',label:'Existencias'},{id:'kardex',label:'Kardex'}]" :key="t.id">
-                <button @click="activeTab = t.id; if(t.id==='kardex') selectKardex()" :class="activeTab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap py-3 px-4 border-b-2 text-sm font-medium" x-text="t.label"></button>
+                <button @click="activeTab = t.id; if(t.id === 'stock') selectStock(); if(t.id === 'kardex') selectKardex()" :class="activeTab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="whitespace-nowrap py-3 px-4 border-b-2 text-sm font-medium" x-text="t.label"></button>
             </template>
         </nav>
     </div>
@@ -77,21 +77,21 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="label">Sucursal</label>
-                        <select x-model="filtroStockSucursal" @change="loadStock()" class="input">
+                        <select x-model="filtroStockSucursal" @change="loadStock(1)" class="input">
                             <option value="">Todas</option>
                             <template x-for="s in sucursales" :key="s.id"><option :value="s.id" x-text="s.nombre"></option></template>
                         </select>
                     </div>
                     <div>
                         <label class="label">Libro</label>
-                        <select x-model="filtroStockLibro" @change="loadStock()" class="input">
+                        <select x-model="filtroStockLibro" @change="loadStock(1)" class="input">
                             <option value="">Todos</option>
                             <template x-for="l in libros" :key="l.id"><option :value="l.id" x-text="l.codigo + ' - ' + l.titulo"></option></template>
                         </select>
                     </div>
                     <div class="flex items-end">
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" x-model="filtroStockBajo" @change="loadStock()" class="rounded border-gray-300 text-brand-600">
+                            <input type="checkbox" x-model="filtroStockBajo" @change="loadStock(1)" class="rounded border-gray-300 text-brand-600">
                             <span class="text-sm text-gray-600">Solo stock bajo</span>
                         </label>
                     </div>
@@ -137,6 +137,13 @@
                             <template x-if="stock.length === 0"><tr><td colspan="6" class="text-center text-gray-400 py-8">Sin existencias registradas</td></tr></template>
                         </tbody>
                     </table>
+                </div>
+                <div class="card-body border-t border-gray-100 flex items-center justify-between" x-show="stockMeta.last_page > 1">
+                    <p class="text-xs text-gray-400">Página <span x-text="stockMeta.current_page"></span> de <span x-text="stockMeta.last_page"></span> · <span x-text="stockMeta.total"></span> existencias</p>
+                    <div class="flex gap-2">
+                        <button @click="cambiarPaginaStock(stockMeta.current_page - 1)" :disabled="stockMeta.current_page <= 1" class="btn btn-outline btn-sm">Anterior</button>
+                        <button @click="cambiarPaginaStock(stockMeta.current_page + 1)" :disabled="stockMeta.current_page >= stockMeta.last_page" class="btn btn-outline btn-sm">Siguiente</button>
+                    </div>
                 </div>
             </div>
         </template>
@@ -308,6 +315,7 @@ function inventario() {
         activeTab: 'libros',
         loadingLibros: true, loadingStock: true, loadingKardex: false,
         libros: [], stock: [], sucursales: [],
+        stockMeta: { current_page: 1, last_page: 1, total: 0 },
         buscarLibro: '',
         filtroStockSucursal: '', filtroStockLibro: '', filtroStockBajo: false,
         kardexInventarioId: '', kardexData: null, kardexFechaDesde: '',
@@ -351,17 +359,31 @@ function inventario() {
             finally { this.loadingLibros = false; }
         },
 
-        async loadStock() {
+        async loadStock(page = 1) {
             this.loadingStock = true;
             try {
-                let url = '/api/v1/inventario/stock?';
-                if (this.filtroStockSucursal) url += `sucursal_id=${this.filtroStockSucursal}&`;
-                if (this.filtroStockLibro) url += `libro_id=${this.filtroStockLibro}&`;
-                if (this.filtroStockBajo) url += `stock_bajo=1&`;
-                const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
-                this.stock = data.data || [];
+                const params = new URLSearchParams({ per_page: '25', page: String(page) });
+                if (this.filtroStockSucursal) params.set('sucursal_id', this.filtroStockSucursal);
+                if (this.filtroStockLibro) params.set('libro_id', this.filtroStockLibro);
+                if (this.filtroStockBajo) params.set('stock_bajo', '1');
+                const { data } = await window.axios.get(`/api/v1/inventario/stock?${params.toString()}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+                this.stock = data.data?.data || [];
+                this.stockMeta = {
+                    current_page: data.data?.current_page || 1,
+                    last_page: data.data?.last_page || 1,
+                    total: data.data?.total || 0,
+                };
             } catch(e) { console.error(e); }
             finally { this.loadingStock = false; }
+        },
+
+        selectStock() {
+            if (this.stock.length === 0 && this.stockMeta.total === 0) this.loadStock();
+        },
+
+        cambiarPaginaStock(page) {
+            if (page < 1 || page > this.stockMeta.last_page) return;
+            this.loadStock(page);
         },
 
         async loadKardex() {

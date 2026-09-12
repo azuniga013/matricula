@@ -174,19 +174,24 @@ class InventarioLibroTest extends TestCase
             ->assertJsonPath('resultado', 'R');
     }
 
-    public function test_listar_stock(): void
+    public function test_listar_stock_paginado(): void
     {
-        $libro = Libro::create(['codigo' => 'LIB-001', 'titulo' => 'Book', 'precio_venta' => 100, 'creado_en' => now()]);
-        InventarioLibro::create([
-            'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
-            'existencia_actual' => 10, 'creado_en' => now(),
-        ]);
+        foreach (range(1, 3) as $numero) {
+            $libro = Libro::create(['codigo' => "LIB-00{$numero}", 'titulo' => "Book {$numero}", 'precio_venta' => 100, 'creado_en' => now()]);
+            InventarioLibro::create([
+                'libro_id' => $libro->id, 'sucursal_id' => $this->sucursal->id,
+                'existencia_actual' => $numero, 'creado_en' => now(),
+            ]);
+        }
 
-        $response = $this->getJson('/api/v1/inventario/stock', $this->headers());
+        $response = $this->getJson('/api/v1/inventario/stock?per_page=2&page=2', $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A')
-            ->assertJsonCount(1, 'data');
+            ->assertJsonPath('data.current_page', 2)
+            ->assertJsonPath('data.last_page', 2)
+            ->assertJsonPath('data.total', 3)
+            ->assertJsonCount(1, 'data.data');
     }
 
     public function test_ajustar_stock_entrada(): void

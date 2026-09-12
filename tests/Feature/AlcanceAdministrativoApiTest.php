@@ -487,8 +487,8 @@ class AlcanceAdministrativoApiTest extends TestCase
     {
         $this->getJson('/api/v1/inventario/stock', $this->headersSucursalA())
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $this->inventarioAId);
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.id', $this->inventarioAId);
 
         $this->getJson('/api/v1/inventario/stock/'.$this->inventarioBId, $this->headersSucursalA())
             ->assertStatus(404);

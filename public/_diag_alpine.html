@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Diag Alpine - Preseleccion Asistencias</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js" defer></script>
+</head>
+<body>
+    <div x-data="asistencias()" x-init="init()">
+        <select x-model="filtros.periodo" @change="onFiltroPeriodo()" id="sel-periodo">
+            <option value="">Todos los periodos</option>
+            <template x-for="p in periodos" :key="p.id">
+                <option :value="p.id" x-text="p.codigo + ' - ' + p.nombre" :selected="p.estado === 'activo' && !filtros.periodo"></option>
+            </template>
+        </select>
+
+        <div id="diag-data" x-text="'filtros.periodo=[' + filtros.periodo + '] periodos=' + periodos.length + ' ofertas=' + ofertas.length"></div>
+        <div id="diag-error" x-text="'error=' + errorCarga"></div>
+        <div id="diag-api" x-text="'periodosRaw=' + JSON.stringify(periodos.map(p => ({id: p.id, estado: p.estado})))"></div>
+    </div>
+
+    <script>
+        function asistencias() {
+            return {
+                periodos: [], sucursales: [], niveles: [], ofertas: [],
+                filtros: { periodo: '', sucursal: '', nivel: '' },
+                errorCarga: '',
+
+                async init() {
+                    await this.cargarCatalogos();
+                    this.preseleccionarPeriodo();
+                    await this.cargarOfertas();
+                },
+
+                async cargarCatalogos() {
+                    // Datos reales devueltos por GET /api/v1/catalogos-academicos/periodos-academicos
+                    // (verificado contra la base en uso). Sin red: prueba determinista de Alpine.
+                    const data = {
+                        resultado: 'A', codigo: 0, mensaje: 'OK',
+                        data: [
+                            { id: 2, codigo: '2026-2', nombre: 'Segundo Periodo', estado: 'activo' },
+                            { id: 1, codigo: '2026-I', nombre: 'Primer Semestre 2026', estado: 'cerrado' },
+                        ],
+                    };
+                    await new Promise(r => setTimeout(r, 30));
+                    this.periodos = data.data?.data || data.data || [];
+                    this.sucursales = []; this.niveles = [];
+                },
+
+                preseleccionarPeriodo() {
+                    const activo = this.periodos.find(p => p.estado === 'activo');
+                    if (activo) this.filtros.periodo = activo.id;
+                },
+
+                async cargarOfertas() {
+                    await new Promise(r => setTimeout(r, 30));
+                    this.ofertas = [];
+                },
+
+                onFiltroPeriodo() { this.cargarOfertas(); },
+            };
+        }
+    </script>
+</body>
+</html>
