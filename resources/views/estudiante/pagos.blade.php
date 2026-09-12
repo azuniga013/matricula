@@ -248,6 +248,10 @@
                     <button @click="showModal = false" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
                 </div>
 
+                <div x-show="nuevoPagoGuiado" class="mb-4 rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">
+                    <span class="font-semibold">Siguiente paso:</span> seleccione el método de pago para confirmar su matrícula. Puede volver a usar “Nuevo Pago” cuando tenga otras obligaciones pendientes.
+                </div>
+
                 <template x-if="modalLoading">
                     <div class="flex justify-center py-8"><div class="animate-spin rounded-full h-6 w-6 border-2 border-brand-500/20 border-t-brand-500"></div></div>
                 </template>
@@ -483,7 +487,7 @@ function pagosView() {
         flujoPagoSeleccionado: null,
         flujoComprobante: null,
 
-        showModal: false, modalLoading: false, triggerElement: null,
+        showModal: false, modalLoading: false, triggerElement: null, nuevoPagoGuiado: false,
         matriculasPendientes: [], metodosPago: [], cuentasBancarias: [], enlacesDisponibles: [],
         selectedObligaciones: {},
         form: { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null },
@@ -729,12 +733,19 @@ function pagosView() {
                 if (e.response?.status === 401) window.location.href = '/estudiante/login';
             }
             finally { this.loading = false; }
+            const parametros = new URLSearchParams(window.location.search);
+            if (parametros.get('nuevo_pago') === '1') {
+                const matriculaId = parametros.get('matricula_id');
+                window.history.replaceState({}, document.title, '/estudiante/pagos');
+                this.abrirNuevoPago(null, matriculaId, true);
+            }
             this.pollingInterval = setInterval(() => this.loadPagos(), 30000);
         },
 
-        async abrirNuevoPago(event) {
+        async abrirNuevoPago(event = null, matriculaPreseleccionadaId = null, nuevoPagoGuiado = false) {
             this.showModal = true;
             this.modalLoading = true;
+            this.nuevoPagoGuiado = nuevoPagoGuiado;
             this.modalError = ''; this.formArchivoError = '';
             this.form = { metodo_pago_id: '', cuenta_bancaria_id: '', referencia: '', fecha_pago: '', archivo: null };
             this.selectedObligaciones = {};
@@ -764,9 +775,11 @@ function pagosView() {
                     this.matriculasPendientes = data.matriculas_pendientes || [];
                     if (this.matriculasPendientes.length > 0) {
                         this.tienePendientes = true;
-                        this.matriculaSeleccionadaId = this.matriculasPendientes[0].id;
-                        this.seleccionarTodas(this.matriculasPendientes[0]);
-                        this.aplicarSeleccionObligacionesPorFlujo(this.matriculasPendientes[0]);
+                        const matriculaPreseleccionada = this.matriculasPendientes.find(m => String(m.id) === String(matriculaPreseleccionadaId));
+                        const matriculaInicial = matriculaPreseleccionada || this.matriculasPendientes[0];
+                        this.matriculaSeleccionadaId = matriculaInicial.id;
+                        this.seleccionarTodas(matriculaInicial);
+                        this.aplicarSeleccionObligacionesPorFlujo(matriculaInicial);
                     }
                 }
             } catch(e) {

@@ -325,6 +325,7 @@ class PortalEstudianteController extends Controller
             'codigo' => 0,
             'mensaje' => 'Matrícula reservada exitosamente. Realice su pago para confirmar.',
             'data' => [
+                'matricula_id' => $matriculaResultado->id,
                 'matricula_codigo' => $matriculaResultado->codigo,
                 'estado' => $matriculaResultado->estado,
                 'obligaciones_total' => $matriculaResultado->obligaciones()->sum('monto'),

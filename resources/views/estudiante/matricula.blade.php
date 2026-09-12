@@ -211,7 +211,10 @@ function matricula() {
             try {
                 const token = localStorage.getItem('estudiante_token');
                 const { data } = await window.axios.post('/api/v1/estudiantes/reservar-matricula', { oferta_academica_id: this.selected.id, plan_estudio_id: this.planSeleccionadoId }, { headers: { Authorization: `Bearer ${token}` } });
-                if (data.resultado === 'A') { this.resultado = { codigo: data.data.matricula_codigo, estado_matricula: data.data.estado_matricula || data.data.estado, estado_pago: data.data.estado_pago || data.data.estado, obligaciones_total: data.data.obligaciones_total, obligaciones_cantidad: data.data.obligaciones_cantidad }; }
+                if (data.resultado === 'A') {
+                    const matriculaId = data.data.matricula_id;
+                    window.location.href = `/estudiante/pagos?nuevo_pago=1&matricula_id=${encodeURIComponent(matriculaId)}`;
+                }
                 else { this.error = data.mensaje; }
             } catch(e) {
                 const body = e.response?.data;

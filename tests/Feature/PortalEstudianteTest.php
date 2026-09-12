@@ -265,7 +265,7 @@ class PortalEstudianteTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('resultado', 'A')
-            ->assertJsonStructure(['data' => ['matricula_codigo']]);
+            ->assertJsonStructure(['data' => ['matricula_id', 'matricula_codigo']]);
 
         $this->assertDatabaseHas('matriculas', [
             'estudiante_id' => $this->estudiante->id,
