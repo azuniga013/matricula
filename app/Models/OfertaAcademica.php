@@ -29,6 +29,7 @@ class OfertaAcademica extends Model
         'whatsapp_link_periodo',
         'whatsapp_grupo_nombre',
         'plan_cobro_id',
+        'tipo_oferta',
         'observaciones',
         'codigo',
         'creado_por',
@@ -121,6 +122,11 @@ class OfertaAcademica extends Model
         return $this->estado === 'abierto' && $this->tieneCupo();
     }
 
+    public function esNivelacion(): bool
+    {
+        return $this->tipo_oferta === 'nivelacion';
+    }
+
     public function scopeActivos($query)
     {
         return $query->where('ofertas_academicas.estado', '!=', 'cancelado');
@@ -154,5 +160,10 @@ class OfertaAcademica extends Model
     public function scopePorDocente($query, int $docenteId)
     {
         return $query->where('ofertas_academicas.docente_id', $docenteId);
+    }
+
+    public function scopePorTipo($query, string $tipoOferta)
+    {
+        return $query->where('ofertas_academicas.tipo_oferta', $tipoOferta);
     }
 }

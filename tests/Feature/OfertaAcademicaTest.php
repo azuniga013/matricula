@@ -99,6 +99,7 @@ class OfertaAcademicaTest extends TestCase
             'nombre' => 'Presencial',
             'tipo' => 'atencion',
         ]);
+        $this->sucursal->modalidadesAtencion()->attach($this->modalidad->id);
 
         $this->horario = Horario::create([
             'codigo' => 'M1',
@@ -168,9 +169,41 @@ class OfertaAcademicaTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('resultado', 'A')
             ->assertJsonPath('data.estado', 'borrador')
+            ->assertJsonPath('data.tipo_oferta', 'regular')
             ->assertJsonPath('data.cupo_maximo', 25);
 
         $this->assertDatabaseHas('ofertas_academicas', ['codigo' => 'SPS-2026I-ING1-INT-MAT']);
+    }
+
+    public function test_crear_y_filtrar_oferta_de_nivelacion(): void
+    {
+        $this->postJson('/api/v1/ofertas/academicas', $this->ofertaData([
+            'codigo' => 'SPS-2026I-EXAMEN-NIV-001',
+            'tipo_oferta' => 'nivelacion',
+        ]), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.tipo_oferta', 'nivelacion');
+
+        $this->getJson('/api/v1/ofertas/academicas?tipo_oferta=nivelacion', $this->headers())
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.data.0.codigo', 'SPS-2026I-EXAMEN-NIV-001');
+
+        $this->assertDatabaseHas('ofertas_academicas', [
+            'codigo' => 'SPS-2026I-EXAMEN-NIV-001',
+            'tipo_oferta' => 'nivelacion',
+        ]);
+    }
+
+    public function test_rechaza_tipo_de_oferta_invalido(): void
+    {
+        $this->postJson('/api/v1/ofertas/academicas', $this->ofertaData([
+            'codigo' => 'SPS-2026I-TIPO-INVALIDO',
+            'tipo_oferta' => 'otro',
+        ]), $this->headers())
+            ->assertStatus(422);
+
+        $this->assertDatabaseMissing('ofertas_academicas', ['codigo' => 'SPS-2026I-TIPO-INVALIDO']);
     }
 
     public function test_crear_oferta_academica_requiere_plan_cobro(): void
@@ -403,7 +436,10 @@ class OfertaAcademicaTest extends TestCase
         $r1->assertCreated();
         $c1 = $r1->json('data.codigo');
 
-        $r2 = $this->postJson('/api/v1/ofertas/academicas', $data, $this->headers());
+        $otroDocente = Docente::factory()->create(['codigo' => 'DOC002']);
+        $r2 = $this->postJson('/api/v1/ofertas/academicas', array_merge($data, [
+            'docente_id' => $otroDocente->id,
+        ]), $this->headers());
         $r2->assertCreated();
         $c2 = $r2->json('data.codigo');
 

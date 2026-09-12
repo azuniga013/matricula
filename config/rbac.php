@@ -118,6 +118,15 @@ return [
             'acciones' => ['consultar', 'crear', 'modificar', 'aprobar'],
         ],
 
+        'nivelaciones' => [
+            'nombre' => 'Nivelaciones',
+            'orden' => 8,
+            'opciones' => [
+                'nivelaciones.gestion' => ['nombre' => 'Gestión de Nivelaciones', 'ruta' => '/nivelaciones'],
+            ],
+            'acciones' => ['consultar', 'crear', 'anular', 'exportar'],
+        ],
+
         'asistencias' => [
             'nombre' => 'Asistencias',
             'orden' => 6,

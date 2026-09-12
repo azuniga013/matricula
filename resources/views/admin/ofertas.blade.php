@@ -69,6 +69,14 @@
                         <option value="cancelado">Cancelado</option>
                     </select>
                 </div>
+                <div>
+                    <label class="label">Tipo</label>
+                    <select x-model="filtro.tipo_oferta" @change="loadOfertas()" class="input">
+                        <option value="">Todos</option>
+                        <option value="regular">Regular</option>
+                        <option value="nivelacion">Examen de nivelación</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -87,6 +95,7 @@
                         <tr>
                             <th>Código</th>
                             <th>Nivel</th>
+                            <th>Tipo</th>
                             <th>Versión</th>
                             <th>Modalidad</th>
                             <th>Horario</th>
@@ -100,7 +109,8 @@
                         <template x-for="o in ofertas" :key="o.id">
                             <tr>
                                 <td class="font-mono text-xs font-semibold text-brand-600" x-text="o.codigo"></td>
-                                <td class="font-medium" x-text="o.nivel_academico?.nombre || '-'"></td>
+                                 <td class="font-medium" x-text="o.nivel_academico?.nombre || '-'"></td>
+                                 <td><span class="badge" :class="o.tipo_oferta === 'nivelacion' ? 'badge-warning' : 'badge-info'" x-text="o.tipo_oferta === 'nivelacion' ? 'Nivelación' : 'Regular'"></span></td>
                                 <td class="text-xs text-gray-500" x-text="o.nivel_academico?.version_plan_estudio?.plan_estudio?.nombre ? (o.nivel_academico.version_plan_estudio.plan_estudio.nombre + ' · V' + o.nivel_academico.version_plan_estudio.numero_version) : '-'"></td>
                                 <td><span class="badge badge-info" x-text="o.modalidad?.nombre || '-'"></span></td>
                                 <td x-text="o.horario?.nombre || '-'"></td>
@@ -220,6 +230,14 @@
                         </select>
                     </div>
                     <div>
+                        <label class="label">Tipo de Oferta</label>
+                        <select x-model="form.tipo_oferta" class="input">
+                            <option value="regular">Regular</option>
+                            <option value="nivelacion">Examen de nivelación</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">La oferta de nivelación conserva cupo, horario y el cobro PEX; no representa un curso regular.</p>
+                    </div>
+                    <div>
                         <label class="label">Nombre del Grupo WhatsApp</label>
                         <input x-model="form.whatsapp_grupo_nombre" type="text" class="input" placeholder="Ej. Inglés 1 Intensivo Matutino SPS">
                         <p class="mt-1 text-xs text-gray-500">El link vigente del período se administra desde <a href="/admin/mis-grupos" class="text-brand-600 hover:text-brand-700">Mis Horarios</a>.</p>
@@ -270,7 +288,7 @@ function ofertas() {
     return {
         loading: true, showModal: false, editing: false, saving: false, error: '',
         ofertas: [], periodos: [], sucursales: [], niveles: [], versiones: [], modalidades: [], horarios: [], docentes: [], aulas: [], planesCobro: [],
-        filtro: { periodo: '', sucursal: '', version_plan_estudio_id: '', nivel_academico_id: '', estado: '' },
+        filtro: { periodo: '', sucursal: '', version_plan_estudio_id: '', nivel_academico_id: '', estado: '', tipo_oferta: '' },
         form: {}, editId: null, auditoriaOferta: [],
 
         get nivelesFiltrados() {
@@ -352,7 +370,8 @@ function ofertas() {
                 if (this.filtro.sucursal) url += `sucursal_id=${this.filtro.sucursal}&`;
                 if (this.filtro.version_plan_estudio_id) url += `version_plan_estudio_id=${this.filtro.version_plan_estudio_id}&`;
                 if (this.filtro.nivel_academico_id) url += `nivel_academico_id=${this.filtro.nivel_academico_id}&`;
-                if (this.filtro.estado) url += `estado=${this.filtro.estado}&`;
+                 if (this.filtro.estado) url += `estado=${this.filtro.estado}&`;
+                 if (this.filtro.tipo_oferta) url += `tipo_oferta=${this.filtro.tipo_oferta}&`;
                 const { data } = await window.axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.ofertas = data.data.data || data.data || [];
@@ -363,7 +382,7 @@ function ofertas() {
         async openModal() {
             this.editing = false; this.editId = null; this.error = '';
             this.auditoriaOferta = [];
-            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', whatsapp_grupo_nombre: '', cupo_maximo: 25, estado: 'borrador' };
+            this.form = { codigo: '', sucursal_id: '', periodo_academico_id: '', version_plan_estudio_id: '', nivel_academico_id: '', modalidad_id: '', horario_id: '', docente_id: '', aula_id: '', plan_cobro_id: '', tipo_oferta: 'regular', whatsapp_grupo_nombre: '', cupo_maximo: 25, estado: 'borrador' };
             this.showModal = false;
             await this.$nextTick();
             this.showModal = true;
@@ -375,7 +394,7 @@ function ofertas() {
                 codigo: o.codigo, sucursal_id: o.sucursal_id, periodo_academico_id: o.periodo_academico_id,
                 version_plan_estudio_id: o.nivel_academico?.version_plan_estudio_id || '',
                 nivel_academico_id: o.nivel_academico_id, modalidad_id: o.modalidad_id, horario_id: o.horario_id,
-                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', whatsapp_grupo_nombre: o.whatsapp_grupo_nombre || o.grupo_whatsapp?.nombre || '',
+                docente_id: o.docente_id, aula_id: o.aula_id, cupo_maximo: o.cupo_maximo, plan_cobro_id: o.plan_cobro_id || '', tipo_oferta: o.tipo_oferta || 'regular', whatsapp_grupo_nombre: o.whatsapp_grupo_nombre || o.grupo_whatsapp?.nombre || '',
                 estado: o.estado,
             };
             this.showModal = false;

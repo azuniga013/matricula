@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Matricula extends Model
 {
@@ -53,6 +54,11 @@ class Matricula extends Model
     public function gestiones(): HasMany
     {
         return $this->hasMany(GestionMatricula::class, 'matricula_id');
+    }
+
+    public function evaluacionNivelacion(): HasOne
+    {
+        return $this->hasOne(EvaluacionNivelacion::class, 'matricula_examen_id');
     }
 
     public function scopeActivas($query)

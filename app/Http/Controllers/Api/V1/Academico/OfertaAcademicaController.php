@@ -59,6 +59,10 @@ class OfertaAcademicaController extends Controller
             $query->where('ofertas_academicas.estado', $request->estado);
         }
 
+        if ($request->filled('tipo_oferta')) {
+            $query->porTipo($request->tipo_oferta);
+        }
+
         $perPage = min((int) $request->get('per_page', 25), 500);
         $ofertas = $query->orderByDesc('ofertas_academicas.creado_en')->paginate($perPage);
 
@@ -81,6 +85,7 @@ class OfertaAcademicaController extends Controller
             'docente_id' => 'required|exists:docentes,id',
             'aula_id' => 'required|exists:aulas,id',
             'plan_cobro_id' => 'required|exists:planes_cobro,id',
+            'tipo_oferta' => 'sometimes|in:regular,nivelacion',
             'cupo_maximo' => 'nullable|integer|min:1',
             'acepta_cambios_horario' => 'nullable|boolean',
             'whatsapp_grupo_nombre' => 'nullable|string|max:150',
@@ -114,6 +119,7 @@ class OfertaAcademicaController extends Controller
         $datos['creado_en'] = now();
         $datos['actualizado_en'] = now();
         $datos['cupo_maximo'] = $datos['cupo_maximo'] ?? 25;
+        $datos['tipo_oferta'] = $datos['tipo_oferta'] ?? 'regular';
         $datos['estado'] = 'borrador';
 
         $oferta = OfertaAcademica::create($datos);
@@ -163,6 +169,7 @@ class OfertaAcademicaController extends Controller
             'aula_id' => 'sometimes|required|exists:aulas,id',
             'observaciones' => 'nullable|string',
             'plan_cobro_id' => 'sometimes|required|exists:planes_cobro,id',
+            'tipo_oferta' => 'sometimes|in:regular,nivelacion',
             'acepta_cambios_horario' => 'nullable|boolean',
             'whatsapp_grupo_nombre' => 'nullable|string|max:150',
             'cupo_maximo' => 'nullable|integer|min:1',

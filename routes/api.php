@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Academico\HorarioController;
 use App\Http\Controllers\Api\V1\Academico\ModalidadController;
 use App\Http\Controllers\Api\V1\Academico\MonitorCuposController;
 use App\Http\Controllers\Api\V1\Academico\NivelAcademicoController;
+use App\Http\Controllers\Api\V1\Academico\NivelacionController;
 use App\Http\Controllers\Api\V1\Academico\OfertaAcademicaController;
 use App\Http\Controllers\Api\V1\Academico\PeriodoAcademicoController;
 use App\Http\Controllers\Api\V1\Academico\PlanCobroController;
@@ -515,6 +516,12 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
 
         Route::match(['PUT', 'POST'], '/{id}', [CalificacionController::class, 'actualizar'])
             ->middleware('permission:calificaciones.modificar');
+    });
+
+    Route::prefix('nivelaciones')->group(function () {
+        Route::get('/', [NivelacionController::class, 'index'])->middleware('permission:nivelaciones.consultar');
+        Route::get('/pendientes', [NivelacionController::class, 'pendientes'])->middleware('permission:nivelaciones.consultar');
+        Route::post('/registrar', [NivelacionController::class, 'registrar'])->middleware('permission:nivelaciones.crear');
     });
 
     Route::prefix('historial-academico')->group(function () {
