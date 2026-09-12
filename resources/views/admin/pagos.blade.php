@@ -1343,7 +1343,7 @@ function pagos() {
             if (!confirm('¿Está seguro de eliminar este enlace de pago?')) return;
             const token = localStorage.getItem('auth_token');
             try {
-                const { data } = await window.axios.post(`/api/v1/enlaces-pago/${e.id}/eliminar`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/enlaces-pago/${e.id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') {
                     this.toast('Enlace eliminado', 'success');
                     await this.loadEnlaces();

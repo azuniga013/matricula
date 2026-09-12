@@ -524,7 +524,7 @@ class PagoTest extends TestCase
             'creado_en' => now(), 'actualizado_en' => now(),
         ]);
 
-        $response = $this->deleteJson("/api/v1/enlaces-pago/{$enlace->id}", [], $this->headers());
+        $response = $this->postJson("/api/v1/enlaces-pago/{$enlace->id}", [], $this->headers());
 
         $response->assertOk()
             ->assertJsonPath('resultado', 'A');
