@@ -1170,12 +1170,16 @@ function seguridad() {
             return c ? `${c.codigo} · ${c.nombre}` : `Concepto #${id}`;
         },
 
-        async desactivarFlujo(c) { const token = localStorage.getItem('auth_token'); await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}`, { headers: { Authorization: `Bearer ${token}` } }); await this.init(); },
+        async desactivarFlujo(c) {
+            const token = localStorage.getItem('auth_token');
+            await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            await this.init();
+        },
         async eliminarFlujo(c) {
             if (!confirm(`¿Eliminar permanentemente "${c.codigo}"? Esta acción no se puede deshacer.`)) return;
             const token = localStorage.getItem('auth_token');
             try {
-                const { data } = await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}/forzar`, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await window.axios.post(`/api/v1/seguridad/configuraciones-flujo-matricula/${c.id}/forzar`, {}, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado !== 'A') { alert(data.mensaje || 'Error al eliminar'); return; }
                 await this.init();
             } catch(e) { alert(window.extractError(e, 'Error al eliminar la configuración')); }
@@ -1190,7 +1194,7 @@ function seguridad() {
                     this.flujoCrudError = 'Código, al menos un método y un concepto son obligatorios';
                     return;
                 }
-                const url = this.editingFlujoCrud ? `/api/v1/seguridad/configuraciones-flujo-matricula/${Number(this.editFlujoId)}` : '/api/v1/seguridad/configuraciones-flujo-matricula';
+                const url = this.editingFlujoCrud ? `/api/v1/seguridad/configuraciones-flujo-matricula/${Number(this.editFlujoId)}/actualizar` : '/api/v1/seguridad/configuraciones-flujo-matricula';
                 const payload = { ...this.flujoCrudForm, estado: this.flujoCrudForm.estado || 'activo', metodo_pago_id: this.flujoCrudForm.metodo_pago_ids[0] || null, metodo_pago_ids: this.flujoCrudForm.metodo_pago_ids.map(v => Number(v)), origen: 'tecnico', concepto_pago_ids: this.flujoCrudForm.concepto_pago_ids.map(v => Number(v)) };
                 const { data } = await window.api.actualizar(url, payload, { headers: { Authorization: `Bearer ${token}` } });
                 if (data.resultado === 'A') { this.showFlujoCrudModal = false; await this.init(); }

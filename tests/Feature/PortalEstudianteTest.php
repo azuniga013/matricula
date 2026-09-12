@@ -162,12 +162,22 @@ class PortalEstudianteTest extends TestCase
         ]);
 
         MetodoPago::create(['codigo' => 'DEP', 'nombre' => 'Depósito', 'estado' => 'activo']);
-        MetodoPago::create(['codigo' => 'LNK', 'nombre' => 'Link de pago', 'estado' => 'activo']);
+        MetodoPago::create(['codigo' => 'LNK', 'nombre' => 'Link de pago', 'estado' => 'activo', 'permite_link_pago' => true]);
     }
 
     private function studentHeaders(): array
     {
         return ['Authorization' => "Bearer {$this->token}"];
+    }
+
+    public function test_catalogo_del_portal_expone_si_el_metodo_permite_link_de_pago(): void
+    {
+        $this->getJson('/api/v1/estudiantes/metodos-pago')
+            ->assertOk()
+            ->assertJsonFragment([
+                'codigo' => 'LNK',
+                'permite_link_pago' => true,
+            ]);
     }
 
     public function test_portal_sin_autenticacion(): void

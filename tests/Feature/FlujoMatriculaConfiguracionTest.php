@@ -333,6 +333,66 @@ class FlujoMatriculaConfiguracionTest extends TestCase
         $this->assertSame('tecnico', $fallback['origen']);
     }
 
+    public function test_actualizar_por_post_activa_el_flujo_sin_colisionar_con_desactivacion(): void
+    {
+        $configuracion = $this->crearConfiguracion([
+            'codigo' => 'CFG-INACTIVA',
+            'origen' => 'tecnico',
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'estado' => 'inactivo',
+        ]);
+
+        $this->postJson("/api/v1/seguridad/configuraciones-flujo-matricula/{$configuracion->id}/actualizar", [
+            'codigo' => $configuracion->codigo,
+            'origen' => $configuracion->origen,
+            'metodo_pago_id' => $this->metodoEfeId,
+            'metodo_pago_ids' => [$this->metodoEfeId],
+            'concepto_pago_ids' => [$this->conceptoMatId],
+            'estado' => 'activo',
+            'habilita_reserva_cupo' => true,
+            'habilita_carga_comprobante' => true,
+            'requiere_comprobante' => true,
+            'habilita_revision_contable' => true,
+            'habilita_aprobacion_pago' => true,
+            'habilita_generacion_recibo' => true,
+            'habilita_confirmacion_matricula' => true,
+            'habilita_seleccion_obligaciones' => true,
+            'habilita_whatsapp' => true,
+            'habilita_reenganche' => true,
+            'habilita_solicitud_link' => true,
+        ], $this->adminHeaders())
+            ->assertOk()
+            ->assertJsonPath('resultado', 'A');
+
+        $this->assertDatabaseHas('configuraciones_flujo_matricula', [
+            'id' => $configuracion->id,
+            'estado' => 'activo',
+        ]);
+    }
+
+    public function test_portal_recibe_el_flujo_exacto_para_el_metodo_y_obligacion_seleccionados(): void
+    {
+        $this->crearConfiguracion([
+            'origen' => 'portal_estudiante',
+            'concepto_pago_id' => $this->conceptoMatId,
+            'metodo_pago_id' => $this->metodoLinkId,
+            'habilita_carga_comprobante' => false,
+            'requiere_comprobante' => false,
+            'habilita_solicitud_link' => true,
+        ]);
+        $matricula = $this->reservarMatricula();
+        $obligacionId = $matricula->obligaciones()
+            ->where('concepto_pago_id', $this->conceptoMatId)
+            ->value('id');
+
+        $this->getJson('/api/v1/estudiantes/configuracion-flujo-pago?matricula_id='.$matricula->id.'&metodo_pago_id='.$this->metodoLinkId.'&obligacion_ids[]='.$obligacionId, $this->studentHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.habilita_carga_comprobante', false)
+            ->assertJsonPath('data.requiere_comprobante', false)
+            ->assertJsonPath('data.habilita_solicitud_link', true);
+    }
+
     public function test_crear_y_desactivar_configuracion_conserva_asociaciones_y_el_resolutor_la_ignora(): void
     {
         $response = $this->postJson('/api/v1/seguridad/configuraciones-flujo-matricula', [

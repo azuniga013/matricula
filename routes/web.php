@@ -46,7 +46,7 @@ Route::get('/estudiante', fn () => view('estudiante.dashboard', ['currentSection
 Route::get('/estudiante/historial', fn () => view('estudiante.historial', ['currentSection' => 'historial']))->name('estudiante.historial');
 Route::get('/estudiante/certificados', fn () => view('estudiante.certificados', ['currentSection' => 'certificados']))->name('estudiante.certificados');
 Route::get('/estudiante/matricula', fn () => view('estudiante.matricula', ['currentSection' => 'matricula']))->name('estudiante.matricula');
-Route::get('/estudiante/comprobante', fn () => view('estudiante.comprobante', ['currentSection' => 'pagos']))->name('estudiante.comprobante');
+Route::redirect('/estudiante/comprobante', '/estudiante/pagos')->name('estudiante.comprobante');
 Route::get('/estudiante/pagos', fn () => view('estudiante.pagos', ['currentSection' => 'pagos']))->name('estudiante.pagos');
 Route::get('/estudiante/recibos', fn () => view('estudiante.recibos', ['currentSection' => 'recibos']))->name('estudiante.recibos');
 Route::get('/estudiante/pagos/paypal-retorno', fn () => view('estudiante.paypal-retorno', ['currentSection' => 'pagos']))->name('portal.pagos.paypal.retorno');

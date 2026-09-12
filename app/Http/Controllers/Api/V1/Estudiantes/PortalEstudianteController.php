@@ -450,7 +450,7 @@ class PortalEstudianteController extends Controller
             $obligacionesQuery = $matricula->obligaciones()->where('estado', 'pendiente');
         }
 
-        $obligaciones = $obligacionesQuery->get();
+        $obligaciones = $obligacionesQuery->orderBy('id')->get();
 
         if ($obligaciones->isEmpty()) {
             return response()->json([
@@ -587,6 +587,54 @@ class PortalEstudianteController extends Controller
         ], 201);
     }
 
+    /** Devuelve las reglas del flujo aplicables a la selección actual del estudiante. */
+    public function configuracionFlujoPago(Request $request): JsonResponse
+    {
+        $estudiante = $request->attributes->get('estudiante');
+        $datos = $request->validate([
+            'matricula_id' => 'required|exists:matriculas,id',
+            'metodo_pago_id' => 'required|exists:metodos_pago,id',
+            'obligacion_ids' => 'nullable|array',
+            'obligacion_ids.*' => 'integer|exists:obligaciones_pago_estudiante,id',
+        ]);
+
+        $matricula = Matricula::where('estudiante_id', $estudiante->id)->findOrFail($datos['matricula_id']);
+        $obligaciones = $matricula->obligaciones()
+            ->where('estado', 'pendiente')
+            ->when(! empty($datos['obligacion_ids']), fn ($query) => $query->whereIn('id', $datos['obligacion_ids']))
+            ->orderBy('id')
+            ->get();
+
+        if ($obligaciones->isEmpty()) {
+            return response()->json([
+                'resultado' => 'R',
+                'codigo' => 422,
+                'mensaje' => 'No hay obligaciones pendientes para resolver el flujo de pago.',
+            ], 422);
+        }
+
+        $configuracion = app(ResolutorFlujoMatricula::class)->resolver(
+            'portal_estudiante',
+            $obligaciones->first()->concepto_pago_id,
+            $datos['metodo_pago_id'],
+        );
+
+        return response()->json([
+            'resultado' => 'A',
+            'codigo' => 0,
+            'mensaje' => 'OK',
+            'data' => collect($configuracion)->only([
+                'habilita_reserva_cupo', 'habilita_carga_comprobante', 'requiere_comprobante',
+                'habilita_revision_contable', 'habilita_aprobacion_pago', 'habilita_generacion_recibo',
+                'habilita_confirmacion_matricula', 'habilita_seleccion_obligaciones', 'habilita_whatsapp',
+                'habilita_reenganche', 'habilita_solicitud_link',
+            ])->all() + [
+                'concepto_pago_id' => $obligaciones->first()->concepto_pago_id,
+                'metodo_pago_id' => (int) $datos['metodo_pago_id'],
+            ],
+        ]);
+    }
+
     public function subirComprobante(Request $request): JsonResponse
     {
         $estudiante = $request->attributes->get('estudiante');
@@ -707,7 +755,14 @@ class PortalEstudianteController extends Controller
             ->with(['conceptoPago', 'metodoPago', 'comprobantes', 'reciboCaja', 'matricula.ofertaAcademica.nivelAcademico'])
             ->latest('creado_en')
             ->get()
-            ->map(fn ($p) => [
+            ->map(function ($p) {
+                $configuracionFlujo = app(ResolutorFlujoMatricula::class)->resolver(
+                    'portal_estudiante',
+                    $p->concepto_pago_id,
+                    $p->metodo_pago_id,
+                );
+
+                return [
                 'id' => $p->id,
                 'estudiante_id' => $p->estudiante_id,
                 'codigo' => $p->codigo,
@@ -741,6 +796,13 @@ class PortalEstudianteController extends Controller
                 'numero_recibo' => $p->reciboCaja?->numero_recibo,
                 'fecha_recibo' => $p->reciboCaja?->fecha_recibo?->format('d/m/Y H:i'),
                 'tiene_comprobante' => $p->comprobantes->isNotEmpty(),
+                'configuracion_flujo' => collect($configuracionFlujo)->only([
+                    'habilita_carga_comprobante',
+                    'requiere_comprobante',
+                    'habilita_solicitud_link',
+                    'habilita_reenganche',
+                    'habilita_whatsapp',
+                ])->all(),
                 'comprobantes' => $p->comprobantes->map(fn ($c) => [
                     'id' => $c->id,
                     'nombre_archivo' => $c->nombre_archivo,
@@ -749,7 +811,8 @@ class PortalEstudianteController extends Controller
                     'fecha' => $c->creado_en?->format('d/m/Y H:i'),
                     'ruta_descarga' => $c->ruta_archivo ? Storage::url($c->ruta_archivo) : null,
                 ])->values(),
-            ]);
+                ];
+            });
 
         return response()->json([
             'resultado' => 'A',
@@ -973,6 +1036,15 @@ class PortalEstudianteController extends Controller
         ]);
 
         $pago = Pago::where('estudiante_id', $estudiante->id)->findOrFail($datos['pago_id']);
+
+        $configuracionFlujo = app(ResolutorFlujoMatricula::class)->resolver(
+            'portal_estudiante',
+            $pago->concepto_pago_id,
+            $pago->metodo_pago_id,
+        );
+        if (empty($configuracionFlujo['habilita_solicitud_link'])) {
+            return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'La confirmación de link está deshabilitada para este proceso.'], 422);
+        }
 
         if (! in_array($pago->estado, ['solicita_link', 'esperando_respuesta']) || empty($pago->link_pago_url)) {
             return response()->json(['resultado' => 'R', 'codigo' => 422, 'mensaje' => 'El enlace de pago todavía no está disponible o ya fue respondido'], 422);

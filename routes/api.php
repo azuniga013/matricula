@@ -80,7 +80,7 @@ Route::prefix('v1/estudiantes')->group(function () {
         'data' => MetodoPago::disponiblesPortal()
             ->with('proveedorPago:id,codigo,nombre')
             ->orderBy('nombre')
-            ->get(['id', 'codigo', 'nombre', 'proveedor_pago_id']),
+            ->get(['id', 'codigo', 'nombre', 'permite_link_pago', 'proveedor_pago_id']),
     ]));
 
     // Validación pública de certificados electrónicos (sin autenticación).
@@ -96,6 +96,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::post('/reservar-matricula', [PortalEstudianteController::class, 'reservarMatricula']);
     Route::get('/mis-matriculas', [PortalEstudianteController::class, 'misMatriculas']);
     Route::post('/registrar-pago', [PortalEstudianteController::class, 'registrarPago']);
+    Route::get('/configuracion-flujo-pago', [PortalEstudianteController::class, 'configuracionFlujoPago']);
     Route::get('/cuentas-bancarias', fn () => response()->json([
         'resultado' => 'A',
         'codigo' => 0,
@@ -151,7 +152,12 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
         Route::post('/configuraciones-flujo-matricula', [ConfiguracionFlujoMatriculaController::class, 'store'])
             ->middleware('permission:seguridad.flujos-matricula.crear');
 
-        Route::match(['PUT', 'PATCH', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
+        Route::match(['PUT', 'PATCH'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'update'])
+            ->middleware('permission:seguridad.flujos-matricula.modificar');
+
+        // IIS/SmarterASP puede bloquear PUT/PATCH. El POST de actualización debe
+        // tener una URL distinta para no colisionar con el POST de desactivación.
+        Route::post('/configuraciones-flujo-matricula/{configuracionFlujoMatricula}/actualizar', [ConfiguracionFlujoMatriculaController::class, 'update'])
             ->middleware('permission:seguridad.flujos-matricula.modificar');
 
         Route::match(['DELETE', 'POST'], '/configuraciones-flujo-matricula/{configuracionFlujoMatricula}', [ConfiguracionFlujoMatriculaController::class, 'destroy'])

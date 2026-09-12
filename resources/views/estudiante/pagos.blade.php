@@ -109,7 +109,7 @@
                                     </template>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
-                                    <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
+                                    <template x-if="flujoDePago(p).habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                         <button @click="confirmarLinkPago(p)" class="inline-flex items-center justify-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">Ya completé el pago</button>
                                     </template>
                                     <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
@@ -190,10 +190,10 @@
                                                         <p>Contabilidad ya publicó el enlace. Abra el link, complete el pago externo y confirme aquí.</p>
                                                     </div>
                                                 </template>
-                                                <template x-if="flujoPortal.habilita_carga_comprobante && (p.estado === 'pendiente' || p.estado === 'rechazado')">
+                                                <template x-if="flujoDePago(p).habilita_carga_comprobante && (p.estado === 'pendiente' || p.estado === 'rechazado')">
                                                     <button @click="subirComprobantePago(p)" class="text-xs text-brand-600 font-medium hover:text-brand-700">Subir comprobante</button>
                                                 </template>
-                                                <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
+                                                <template x-if="flujoDePago(p).habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                                     <div class="space-y-1">
                                                         <a :href="p.link_pago_url" target="_blank" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Abrir link</a>
                                                         <button @click="copiarLinkPago(p)" class="text-xs text-gray-600 font-medium hover:text-gray-800">Copiar link</button>
@@ -217,7 +217,7 @@
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap">
                                             <div class="flex items-center gap-3">
-                                                <template x-if="flujoPortal.habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
+                                                <template x-if="flujoDePago(p).habilita_solicitud_link && p.link_pago_url && p.estado === 'esperando_respuesta'">
                                                     <button @click="confirmarLinkPago(p)" class="text-xs text-brand-600 font-medium hover:text-brand-700">Ya completé el pago</button>
                                                 </template>
                                                 <template x-if="p.estado === 'rechazado' && p.motivo_rechazo">
@@ -345,14 +345,14 @@
                                  </div>
                              </template>
 
-                            <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id)">
+                             <template x-if="!esMetodoTarjeta(form.metodo_pago_id) && !esMetodoLink(form.metodo_pago_id) && flujoActual().habilita_carga_comprobante">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Comprobante
-                                        <span x-text="flujoPortal.requiere_comprobante ? ' *' : ' (opcional)'"></span>
+                                        <span x-text="flujoActual().requiere_comprobante ? ' *' : ' (opcional)'"></span>
                                     </label>
                                     <input type="file" accept=".jpg,.jpeg,.png,.pdf" @change="handleFileChange($event)" class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
-                                    <p x-show="flujoPortal.requiere_comprobante" class="text-xs text-red-500 mt-1">Este campo es obligatorio</p>
+                                    <p x-show="flujoActual().requiere_comprobante" class="text-xs text-red-500 mt-1">Este campo es obligatorio</p>
                                     <p x-show="formArchivoError" class="text-xs text-red-500 mt-1" x-text="formArchivoError"></p>
                                     <p x-show="form.archivo && !formArchivoError" class="text-xs text-green-600 mt-1">
                                         <span x-text="form.archivo.name + ' (' + (form.archivo.size / 1024 / 1024).toFixed(1) + ' MB)'"></span>
@@ -479,7 +479,9 @@ function pagosView() {
     return {
         puedeEliminarPagos: {{ app()->environment('production') ? 'false' : 'true' }},
         loading: true, pagos: [], tienePendientes: false,
-        flujoPortal: { habilita_carga_comprobante: true, requiere_comprobante: true, habilita_solicitud_link: true },
+        flujoPortal: { habilita_carga_comprobante: true, requiere_comprobante: true, habilita_solicitud_link: true, habilita_seleccion_obligaciones: true },
+        flujoPagoSeleccionado: null,
+        flujoComprobante: null,
 
         showModal: false, modalLoading: false, triggerElement: null,
         matriculasPendientes: [], metodosPago: [], cuentasBancarias: [], enlacesDisponibles: [],
@@ -618,6 +620,42 @@ function pagosView() {
                 this.form.cuenta_bancaria_id = '';
                 this.cargarEnlacesDisponibles();
             }
+            this.cargarFlujoPagoSeleccionado();
+        },
+
+        flujoActual() {
+            return this.flujoPagoSeleccionado || this.flujoPortal;
+        },
+        flujoDePago(pago) {
+            return pago?.configuracion_flujo || this.flujoPortal;
+        },
+        async cargarFlujoPagoSeleccionado() {
+            const metodoPagoId = this.form.metodo_pago_id;
+            const matricula = this.matriculasPendientes.find(item => item.id == this.matriculaSeleccionadaId);
+            if (!metodoPagoId || !matricula) {
+                this.flujoPagoSeleccionado = null;
+                return null;
+            }
+            try {
+                const { data } = await window.axios.get('/api/v1/estudiantes/configuracion-flujo-pago', {
+                    params: {
+                        matricula_id: matricula.id,
+                        metodo_pago_id: metodoPagoId,
+                        obligacion_ids: this.selectedObligaciones[matricula.id] || [],
+                    },
+                    headers: { Authorization: `Bearer ${this.token()}` },
+                });
+                if (data.resultado === 'A') {
+                    this.flujoPagoSeleccionado = data.data;
+                    if (!data.data.habilita_seleccion_obligaciones) {
+                        this.selectedObligaciones[matricula.id] = matricula.obligaciones.map(o => o.id);
+                    }
+                    return data.data;
+                }
+            } catch (e) {
+                this.flujoPagoSeleccionado = null;
+            }
+            return null;
         },
 
         async cargarEnlacesDisponibles() {
@@ -642,24 +680,27 @@ function pagosView() {
             const idx = this.selectedObligaciones[matriculaId].indexOf(obligacionId);
             if (idx === -1) this.selectedObligaciones[matriculaId].push(obligacionId);
             else this.selectedObligaciones[matriculaId].splice(idx, 1);
+            this.cargarFlujoPagoSeleccionado();
         },
         seleccionarTodas(m) {
             this.selectedObligaciones[m.id] = m.obligaciones.map(o => o.id);
             this.matriculaSeleccionadaId = m.id;
+            this.cargarFlujoPagoSeleccionado();
         },
         deseleccionarTodas(m) {
             this.selectedObligaciones[m.id] = [];
+            this.cargarFlujoPagoSeleccionado();
         },
         cambiarMatriculaSeleccionada() {
             const m = this.matriculasPendientes.find(item => item.id == this.matriculaSeleccionadaId);
             if (m) {
                 this.selectedObligaciones = {};
                 this.seleccionarTodas(m);
-                this.aplicarSeleccionObligacionesPorFlujo(m);
+                this.cargarFlujoPagoSeleccionado();
             }
         },
         aplicarSeleccionObligacionesPorFlujo(m) {
-            if ((this.flujoPagoMatricula?.habilita_seleccion_obligaciones ?? true)) return;
+            if ((this.flujoActual()?.habilita_seleccion_obligaciones ?? true)) return;
             if (!m) return;
             this.selectedObligaciones[m.id] = m.obligaciones.map(o => o.id);
         },
@@ -673,13 +714,11 @@ function pagosView() {
             if (!token) { window.location.href = '/estudiante/login'; return; }
             this.pagos = [];
             try {
-                const flujoRes = await window.axios.get('/api/v1/seguridad/configuraciones-flujo-matricula', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
-                const flujos = flujoRes?.data?.data?.data || flujoRes?.data?.data || [];
-                this.flujoPortal = flujos.find(c => c.estado === 'activo' && c.origen === 'portal_estudiante') || this.flujoPortal;
                 const portalRes = await window.axios.post('/api/v1/estudiantes/portal', {}, { headers: { Authorization: `Bearer ${token}` } });
                 if (portalRes.data?.resultado === 'A') {
                     this.estudianteActualId = portalRes.data.data?.estudiante?.id || null;
                     this.flujoPagoMatricula = portalRes.data.data?.flujo_pago_matricula || null;
+                    this.flujoPortal = this.flujoPagoMatricula || this.flujoPortal;
                     this.cuentasBancarias = portalRes.data.data?.cuentas_bancarias || [];
                     localStorage.setItem('estudiante_data', JSON.stringify(portalRes.data.data?.estudiante || null));
                 }
@@ -720,6 +759,7 @@ function pagosView() {
                     const data = portalRes.value.data.data;
                     this.estudianteActualId = data?.estudiante?.id || this.estudianteActualId;
                     this.flujoPagoMatricula = data?.flujo_pago_matricula || this.flujoPagoMatricula;
+                    this.flujoPortal = this.flujoPagoMatricula || this.flujoPortal;
                     this.cuentasBancarias = data?.cuentas_bancarias || this.cuentasBancarias;
                     this.matriculasPendientes = data.matriculas_pendientes || [];
                     if (this.matriculasPendientes.length > 0) {
@@ -737,10 +777,14 @@ function pagosView() {
         async procesarPago() {
             if (!this.form.metodo_pago_id) { this.modalError = 'Seleccione un método de pago'; return; }
             if (this.matriculasPendientes.length === 0) { this.modalError = 'No hay obligaciones pendientes'; return; }
-            if (!this.esMetodoLink(this.form.metodo_pago_id) && this.flujoPortal.requiere_comprobante && !this.form.archivo) {
+            await this.cargarFlujoPagoSeleccionado();
+            if (!this.esMetodoLink(this.form.metodo_pago_id) && this.flujoActual().requiere_comprobante && !this.form.archivo) {
                 this.modalError = 'Debe adjuntar un comprobante de pago'; return;
             }
             if (this.esMetodoLink(this.form.metodo_pago_id)) {
+                if (!this.flujoActual().habilita_solicitud_link) {
+                    this.modalError = 'La solicitud de link está deshabilitada para este proceso.'; return;
+                }
                 const pagosConSolicitud = this.pagos.filter(p => ['solicita_link','esperando_respuesta','en_revision'].includes(p.estado) && p.obligaciones_seleccionadas && p.obligaciones_seleccionadas.length > 0);
                 if (pagosConSolicitud.length > 0) {
                     this.modalError = 'Ya tiene una solicitud de link en proceso. Debe esperar la respuesta de contabilidad antes de solicitar otro link para las mismas obligaciones.';
@@ -832,7 +876,7 @@ function pagosView() {
         },
 
         async confirmarLinkPago(p) {
-            if (!this.flujoPortal.habilita_solicitud_link) return;
+            if (!this.flujoDePago(p).habilita_solicitud_link) return;
             const token = this.token();
             try {
                 const { data } = await window.axios.post('/api/v1/estudiantes/confirmar-link-pago', { pago_id: p.id }, { headers: { Authorization: `Bearer ${token}` } });
@@ -869,6 +913,7 @@ function pagosView() {
                 }
             }
             this.selectedPago = p;
+            this.flujoComprobante = this.flujoDePago(p);
             this.formComp = { metodo_pago_id: p.metodo_pago_id || '', cuenta_bancaria_id: p.cuenta_bancaria_id || '', referencia: '', fecha_pago: '', archivo: null };
             this.uploadError = '';
         },
@@ -902,6 +947,7 @@ function pagosView() {
         },
 
         async enviarComprobante() {
+            if (!(this.flujoComprobante || this.flujoPortal).habilita_carga_comprobante) { this.uploadError = 'La carga de comprobantes está deshabilitada'; return; }
             if (!this.flujoPortal.habilita_carga_comprobante) { this.uploadError = 'La carga de comprobantes está deshabilitada'; return; }
             if (!this.formComp.archivo || !this.formComp.metodo_pago_id) { this.uploadError = 'Seleccione método de pago y archivo'; return; }
             if (this.esMetodoValidable(this.formComp.metodo_pago_id)) {
