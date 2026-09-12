@@ -13,6 +13,7 @@ use App\Models\ComprobantePago;
 use App\Models\ConceptoPago;
 use App\Models\CuentaBancaria;
 use App\Models\EnlacePago;
+use App\Models\EvaluacionNivelacion;
 use App\Models\HistorialAcademico;
 use App\Models\Matricula;
 use App\Models\MetodoPago;
@@ -82,6 +83,7 @@ class PortalEstudianteController extends Controller
         $matriculaPlanActivo = Matricula::with('ofertaAcademica.nivelAcademico.versionPlanEstudio')
             ->where('estudiante_id', $estudiante->id)
             ->where('estado', 'matriculado')
+            ->whereHas('ofertaAcademica', fn ($ofertas) => $ofertas->where('tipo_oferta', 'regular'))
             ->latest('id')
             ->first();
         $planActivoId = $matriculaPlanActivo?->ofertaAcademica?->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
@@ -96,6 +98,7 @@ class PortalEstudianteController extends Controller
             ->values();
 
         $ofertas = OfertaAcademica::where('sucursal_id', $estudiante->sucursal_id)
+            ->where('tipo_oferta', 'regular')
             ->where('estado', 'abierto')
             ->whereRaw('cupo_maximo - cupos_matriculados - cupos_reservados > 0')
             ->where('periodo_academico_id', $periodoActivo->id)
@@ -181,9 +184,10 @@ class PortalEstudianteController extends Controller
         $planOfertaId = $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
         $tieneOtroPlanActivo = Matricula::where('estudiante_id', $estudiante->id)
             ->where('estado', 'matriculado')
+            ->whereHas('ofertaAcademica', fn ($ofertas) => $ofertas->where('tipo_oferta', 'regular'))
             ->whereHas('ofertaAcademica.nivelAcademico.versionPlanEstudio', fn ($version) => $version->where('plan_estudio_id', '!=', $planOfertaId))
             ->exists();
-        if ($tieneOtroPlanActivo) {
+        if (! $oferta->esNivelacion() && $tieneOtroPlanActivo) {
             return RespuestaError::make('422_PLAN_ACTIVO_DISTINTO', 422, 'Ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.')
                 ->response($request);
         }
@@ -236,10 +240,12 @@ class PortalEstudianteController extends Controller
                 ->response($request);
         }
 
-        $prerrequisitos = app(ValidadorPrerrequisitosMatricula::class)->validar($estudiante->id, $oferta->id);
-        if ($prerrequisitos) {
-            return RespuestaError::make('422_PRERREQUISITOS_NO_CUMPLIDOS', 422, $prerrequisitos)
-                ->response($request);
+        if (! $oferta->esNivelacion()) {
+            $prerrequisitos = app(ValidadorPrerrequisitosMatricula::class)->validar($estudiante->id, $oferta->id);
+            if ($prerrequisitos) {
+                return RespuestaError::make('422_PRERREQUISITOS_NO_CUMPLIDOS', 422, $prerrequisitos)
+                    ->response($request);
+            }
         }
 
         $oferta->loadMissing('planCobro.detalles');
@@ -910,6 +916,7 @@ class PortalEstudianteController extends Controller
 
         $matricula = $estudiante->matriculas()
             ->where('estado', 'matriculado')
+            ->whereHas('ofertaAcademica', fn ($ofertas) => $ofertas->where('tipo_oferta', 'regular'))
             ->with([
                 'ofertaAcademica.nivelAcademico',
                 'ofertaAcademica.horario',
@@ -946,6 +953,74 @@ class PortalEstudianteController extends Controller
                 'docente' => $o->docente ? trim($o->docente->nombre.' '.$o->docente->apellido) : null,
             ],
         ]);
+    }
+
+    public function misNivelaciones(Request $request): JsonResponse
+    {
+        $estudiante = $request->attributes->get('estudiante');
+        $periodo = PeriodoAcademico::where('estado', 'activo')
+            ->latest('fecha_inicio')
+            ->first();
+        if ($periodo && ! $periodo->estaAbiertoParaMatricula()) {
+            $periodo = null;
+        }
+
+        $evaluaciones = EvaluacionNivelacion::with(['nivelAcademico:id,codigo,nombre', 'nivelRecomendado:id,codigo,nombre'])
+            ->where('estudiante_id', $estudiante->id)
+            ->latest('id')
+            ->get()
+            ->map(function (EvaluacionNivelacion $evaluacion) use ($estudiante, $periodo) {
+                $ofertas = collect();
+                if ($evaluacion->estado === 'aprobada' && $evaluacion->nivel_recomendado_id && $periodo) {
+                    $ofertas = OfertaAcademica::with(['horario:id,nombre,hora_inicio,hora_fin', 'modalidad:id,nombre', 'docente:id,nombre,apellido'])
+                        ->where('sucursal_id', $estudiante->sucursal_id)
+                        ->where('periodo_academico_id', $periodo->id)
+                        ->where('nivel_academico_id', $evaluacion->nivel_recomendado_id)
+                        ->where('tipo_oferta', 'regular')
+                        ->where('estado', 'abierto')
+                        ->whereRaw('cupo_maximo - cupos_matriculados - cupos_reservados > 0')
+                        ->get();
+                }
+
+                return [
+                    'id' => $evaluacion->id, 'codigo' => $evaluacion->codigo, 'estado' => $evaluacion->estado,
+                    'nota_obtenida' => $evaluacion->nota_obtenida, 'nivel_acreditado' => $evaluacion->nivelAcademico,
+                    'nivel_recomendado' => $evaluacion->nivelRecomendado, 'ofertas_recomendadas' => $ofertas,
+                ];
+            });
+
+        return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => 'OK', 'data' => $evaluaciones]);
+    }
+
+    public function ofertasNivelacion(Request $request): JsonResponse
+    {
+        $estudiante = $request->attributes->get('estudiante');
+        $periodo = PeriodoAcademico::abierto()->latest('fecha_inicio')->first();
+
+        $ofertas = $periodo
+            ? OfertaAcademica::with(['nivelAcademico.versionPlanEstudio.planEstudio', 'modalidad:id,nombre', 'horario:id,nombre,hora_inicio,hora_fin', 'docente:id,nombre,apellido', 'planCobro.detalles'])
+                ->where('sucursal_id', $estudiante->sucursal_id)
+                ->where('periodo_academico_id', $periodo->id)
+                ->where('tipo_oferta', 'nivelacion')
+                ->where('estado', 'abierto')
+                ->whereRaw('cupo_maximo - cupos_matriculados - cupos_reservados > 0')
+                ->get()
+                ->map(fn (OfertaAcademica $oferta) => [
+                    'id' => $oferta->id,
+                    'codigo' => $oferta->codigo,
+                    'nivel' => $oferta->nivelAcademico?->nombre,
+                    'plan_estudio_id' => $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id,
+                    'plan_estudio_nombre' => $oferta->nivelAcademico?->versionPlanEstudio?->planEstudio?->nombre,
+                    'horario' => $oferta->horario?->nombre,
+                    'horario_rango' => $oferta->horario ? $oferta->horario->hora_inicio.' - '.$oferta->horario->hora_fin : null,
+                    'modalidad' => $oferta->modalidad?->nombre,
+                    'docente' => $oferta->docente ? trim($oferta->docente->nombre.' '.$oferta->docente->apellido) : null,
+                    'cupos_disponibles' => $oferta->cupos_disponibles,
+                    'monto_total' => $oferta->planCobro?->detalles->sum('monto'),
+                ])
+            : collect();
+
+        return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => 'OK', 'data' => $ofertas]);
     }
 
     public function misCalificaciones(Request $request): JsonResponse

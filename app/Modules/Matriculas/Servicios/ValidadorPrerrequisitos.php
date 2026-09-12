@@ -23,6 +23,7 @@ final class ValidadorPrerrequisitos
         $nivelacionesAprobadas = EvaluacionNivelacion::with('nivelAcademico:id,version_plan_estudio_id,orden')
             ->where('estudiante_id', $estudianteId)
             ->where('aprobado', true)
+            ->whereIn('estado', ['activo', 'aprobada'])
             ->get();
 
         $idsCumplidos = HistorialAcademico::where('estudiante_id', $estudianteId)

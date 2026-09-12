@@ -94,6 +94,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::post('/portal', [EstudianteAuthController::class, 'portal']);
 
     Route::get('/mis-ofertas', [PortalEstudianteController::class, 'misOfertas']);
+    Route::get('/ofertas-nivelacion', [PortalEstudianteController::class, 'ofertasNivelacion']);
     Route::post('/reservar-matricula', [PortalEstudianteController::class, 'reservarMatricula']);
     Route::get('/mis-matriculas', [PortalEstudianteController::class, 'misMatriculas']);
     Route::post('/registrar-pago', [PortalEstudianteController::class, 'registrarPago']);
@@ -111,6 +112,7 @@ Route::middleware('auth.estudiante')->prefix('v1/estudiantes')->group(function (
     Route::get('/mis-pagos', [PortalEstudianteController::class, 'misPagos']);
     Route::get('/mis-recibos', [PortalEstudianteController::class, 'misRecibos']);
     Route::get('/mi-nivel', [PortalEstudianteController::class, 'miNivel']);
+    Route::get('/mis-nivelaciones', [PortalEstudianteController::class, 'misNivelaciones']);
     Route::get('/mis-calificaciones', [EstudianteAuthController::class, 'misCalificaciones']);
     Route::get('/mis-certificados', [PortalEstudianteController::class, 'misCertificados']);
     Route::post('/certificados/electronicos', [CertificadoElectronicoController::class, 'emitir']);
@@ -522,6 +524,7 @@ Route::middleware(['admin.session', 'auth:sanctum', 'log.peticion'])->prefix('v1
         Route::get('/', [NivelacionController::class, 'index'])->middleware('permission:nivelaciones.consultar');
         Route::get('/pendientes', [NivelacionController::class, 'pendientes'])->middleware('permission:nivelaciones.consultar');
         Route::post('/registrar', [NivelacionController::class, 'registrar'])->middleware('permission:nivelaciones.crear');
+        Route::post('/{evaluacionNivelacion}/anular', [NivelacionController::class, 'anular'])->middleware('permission:nivelaciones.anular');
     });
 
     Route::prefix('historial-academico')->group(function () {

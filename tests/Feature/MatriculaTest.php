@@ -22,10 +22,11 @@ use App\Models\Rol;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\VersionPlanEstudio;
-use App\Modules\Comun\ContextoUsuario;
 use App\Modules\Matriculas\CasosUso\CancelarMatricula;
 use App\Modules\Matriculas\CasosUso\ConfirmarMatricula;
 use App\Modules\Matriculas\CasosUso\ReservarMatricula;
+use App\Modules\Nivelaciones\CasosUso\RegistrarResultadoNivelacion;
+use App\Modules\Comun\ContextoUsuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -471,6 +472,74 @@ class MatriculaTest extends TestCase
         $this->oferta->refresh();
         $this->assertEquals(0, $this->oferta->cupos_matriculados);
         $this->assertEquals(1, $this->oferta->cupos_reservados);
+    }
+
+    public function test_registrar_resultado_de_nivelacion_calcula_el_siguiente_nivel_sin_crear_historial(): void
+    {
+        $nivel2 = NivelAcademico::create([
+            'version_plan_estudio_id' => $this->nivel->versionPlanEstudio->id,
+            'regimen_academico_id' => $this->regimen->id,
+            'codigo' => 'ING-2-NIV',
+            'nombre' => 'Inglés 2',
+            'orden' => 2,
+            'nota_minima_aprobar' => 80,
+            'faltas_maximas_permitidas' => 7,
+        ]);
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+        $matriculaExamen = \App\Models\Matricula::create([
+            'codigo' => 'MAT-NIV-001',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+
+        $resultado = app(RegistrarResultadoNivelacion::class)->ejecutar($matriculaExamen, [
+            'nota_obtenida' => 90,
+            'aprobado' => true,
+            'nivel_acreditado_id' => $this->nivel->id,
+            'observaciones' => 'Demuestra dominio del nivel acreditado.',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertSame(201, $resultado->codigo());
+        $this->assertSame($nivel2->id, $resultado->data()['evaluacion']->nivel_recomendado_id);
+        $this->assertDatabaseHas('evaluaciones_nivelacion', [
+            'matricula_examen_id' => $matriculaExamen->id,
+            'nivel_academico_id' => $this->nivel->id,
+            'nivel_recomendado_id' => $nivel2->id,
+            'aprobado' => true,
+            'estado' => 'aprobada',
+        ]);
+        $this->assertDatabaseCount('historial_academico', 0);
+    }
+
+    public function test_registrar_resultado_rechazado_de_nivelacion_no_asigna_niveles(): void
+    {
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+        $matriculaExamen = \App\Models\Matricula::create([
+            'codigo' => 'MAT-NIV-002',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+        ]);
+
+        $resultado = app(RegistrarResultadoNivelacion::class)->ejecutar($matriculaExamen, [
+            'nota_obtenida' => 45,
+            'aprobado' => false,
+            'observaciones' => 'Debe iniciar en el nivel base.',
+        ], new ContextoUsuario($this->admin->id));
+
+        $this->assertTrue($resultado->ok());
+        $this->assertDatabaseHas('evaluaciones_nivelacion', [
+            'matricula_examen_id' => $matriculaExamen->id,
+            'aprobado' => false,
+            'estado' => 'rechazada',
+            'nivel_academico_id' => null,
+            'nivel_recomendado_id' => null,
+        ]);
+        $this->assertDatabaseCount('historial_academico', 0);
     }
 
     public function test_cancelar_matricula_libera_cupo(): void

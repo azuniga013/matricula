@@ -50,6 +50,7 @@
                             <a href="/estudiante/historial" :class="currentSection === 'historial' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Historial</a>
                             <a href="/estudiante/certificados" :class="currentSection === 'certificados' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Certificados</a>
                             <a href="/estudiante/matricula" :class="currentSection === 'matricula' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Matrícula</a>
+                            <a href="/estudiante/nivelaciones" :class="currentSection === 'nivelaciones' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Nivelación</a>
                             <a href="/estudiante/pagos" :class="currentSection === 'pagos' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Obligaciones</a>
                             <a href="/estudiante/recibos" :class="currentSection === 'recibos' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Recibos</a>
                         </nav>
@@ -73,6 +74,7 @@
             <a href="/estudiante/historial" :class="currentSection === 'historial' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Historial</a>
             <a href="/estudiante/certificados" :class="currentSection === 'certificados' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Certificados</a>
             <a href="/estudiante/matricula" :class="currentSection === 'matricula' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Matrícula</a>
+            <a href="/estudiante/nivelaciones" :class="currentSection === 'nivelaciones' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Nivelación</a>
             <a href="/estudiante/pagos" :class="currentSection === 'pagos' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Obligaciones</a>
             <a href="/estudiante/recibos" :class="currentSection === 'recibos' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">Recibos</a>
         </nav>

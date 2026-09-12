@@ -15,6 +15,7 @@ Route::get('/admin/monitor', fn () => view('admin.monitor', ['title' => 'Monitor
 Route::get('/admin/estudiantes', fn () => view('admin.estudiantes', ['title' => 'Estudiantes']))->name('admin.estudiantes');
 Route::get('/admin/matriculas', fn () => view('admin.matriculas', ['title' => 'Matrícula']))->name('admin.matriculas');
 Route::get('/admin/calificaciones', fn () => view('admin.calificaciones', ['title' => 'Calificaciones']))->name('admin.calificaciones');
+Route::get('/admin/nivelaciones', fn () => view('admin.nivelaciones', ['title' => 'Nivelaciones']))->name('admin.nivelaciones');
 Route::get('/admin/mis-grupos', fn () => view('admin.mis-grupos', ['title' => 'Mis Grupos']))->name('admin.mis-grupos');
 Route::get('/admin/asistencias', fn () => view('admin.asistencias', ['title' => 'Asistencias']))->name('admin.asistencias');
 Route::get('/admin/inventario', fn () => view('admin.inventario', ['title' => 'Inventario y Libros']))->name('admin.inventario');
@@ -46,6 +47,7 @@ Route::get('/estudiante', fn () => view('estudiante.dashboard', ['currentSection
 Route::get('/estudiante/historial', fn () => view('estudiante.historial', ['currentSection' => 'historial']))->name('estudiante.historial');
 Route::get('/estudiante/certificados', fn () => view('estudiante.certificados', ['currentSection' => 'certificados']))->name('estudiante.certificados');
 Route::get('/estudiante/matricula', fn () => view('estudiante.matricula', ['currentSection' => 'matricula']))->name('estudiante.matricula');
+Route::get('/estudiante/nivelaciones', fn () => view('estudiante.nivelaciones', ['currentSection' => 'nivelaciones']))->name('estudiante.nivelaciones');
 Route::redirect('/estudiante/comprobante', '/estudiante/pagos')->name('estudiante.comprobante');
 Route::get('/estudiante/pagos', fn () => view('estudiante.pagos', ['currentSection' => 'pagos']))->name('estudiante.pagos');
 Route::get('/estudiante/recibos', fn () => view('estudiante.recibos', ['currentSection' => 'recibos']))->name('estudiante.recibos');

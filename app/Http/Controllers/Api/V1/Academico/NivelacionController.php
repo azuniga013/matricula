@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EvaluacionNivelacion;
 use App\Models\Matricula;
 use App\Modules\Comun\ContextoUsuario;
+use App\Modules\Nivelaciones\CasosUso\AnularResultadoNivelacion;
 use App\Modules\Nivelaciones\CasosUso\RegistrarResultadoNivelacion;
 use App\Services\ResolutorAlcanceDatos;
 use App\Services\ServicioBitacora;
@@ -35,7 +36,7 @@ class NivelacionController extends Controller
 
     public function pendientes(Request $request): JsonResponse
     {
-        $query = Matricula::with(['estudiante:id,codigo,nombre,apellido', 'ofertaAcademica.nivelAcademico', 'ofertaAcademica.periodoAcademico'])
+        $query = Matricula::with(['estudiante:id,codigo,nombre,apellido', 'ofertaAcademica.nivelAcademico.versionPlanEstudio', 'ofertaAcademica.periodoAcademico'])
             ->where('estado', 'matriculado')
             ->whereHas('ofertaAcademica', function ($ofertas) use ($request) {
                 $ofertas->where('tipo_oferta', 'nivelacion');
@@ -52,9 +53,12 @@ class NivelacionController extends Controller
             'matricula_examen_id' => 'required|exists:matriculas,id',
             'nota_obtenida' => 'required|numeric|min:0|max:100',
             'aprobado' => 'required|boolean',
-            'nivel_acreditado_id' => 'nullable|required_if:aprobado,true|exists:niveles_academicos,id',
+            'nivel_acreditado_id' => 'nullable|exists:niveles_academicos,id',
             'observaciones' => 'nullable|string|max:2000',
         ]);
+        if ($request->boolean('aprobado') && empty($datos['nivel_acreditado_id'])) {
+            return RespuestaError::make('422_NIVEL_ACREDITADO_REQUERIDO', 422, 'Debe indicar el nivel acreditado cuando el examen es aprobado')->response($request);
+        }
         $matricula = Matricula::with('ofertaAcademica')->findOrFail($datos['matricula_examen_id']);
         if (! $matricula->ofertaAcademica || ! app(ResolutorAlcanceDatos::class)->aplicarAlcance($matricula->ofertaAcademica->newQuery(), $request->user(), 'ofertas_academicas')->whereKey($matricula->ofertaAcademica->id)->exists()) {
             return RespuestaError::make('403_SIN_ALCANCE', 403, 'No tiene acceso a esta oferta de nivelación')->response($request);
@@ -66,5 +70,21 @@ class NivelacionController extends Controller
         app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'nivelaciones', 'registrar_resultado', 'evaluaciones_nivelacion', $resultado->data()['evaluacion']->id, null, $resultado->data()['evaluacion']->toArray(), 'Resultado de nivelación registrado');
 
         return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => $resultado->mensaje(), 'data' => $resultado->data()['evaluacion']], $resultado->codigo());
+    }
+
+    public function anular(Request $request, EvaluacionNivelacion $evaluacionNivelacion): JsonResponse
+    {
+        $datos = $request->validate(['motivo_anulacion' => 'required|string|min:5|max:2000']);
+        if (! $evaluacionNivelacion->ofertaExamen || ! app(ResolutorAlcanceDatos::class)->aplicarAlcance($evaluacionNivelacion->ofertaExamen->newQuery(), $request->user(), 'ofertas_academicas')->whereKey($evaluacionNivelacion->oferta_examen_id)->exists()) {
+            return RespuestaError::make('403_SIN_ALCANCE', 403, 'No tiene acceso a este resultado de nivelación')->response($request);
+        }
+        $antes = $evaluacionNivelacion->only(['estado', 'aprobado', 'motivo_anulacion']);
+        $resultado = app(AnularResultadoNivelacion::class)->ejecutar($evaluacionNivelacion, $datos['motivo_anulacion'], ContextoUsuario::desdeRequest());
+        if (! $resultado->ok()) {
+            return RespuestaError::make($resultado->codigoError() ?? 'ERROR', $resultado->codigo(), $resultado->mensaje())->response($request);
+        }
+        app(ServicioBitacora::class)->registrarAuditoriaDesdeRequest($request, 'nivelaciones', 'anular_resultado', 'evaluaciones_nivelacion', $evaluacionNivelacion->id, $antes, $resultado->data()['evaluacion']->toArray(), 'Resultado de nivelación anulado');
+
+        return response()->json(['resultado' => 'A', 'codigo' => 0, 'mensaje' => $resultado->mensaje(), 'data' => $resultado->data()['evaluacion']]);
     }
 }

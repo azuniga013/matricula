@@ -221,6 +221,7 @@ class ReporteController extends Controller
             ->join('niveles_academicos', 'ofertas_academicas.nivel_academico_id', '=', 'niveles_academicos.id')
             ->leftJoin('estudiantes', 'matriculas.estudiante_id', '=', 'estudiantes.id')
             ->where('matriculas.estado', 'matriculado')
+            ->where('ofertas_academicas.tipo_oferta', 'regular')
             ->select(
                 'periodos_academicos.codigo as periodo_codigo',
                 'periodos_academicos.nombre as periodo_nombre',
@@ -258,6 +259,7 @@ class ReporteController extends Controller
             ->join('ofertas_academicas', 'matriculas.oferta_academica_id', '=', 'ofertas_academicas.id')
             ->join('sucursales', 'ofertas_academicas.sucursal_id', '=', 'sucursales.id')
             ->where('matriculas.estado', 'matriculado')
+            ->where('ofertas_academicas.tipo_oferta', 'regular')
             ->select(
                 'sucursales.codigo as sucursal_codigo',
                 'sucursales.nombre as sucursal_nombre',
@@ -292,6 +294,7 @@ class ReporteController extends Controller
             ->join('ofertas_academicas', 'matriculas.oferta_academica_id', '=', 'ofertas_academicas.id')
             ->join('niveles_academicos', 'ofertas_academicas.nivel_academico_id', '=', 'niveles_academicos.id')
             ->where('matriculas.estado', 'matriculado')
+            ->where('ofertas_academicas.tipo_oferta', 'regular')
             ->select(
                 'niveles_academicos.codigo as nivel_codigo',
                 'niveles_academicos.nombre as nivel_nombre',
@@ -348,6 +351,8 @@ class ReporteController extends Controller
 
         $this->aplicarAlcanceReporte($request, $query, 'ofertas_academicas.sucursal_id', 'ofertas_academicas.docente_id');
 
+        $query->where('ofertas_academicas.tipo_oferta', 'regular');
+
         if ($request->filled('periodo_academico_id')) {
             $query->where('ofertas_academicas.periodo_academico_id', $request->periodo_academico_id);
         }
@@ -390,6 +395,7 @@ class ReporteController extends Controller
             ->leftJoin('sucursales', 'ofertas_academicas.sucursal_id', '=', 'sucursales.id')
             ->where('matriculas.oferta_academica_id', $request->oferta_academica_id)
             ->where('matriculas.estado', 'matriculado')
+            ->where('ofertas_academicas.tipo_oferta', 'regular')
             ->select(
                 'sucursales.codigo as sucursal_codigo',
                 'sucursales.nombre as sucursal_nombre',
@@ -467,6 +473,7 @@ class ReporteController extends Controller
             ->join('periodos_academicos', 'ofertas_academicas.periodo_academico_id', '=', 'periodos_academicos.id')
             ->where('matriculas.estudiante_id', $request->estudiante_id)
             ->where('matriculas.estado', 'matriculado')
+            ->where('ofertas_academicas.tipo_oferta', 'regular')
             ->select(
                 'niveles_academicos.codigo as nivel_codigo',
                 'niveles_academicos.nombre as nivel_nombre',

@@ -855,6 +855,48 @@ class PortalEstudianteTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_ofertas_de_nivelacion_se_listan_aparte_de_la_matricula_ordinaria_y_se_pueden_reservar(): void
+    {
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+
+        $this->getJson('/api/v1/estudiantes/mis-ofertas', $this->studentHeaders())
+            ->assertOk()
+            ->assertJsonCount(0, 'data.ofertas');
+
+        $this->getJson('/api/v1/estudiantes/ofertas-nivelacion', $this->studentHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $this->oferta->id);
+
+        $this->postJson('/api/v1/estudiantes/reservar-matricula', [
+            'oferta_academica_id' => $this->oferta->id,
+        ], $this->studentHeaders())
+            ->assertCreated()
+            ->assertJsonPath('resultado', 'A');
+
+        $this->assertDatabaseHas('matriculas', [
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'estado' => 'reservada',
+        ]);
+    }
+
+    public function test_mi_nivel_no_considera_la_matricula_de_un_examen_de_nivelacion_como_curso_actual(): void
+    {
+        $this->oferta->update(['tipo_oferta' => 'nivelacion']);
+        Matricula::create([
+            'codigo' => 'MAT-NIV-001',
+            'estudiante_id' => $this->estudiante->id,
+            'oferta_academica_id' => $this->oferta->id,
+            'sucursal_id' => $this->sucursal->id,
+            'estado' => 'matriculado',
+            'fecha_confirmacion' => now(),
+        ]);
+
+        $this->getJson('/api/v1/estudiantes/mi-nivel', $this->studentHeaders())
+            ->assertOk()
+            ->assertJsonPath('data', null);
+    }
+
     public function test_whatsapp_sin_pago(): void
     {
         $this->oferta->update([

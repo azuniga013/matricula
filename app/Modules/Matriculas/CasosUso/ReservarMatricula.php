@@ -64,13 +64,15 @@ final class ReservarMatricula
             }
 
             $planNuevoId = $oferta->nivelAcademico?->versionPlanEstudio?->plan_estudio_id;
-            if ($planNuevoId && $this->repositorio->tienePlanActivoDiferente($estudianteId, $planNuevoId)) {
+            if (! $oferta->esNivelacion() && $planNuevoId && $this->repositorio->tienePlanActivoDiferente($estudianteId, $planNuevoId)) {
                 return ResultadoCasoUso::error(422, 'El estudiante ya tiene un plan de estudios activo. Debe finalizarlo antes de cambiarse a otro plan.');
             }
 
-            $prerrequisitos = $this->validadorPrerrequisitos->validar($estudianteId, $oferta->id);
-            if ($prerrequisitos) {
-                return ResultadoCasoUso::error(422, $prerrequisitos);
+            if (! $oferta->esNivelacion()) {
+                $prerrequisitos = $this->validadorPrerrequisitos->validar($estudianteId, $oferta->id);
+                if ($prerrequisitos) {
+                    return ResultadoCasoUso::error(422, $prerrequisitos);
+                }
             }
 
             $codigoMatricula = $this->nomenclatura->generarCodigo(

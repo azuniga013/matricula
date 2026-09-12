@@ -25,6 +25,7 @@ final class ValidadorConflictoHorario
 
         $query = Matricula::where('estudiante_id', $estudianteId)
             ->whereIn('estado', ['reservada', 'en_revision', 'matriculado'])
+            ->whereDoesntHave('evaluacionNivelacion')
             ->whereHas('ofertaAcademica', fn ($q) => $q->where('periodo_academico_id', $periodoId))
             ->where('oferta_academica_id', '!=', $ofertaAcademicaId)
             ->with('ofertaAcademica.horario');

@@ -150,6 +150,12 @@ Sucursal
   orden anterior al nivel que los requiere.
 - Un examen de nivelación aprobado del mismo plan, con orden igual o superior,
   puede satisfacer un prerrequisito.
+- Una oferta se clasifica explícitamente como `regular` o `nivelacion`. La
+  nivelación usa la misma reserva, cupo, pago y ventana de matrícula, pero no
+  exige los prerrequisitos ordinarios ni se presenta como curso regular.
+- El resultado conserva la matrícula del examen, el nivel acreditado y el nivel
+  recomendado; aprobar o anular un resultado no crea historial académico,
+  calificación regular ni certificado.
 - Las modalidades distinguen el régimen académico (por ejemplo, Intensivo o
   Semi Intensivo) de la atención (por ejemplo, Presencial o Virtual).
 - Los horarios son reutilizables como catálogo, pero su disponibilidad real se
@@ -194,6 +200,13 @@ sucursal + periodo + plan/versión + nivel + modalidad + horario
   puede volver a `abierto`.
 - El estudiante solo debe ver ofertas del periodo abierto, de su sucursal,
   permitidas por su nivel, abiertas y con cupo disponible.
+- Las ofertas de nivelación se muestran por separado en el portal. Después de
+  un resultado aprobado, el estudiante elige una oferta `regular` del nivel
+  recomendado; esa segunda reserva vuelve a aplicar cupo, ventana, conflicto
+  de horario y pago normal.
+- Un examen ya evaluado no bloquea por horario una reserva posterior. Los
+  reportes académicos regulares excluyen las ofertas `nivelacion`; su historial
+  administrativo se consulta en el módulo Nivelaciones.
 - En el Portal Académico, las pantallas operativas deben filtrar en este orden:
   `periodo -> nivel -> horario`. Un periodo cerrado permite consulta
   histórica, pero no creación ni operación académica nueva.

@@ -43,6 +43,7 @@ class SeguridadRbacSeeder extends Seeder
                 $q->where('codigo', 'like', 'pagos.%')
                   ->orWhere('codigo', 'like', 'reportes.%')
                   ->orWhere('codigo', 'like', 'inventario.%')
+                  ->orWhere('codigo', 'like', 'nivelaciones.%')
                   ->orWhere('codigo', 'like', 'configuracion.%')
                   ->orWhere('codigo', 'like', 'distribucion_apk.%')
                   ->orWhere('codigo', 'like', 'seguridad.parametros.%');
@@ -86,6 +87,7 @@ class SeguridadRbacSeeder extends Seeder
                   ->orWhere('codigo', 'like', 'catalogos.%')
                   ->orWhere('codigo', 'like', 'ofertas.%')
                   ->orWhere('codigo', 'like', 'calificaciones.%')
+                  ->orWhere('codigo', 'like', 'nivelaciones.%')
                   ->orWhere('codigo', 'like', 'asistencias.%')
                   ->orWhere('codigo', 'like', 'reportes.academicos.%');
             })->get();
